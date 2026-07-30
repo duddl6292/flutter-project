@@ -1,0 +1,52 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# JavaScript
+node_modules/
+frontend/dist/
+frontend/build/
+*.log
+
+# Flutter and Dart
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/build/
+mobile/coverage/
+
+# Django
+backend/staticfiles/
+backend/media/
+backend/db.sqlite3
+
+# Inference artifacts and medical data
+inference/models/
+inference/checkpoints/
+inference/outputs/
+data/
+*.nii
+*.nii.gz
+*.dcm
+
