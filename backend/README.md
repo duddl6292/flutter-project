@@ -1,13 +1,36 @@
 # BrainOn Backend
 
-환자, 예약, 처방, 검사, 알림 기능을 제공할 Django REST API 위치입니다.
+환자·예약·처방·검사·알림 기능을 확장할 Django REST API입니다.
 
-## 예정 구조
+## 로컬 준비
 
-- `config/`: Django 프로젝트 설정과 최상위 URL 구성
-- `apps/`: 도메인별 Django 앱
-- `tests/`: API 및 도메인 테스트
+저장소 루트에서 PostgreSQL을 먼저 실행합니다.
 
-Django 프로젝트 생성과 패키지 선택은 다음 구현 단계에서 수행합니다. 비밀키는
-소스에 기록하지 않고 환경변수로만 주입합니다.
+```powershell
+Copy-Item .env.example .env
+docker compose --env-file .env up -d postgres
+```
 
+백엔드를 실행합니다.
+
+```powershell
+Set-Location backend
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver
+```
+
+Health endpoint:
+
+```text
+GET http://localhost:8000/api/health/
+```
+
+테스트:
+
+```powershell
+$env:DJANGO_SETTINGS_MODULE = "config.test_settings"
+python manage.py test
+```

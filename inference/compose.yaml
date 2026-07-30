@@ -9,7 +9,7 @@ services:
 
     ports:
       # Direct MOSEC access is for local diagnostics only.
-      - "${MOSEC_HOST_PORT:-8002}:8000"
+      - "${MOSEC_HOST_PORT:-8001}:8000"
 
     env_file:
       - path: .env
@@ -40,7 +40,7 @@ services:
     container_name: brainon-inference-gateway
 
     ports:
-      - "${INFERENCE_GATEWAY_PORT:-8001}:8001"
+      - "${INFERENCE_GATEWAY_PORT:-8100}:8001"
 
     environment:
       PORT: "8001"

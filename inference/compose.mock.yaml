@@ -7,7 +7,7 @@ services:
     image: brainon-mock-mosec:dev
 
     ports:
-      - "${MOSEC_PORT:-8000}:8000"
+      - "${MOSEC_HOST_PORT:-8001}:8000"
 
     environment:
       PORT: "8000"
@@ -22,7 +22,7 @@ services:
     image: brainon-inference-gateway:dev
 
     ports:
-      - "${GATEWAY_PORT:-8001}:8001"
+      - "${INFERENCE_GATEWAY_PORT:-8100}:8001"
 
     environment:
       PORT: "8001"

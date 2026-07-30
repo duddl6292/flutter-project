@@ -27,6 +27,7 @@ venv/
 node_modules/
 frontend/dist/
 frontend/build/
+frontend/*.tsbuildinfo
 *.log
 
 # Flutter and Dart
@@ -49,4 +50,3 @@ data/
 *.nii
 *.nii.gz
 *.dcm
-

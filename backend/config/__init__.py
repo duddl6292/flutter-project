@@ -1,0 +1,1 @@
+"""BrainOn Django project configuration."""

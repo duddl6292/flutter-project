@@ -1,13 +1,23 @@
 # BrainOn Frontend
 
-의료진이 환자, 예약, 처방, 검사 결과를 관리할 React 웹 서비스 위치입니다.
+의료진용 React·TypeScript 웹입니다. Node.js 24와 잠금 파일 기반 설치를 사용합니다.
 
-## 예정 구조
+## 실행
 
-- `src/`: 애플리케이션 소스
-- `public/`: 정적 파일
+```powershell
+Set-Location frontend
+npm.cmd ci
+npm.cmd run dev
+```
 
-기존 React 코드가 확보되면 프레임워크, 라우터, 상태 관리, API 호출 방식을
-그대로 분석한 뒤 이 디렉터리로 옮깁니다. 현재 단계에서는 특정 React 도구를
-임의로 선택하거나 기존 코드를 대체하지 않습니다.
+기본 주소:
 
+```text
+http://localhost:5173
+```
+
+프로덕션 빌드:
+
+```powershell
+npm.cmd run build
+```

@@ -28,9 +28,9 @@ Mock 서버와 strict v1 요청·응답 계약을 보존합니다.
 docker compose -f inference\compose.mock.yaml up --build
 ```
 
-- Gateway: `http://localhost:8001`
-- Mock MOSEC: `http://localhost:8000`
-- Health check: `GET http://localhost:8001/health`
-- Inference: `POST http://localhost:8001/api/v1/inference`
+- Gateway: `http://localhost:8100`
+- Mock MOSEC: `http://localhost:8001`
+- Health check: `GET http://localhost:8100/health`
+- Inference: `POST http://localhost:8100/api/v1/inference`
 
 요청과 응답 예시는 루트 `contracts/`에 있습니다.
