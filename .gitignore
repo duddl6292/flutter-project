@@ -7,6 +7,8 @@
 *.p12
 *.pfx
 secrets/
+*service-account*.json
+firebase-admin*.json
 
 # Editors and operating systems
 .idea/
@@ -29,6 +31,10 @@ frontend/dist/
 frontend/build/
 frontend/*.tsbuildinfo
 *.log
+ai/logs/
+ai/generated/
+ai/.genkit/
+ai/dist/
 
 # Flutter and Dart
 mobile/.dart_tool/
@@ -41,6 +47,7 @@ mobile/coverage/
 backend/staticfiles/
 backend/media/
 backend/db.sqlite3
+postgres-data/
 
 # Inference artifacts and medical data
 inference/models/
