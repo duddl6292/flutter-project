@@ -54,7 +54,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyBgZY4GugHw8PkacCK0EkZ15-lLgmvidfI',
-    appId: '1:654500556535:android:0ba8fbd83ec080dcaaadf2',
+    appId: '1:654500556535:android:31071061963e2200aaadf2',
     messagingSenderId: '654500556535',
     projectId: 'brainon-4',
     storageBucket: 'brainon-4.firebasestorage.app',

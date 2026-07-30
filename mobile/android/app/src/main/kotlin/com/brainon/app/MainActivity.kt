@@ -1,4 +1,4 @@
-package com.brainon.patient
+package com.brainon.app
 
 import io.flutter.embedding.android.FlutterActivity
 
