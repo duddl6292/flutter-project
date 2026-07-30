@@ -1,4 +1,4 @@
-# Inference Application
+# MOSEC Inference Application
 
-기존 추론 서비스의 애플리케이션 진입점과 공통 설정을 둘 위치입니다.
-
+MOSEC Worker, nnU-Net 모델 로더, CT 전처리·후처리, 측정, 스토리지 및
+추론 파이프라인 구현입니다.

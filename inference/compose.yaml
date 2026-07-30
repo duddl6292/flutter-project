@@ -1,0 +1,56 @@
+services:
+  mosec:
+    build:
+      context: ..
+      dockerfile: inference/mosec/Dockerfile
+
+    image: brainon-mosec:dev
+    container_name: brainon-mosec
+
+    ports:
+      # Direct MOSEC access is for local diagnostics only.
+      - "${MOSEC_HOST_PORT:-8001}:8000"
+
+    env_file:
+      - path: .env
+        required: false
+
+    environment:
+      PYTHONUNBUFFERED: "1"
+      GOOGLE_APPLICATION_CREDENTIALS: /var/run/secrets/google/application_default_credentials.json
+
+    volumes:
+      - type: bind
+        source: "${APPDATA}/gcloud/application_default_credentials.json"
+        target: /var/run/secrets/google/application_default_credentials.json
+        read_only: true
+
+      - type: volume
+        source: mosec-model-cache
+        target: /models
+
+    restart: unless-stopped
+
+  gateway:
+    build:
+      context: ..
+      dockerfile: inference/gateway/Dockerfile
+
+    image: brainon-inference-gateway:dev
+    container_name: brainon-inference-gateway
+
+    ports:
+      - "${INFERENCE_GATEWAY_PORT:-8100}:8001"
+
+    environment:
+      PORT: "8001"
+      MOSEC_URL: "http://mosec:8000"
+      MOSEC_TIMEOUT_SECONDS: "${GATEWAY_MOSEC_TIMEOUT_SECONDS:-300}"
+
+    depends_on:
+      - mosec
+
+    restart: unless-stopped
+
+volumes:
+  mosec-model-cache:

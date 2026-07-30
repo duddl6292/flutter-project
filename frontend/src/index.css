@@ -1,0 +1,69 @@
+:root {
+  font-family:
+    Inter, Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  color: #17324d;
+  background: #f3f7fb;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+.app-shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+}
+
+.welcome-card {
+  width: min(100%, 560px);
+  padding: 40px;
+  border: 1px solid #d8e4ef;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 16px 40px rgb(28 74 113 / 8%);
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #28669e;
+  font-weight: 700;
+}
+
+h1 {
+  margin: 0 0 16px;
+}
+
+.status {
+  margin: 24px 0 0;
+  font-weight: 600;
+}
+
+.status--loading {
+  color: #52687c;
+}
+
+.status--connected {
+  color: #14734f;
+}
+
+.status--unavailable {
+  color: #a63b32;
+}

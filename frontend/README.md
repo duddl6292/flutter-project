@@ -1,13 +1,14 @@
 # BrainOn Frontend
 
-의료진이 환자, 예약, 처방, 검사 결과를 관리할 React 웹 서비스 위치입니다.
+의료진 전용 React·TypeScript CDSS입니다. 기존 Django health 확인 화면을 유지하면서 React Router, TanStack Query, Zustand 인증 상태 및 공통 fetch wrapper가 구성되어 있습니다.
 
-## 예정 구조
+Refresh Token은 HttpOnly Cookie로만 전달하며 JavaScript에서 읽지 않습니다. Access Token과 인증 사용자는 메모리에만 보관합니다. 실제 로그인 및 의료진 화면 디자인은 후속 구현 범위입니다.
 
-- `src/`: 애플리케이션 소스
-- `public/`: 정적 파일
+```powershell
+Set-Location frontend
+npm.cmd ci
+npm.cmd run dev
+npm.cmd run build
+```
 
-기존 React 코드가 확보되면 프레임워크, 라우터, 상태 관리, API 호출 방식을
-그대로 분석한 뒤 이 디렉터리로 옮깁니다. 현재 단계에서는 특정 React 도구를
-임의로 선택하거나 기존 코드를 대체하지 않습니다.
-
+로컬 기본 주소는 `http://localhost:5173`이며 API 주소는 `VITE_API_BASE_URL`로 설정합니다.
