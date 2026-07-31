@@ -101,4 +101,4 @@ flutter_launcher_icons:
   ios: false
   image_path: "../image/message_image.png"
   adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: "../image/message_image.png"
+  adaptive_icon_foreground: "../image/icon.png"
