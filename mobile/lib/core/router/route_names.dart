@@ -1,3 +1,4 @@
 abstract final class RouteNames {
-  static const home = 'home';
+  static const roleSelection = 'roleSelection';
+  static const login = 'login';
 }
