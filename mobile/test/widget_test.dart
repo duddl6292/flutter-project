@@ -8,6 +8,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('BrainOn'), findsOneWidget);
-    expect(find.text('환자용 뇌졸중 관리 서비스'), findsOneWidget);
+    expect(find.text('환자용 뇌졸중 관리 서비스 입니다'), findsOneWidget);
   });
 }
