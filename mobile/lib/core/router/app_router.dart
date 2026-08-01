@@ -2,13 +2,22 @@ import 'package:brainon_mobile/core/router/route_names.dart';
 import 'package:brainon_mobile/features/auth/login_screen.dart';
 import 'package:brainon_mobile/features/auth/role_selection_screen.dart';
 import 'package:brainon_mobile/features/auth/user_role.dart';
+import 'package:brainon_mobile/features/home/home_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(
-    initialLocation: '/',
+    initialLocation: '/home', // ← 변경
     routes: [
+      GoRoute(
+        path: '/home',
+        name: 'home',
+        builder: (context, state) {
+          return const HomeScreen();
+        },
+      ),
+
       GoRoute(
         path: '/',
         name: RouteNames.roleSelection,
@@ -16,6 +25,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return const RoleSelectionScreen();
         },
       ),
+
       GoRoute(
         path: '/login',
         name: RouteNames.login,
