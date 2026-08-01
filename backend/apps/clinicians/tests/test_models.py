@@ -2,24 +2,38 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from apps.accounts.models import User
-from apps.clinicians.models import ClinicianProfile
+from apps.clinicians.models import Clinician, Department
+from apps.hospitals.models import Hospital
 
 
-class ClinicianProfileTests(TestCase):
-    def test_clinician_role_is_accepted(self) -> None:
+class ClinicianModelTests(TestCase):
+    def setUp(self):
+        self.hospital = Hospital.objects.create(
+            hospital_code="H001",
+            name="테스트 병원",
+        )
+
+        self.department = Department.objects.create(
+            code="NEU",
+            name="신경과",
+        )
+
+    def test_clinician_can_be_created(self):
         user = User.objects.create_user(
-            username="clinician",
-            password="test-pass",
+            username="123456",
+            password="test-password",
             role=User.Role.CLINICIAN,
         )
-        profile = ClinicianProfile.objects.create(user=user)
-        self.assertEqual(profile.user, user)
 
-    def test_non_clinician_role_is_rejected(self) -> None:
-        user = User.objects.create_user(
-            username="patient-for-clinician",
-            password="test-pass",
-            role=User.Role.PATIENT,
+        clinician = Clinician.objects.create(
+            user=user,
+            name="테스트 의사",
+            license_number="123456",
+            hospital=self.hospital,
+            department=self.department,
         )
-        with self.assertRaises(ValidationError):
-            ClinicianProfile.objects.create(user=user)
+
+        self.assertEqual(
+            clinician.user.role,
+            User.Role.CLINICIAN,
+        )

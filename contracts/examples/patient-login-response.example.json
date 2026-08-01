@@ -1,0 +1,16 @@
+{
+  "data": {
+    "access": "JWT_ACCESS_TOKEN",
+    "refresh": "JWT_REFRESH_TOKEN",
+    "user": {
+      "id": "사용자-UUID",
+      "username": "patient01",
+      "role": "PATIENT",
+      "email": "patient01@example.com"
+    },
+    "patient": {
+      "id": "환자-UUID",
+      "name": "김환자"
+    }
+  }
+}

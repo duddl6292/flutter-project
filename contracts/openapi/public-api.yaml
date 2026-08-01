@@ -1,0 +1,38 @@
+PatientSignupRequest:
+  type: object
+  required:
+    - username
+    - password
+    - password_confirm
+    - name
+    - birth_date
+    - sex
+  properties:
+    username:
+      type: string
+      maxLength: 150
+    password:
+      type: string
+      format: password
+      minLength: 8
+    password_confirm:
+      type: string
+      format: password
+    email:
+      type: string
+      format: email
+    name:
+      type: string
+      maxLength: 100
+    birth_date:
+      type: string
+      format: date
+    sex:
+      type: string
+      enum:
+        - M
+        - F
+        - UNKNOWN
+    phone:
+      type: string
+      maxLength: 30

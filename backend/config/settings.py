@@ -34,10 +34,12 @@ INSTALLED_APPS = [
     "corsheaders",
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
-    "apps.accounts",
     "apps.patients",
-    "apps.clinicians",
     "apps.core",
+    "apps.accounts.apps.AccountsConfig",
+    "apps.hospitals.apps.HospitalsConfig",
+    "apps.clinicians.apps.CliniciansConfig",    
+    "apps.patients.apps.PatientsConfig",
 ]
 
 MIDDLEWARE = [
@@ -74,11 +76,20 @@ ASGI_APPLICATION = "config.asgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("POSTGRES_DB", "brainon"),
-        "USER": os.getenv("POSTGRES_USER", "brainon"),
+        "NAME": os.getenv("POSTGRES_DB", "medical_cdss"),
+        "USER": os.getenv("POSTGRES_USER", "cdssadmin"),
         "PASSWORD": os.getenv("POSTGRES_PASSWORD", ""),
-        "HOST": os.getenv("POSTGRES_HOST", "localhost"),
+        "HOST": os.getenv("POSTGRES_HOST", ""),
         "PORT": os.getenv("POSTGRES_PORT", "5432"),
+        "CONN_MAX_AGE": int(
+            os.getenv("POSTGRES_CONN_MAX_AGE", "0")
+        ),
+        "OPTIONS": {
+            "sslmode": os.getenv(
+                "POSTGRES_SSLMODE",
+                "require",
+            ),
+        },
     },
 }
 

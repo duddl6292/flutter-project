@@ -1,11 +1,41 @@
 from django.urls import path
 
-from .views import LoginView, LogoutView, MeView, RefreshView
+from .views import (
+    ClinicianLoginView,
+    ClinicianSignupView,
+    PatientLoginView,
+    PatientSignupView,
+    TokenRefreshAPIView,
+)
+
+
+app_name = "accounts"
 
 
 urlpatterns = [
-    path("login/", LoginView.as_view(), name="auth-login"),
-    path("refresh/", RefreshView.as_view(), name="auth-refresh"),
-    path("logout/", LogoutView.as_view(), name="auth-logout"),
-    path("me/", MeView.as_view(), name="auth-me"),
+    path(
+        "patient/signup/",
+        PatientSignupView.as_view(),
+        name="patient-signup",
+    ),
+    path(
+        "patient/login/",
+        PatientLoginView.as_view(),
+        name="patient-login",
+    ),
+    path(
+        "clinician/signup/",
+        ClinicianSignupView.as_view(),
+        name="clinician-signup",
+    ),
+    path(
+        "clinician/login/",
+        ClinicianLoginView.as_view(),
+        name="clinician-login",
+    ),
+    path(
+        "token/refresh/",
+        TokenRefreshAPIView.as_view(),
+        name="token-refresh",
+    ),
 ]
