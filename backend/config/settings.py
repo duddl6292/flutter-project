@@ -5,6 +5,7 @@ from datetime import timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
+import dj_database_url
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -34,10 +35,20 @@ INSTALLED_APPS = [
     "corsheaders",
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
+    "django_filters",
+    "drf_spectacular",
     "apps.accounts",
     "apps.patients",
     "apps.clinicians",
     "apps.core",
+    "apps.appointments",
+    "apps.clinical_records",
+    "apps.prescriptions",
+    "apps.medications",
+    "apps.ct_analysis",
+    "apps.test_results",
+    "apps.consultations",
+    "apps.notifications",
 ]
 
 MIDDLEWARE = [
@@ -81,6 +92,8 @@ DATABASES = {
         "PORT": os.getenv("POSTGRES_PORT", "5432"),
     },
 }
+if os.getenv("DATABASE_URL"):
+    DATABASES["default"] = dj_database_url.parse(os.environ["DATABASE_URL"], conn_max_age=60)
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -148,14 +161,18 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_PAGINATION_CLASS": "apps.core.pagination.StandardPagination",
     "EXCEPTION_HANDLER": "apps.core.exceptions.api_exception_handler",
+    "DEFAULT_FILTER_BACKENDS": [
+        "django_filters.rest_framework.DjangoFilterBackend",
+    ],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(
-        minutes=int(os.getenv("JWT_ACCESS_MINUTES", "15"))
+        minutes=int(os.getenv("ACCESS_TOKEN_LIFETIME_MINUTES", "30"))
     ),
     "REFRESH_TOKEN_LIFETIME": timedelta(
-        days=int(os.getenv("JWT_REFRESH_DAYS", "7"))
+        days=int(os.getenv("REFRESH_TOKEN_LIFETIME_DAYS", "7"))
     ),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
@@ -169,3 +186,20 @@ JWT_REFRESH_COOKIE_NAME = os.getenv(
     "JWT_REFRESH_COOKIE_NAME",
     "brainon_refresh",
 )
+
+INFERENCE_BASE_URL = os.getenv("INFERENCE_BASE_URL", "http://inference-mock:8100")
+INFERENCE_INTERNAL_API_KEY = os.getenv("INFERENCE_INTERNAL_API_KEY", "change-me")
+INFERENCE_CONNECT_TIMEOUT_SECONDS = float(os.getenv("INFERENCE_CONNECT_TIMEOUT_SECONDS", "5"))
+INFERENCE_READ_TIMEOUT_SECONDS = float(os.getenv("INFERENCE_READ_TIMEOUT_SECONDS", "60"))
+INFERENCE_USE_MOCK = os.getenv("INFERENCE_USE_MOCK", "true").lower() == "true"
+STORAGE_BACKEND = os.getenv("STORAGE_BACKEND", "mock")
+SIGNED_URL_EXPIRES_SECONDS = int(os.getenv("SIGNED_URL_EXPIRES_SECONDS", "900"))
+GCS_BUCKET_MEDICAL_DATA = os.getenv("GCS_BUCKET_MEDICAL_DATA", "")
+FCM_BACKEND = os.getenv("FCM_BACKEND", "mock")
+FIREBASE_CREDENTIALS_PATH = os.getenv("FIREBASE_CREDENTIALS_PATH", "")
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "BrainOn Public API",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+}

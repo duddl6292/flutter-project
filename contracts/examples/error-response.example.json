@@ -1,0 +1,9 @@
+{
+  "error": {
+    "code": "PATIENT_NOT_FOUND",
+    "message": "환자를 찾을 수 없습니다.",
+    "details": {
+      "patient_id": "22222222-2222-4222-8222-222222222222"
+    }
+  }
+}

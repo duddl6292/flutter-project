@@ -1,0 +1,387 @@
+openapi: 3.0.3
+info:
+  title: BrainOn Internal Inference API
+  version: 1.0.0
+  description: Django와 FastAPI/MOSEC 추론 서비스 사이에서만 사용하는 내부 계약입니다. Flutter와 React는 직접 호출하지 않습니다.
+servers:
+- url: http://localhost:8100
+  description: Local FastAPI Gateway
+security:
+- InternalApiKey: []
+paths:
+  /internal/v1/health:
+    get:
+      tags:
+      - System
+      summary: 추론 서버 상태
+      security: []
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  service:
+                    type: string
+                    example: brainon-inference
+  /internal/v1/model:
+    get:
+      tags:
+      - System
+      summary: 현재 로드된 모델 정보
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelInfo'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /internal/v1/inference/jobs:
+    post:
+      tags:
+      - Inference
+      summary: 추론 Job 접수
+      description: Django가 호출한다. job_id를 멱등성 키로 사용하며 같은 job_id 재요청 시 기존 작업을 반환한다.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InternalInferenceRequest'
+      responses:
+        '202':
+          description: 접수됨
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalJobAccepted'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /internal/v1/inference/jobs/{job_id}:
+    get:
+      tags:
+      - Inference
+      summary: 추론 Job 상태 조회
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalJobStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /internal/v1/inference/callback:
+    post:
+      tags:
+      - Callback
+      summary: 추론 완료/실패 결과를 Django에 전달
+      description: FastAPI 또는 Worker가 Django 내부 callback endpoint로 전송하는 계약이다.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InferenceCallback'
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accepted:
+                    type: boolean
+                    example: true
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+components:
+  securitySchemes:
+    InternalApiKey:
+      type: apiKey
+      in: header
+      name: X-Internal-API-Key
+  responses:
+    BadRequest:
+      description: 잘못된 요청
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/InternalError'
+    Unauthorized:
+      description: 내부 API 인증 실패
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/InternalError'
+    NotFound:
+      description: Job 없음
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/InternalError'
+    Conflict:
+      description: Job 상태 충돌
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/InternalError'
+  schemas:
+    InferenceError:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        retryable:
+          type: boolean
+    ModelInfo:
+      type: object
+      required:
+      - model_id
+      - model_version
+      properties:
+        model_id:
+          type: string
+          example: bhsd-nnunet-stage-attention
+        model_version:
+          type: string
+          example: 1.0.0
+        checkpoint:
+          type: string
+          example: checkpoint_best.pth
+        threshold:
+          type: number
+          example: 0.25
+    Prediction:
+      type: object
+      required:
+      - mask_uri
+      - lesion_voxels
+      - lesion_volume_ml
+      - shape
+      - spacing
+      properties:
+        mask_uri:
+          type: string
+        preview_uri:
+          type: string
+          nullable: true
+        lesion_voxels:
+          type: integer
+        lesion_volume_ml:
+          type: number
+          format: float
+        lesion_slice_count:
+          type: integer
+        lesion_slice_start:
+          type: integer
+          nullable: true
+        lesion_slice_end:
+          type: integer
+          nullable: true
+        max_lesion_slice:
+          type: integer
+          nullable: true
+        shape:
+          type: array
+          minItems: 3
+          maxItems: 3
+          items:
+            type: integer
+        spacing:
+          type: array
+          minItems: 3
+          maxItems: 3
+          items:
+            type: number
+    Timing:
+      type: object
+      properties:
+        preprocessing_seconds:
+          type: number
+        inference_seconds:
+          type: number
+        postprocessing_seconds:
+          type: number
+        total_seconds:
+          type: number
+    InternalInferenceRequest:
+      type: object
+      required:
+      - job_id
+      - case_id
+      - input
+      - parameters
+      properties:
+        job_id:
+          type: string
+          format: uuid
+        case_id:
+          type: string
+          format: uuid
+        input:
+          type: object
+          required:
+          - image_uri
+          properties:
+            image_uri:
+              type: string
+              example: gs://brainon-medical-data/cases/case-uuid/input/ct.nii.gz
+            sha256:
+              type: string
+              nullable: true
+        parameters:
+          type: object
+          properties:
+            threshold:
+              type: number
+              default: 0.25
+            min_component_size:
+              type: integer
+              default: 30
+            sliding_window_step_size:
+              type: number
+              default: 0.5
+        callback_url:
+          type: string
+          format: uri
+          nullable: true
+    InternalJobAccepted:
+      type: object
+      required:
+      - job_id
+      - case_id
+      - status
+      properties:
+        job_id:
+          type: string
+          format: uuid
+        case_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - QUEUED
+        accepted_at:
+          type: string
+          format: date-time
+    InternalJobStatus:
+      type: object
+      required:
+      - job_id
+      - case_id
+      - status
+      - progress
+      properties:
+        job_id:
+          type: string
+          format: uuid
+        case_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - QUEUED
+          - RUNNING
+          - COMPLETED
+          - FAILED
+          - CANCELLED
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        prediction:
+          allOf:
+          - $ref: '#/components/schemas/Prediction'
+          nullable: true
+        timing:
+          allOf:
+          - $ref: '#/components/schemas/Timing'
+          nullable: true
+        error:
+          allOf:
+          - $ref: '#/components/schemas/InferenceError'
+          nullable: true
+    InferenceCallback:
+      type: object
+      required:
+      - job_id
+      - case_id
+      - status
+      properties:
+        job_id:
+          type: string
+          format: uuid
+        case_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - COMPLETED
+          - FAILED
+        model:
+          allOf:
+          - $ref: '#/components/schemas/ModelInfo'
+          nullable: true
+        prediction:
+          allOf:
+          - $ref: '#/components/schemas/Prediction'
+          nullable: true
+        timing:
+          allOf:
+          - $ref: '#/components/schemas/Timing'
+          nullable: true
+        error:
+          allOf:
+          - $ref: '#/components/schemas/InferenceError'
+          nullable: true
+    InternalError:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          required:
+          - code
+          - message
+          properties:
+            code:
+              type: string
+              example: PATIENT_NOT_FOUND
+            message:
+              type: string
+              example: 환자를 찾을 수 없습니다.
+            details:
+              type: object
+              additionalProperties: true

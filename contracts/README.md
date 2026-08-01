@@ -1,20 +1,53 @@
-# API 계약 운영 원칙
+# BrainOn API Contracts
 
-`contracts/`는 Flutter, React, Django, 추론 서비스 사이의 합의된 요청·응답 예시를 관리한다.
+Flutter 환자 앱, React 의료진 웹, Django REST API, FastAPI/MOSEC 추론 서비스가 공유하는 API 계약입니다.
 
-- React와 Flutter 담당자가 API 형식을 임의로 확정하지 않는다.
-- Django 담당자가 일반 서비스 API 계약 초안을 작성한다.
-- 관련 프론트엔드 담당자와 합의한 뒤 `contracts/`에 반영한다.
-- Mock 데이터는 공식 API 계약이 아니다.
-- 실제 환자 정보는 계약 예시에 사용하지 않는다.
-- API 변경 시 기존 Flutter·React 클라이언트 영향도를 확인한다.
-- CT 추론 계약과 일반 서비스 계약을 구분한다.
+## 구성
 
-현재 파일:
+```text
+contracts/
+├─ openapi/
+│  ├─ public-api.yaml       # Flutter/React → Django
+│  └─ inference-api.yaml    # Django ↔ FastAPI/MOSEC 내부 통신
+├─ docs/
+│  ├─ api-gap-analysis.md
+│  ├─ common-conventions.md
+│  ├─ auth-api.md
+│  ├─ clinician-api.md
+│  ├─ patient-api.md
+│  ├─ appointment-api.md
+│  ├─ clinical-record-api.md
+│  ├─ prescription-medication-api.md
+│  ├─ test-result-api.md
+│  ├─ consultation-api.md
+│  ├─ case-inference-api.md
+│  ├─ notification-api.md
+│  └─ patient-merge-api.md
+└─ examples/
+   └─ *.example.json
+```
 
-- `examples/`: 향후 합의된 일반 서비스 계약 예시 영역
-- `inference-request.example.json`: Django에서 Gateway로 보내는 추론 요청 예시
-- `inference-response.example.json`: Gateway가 반환하는 추론 응답 예시
-- `mosec-api.md`: Gateway와 MOSEC 사이의 추론 계약
+## 기준
 
-예약·처방·검사 API JSON은 팀 합의 후 추가한다.
+- 외부 API prefix: `/api/v1`
+- 내부 추론 API prefix: `/internal/v1`
+- 시간: ISO 8601, 한국 시간대 포함 (`2026-08-05T10:30:00+09:00`)
+- ID: UUID
+- 역할: `PATIENT`, `CLINICIAN`, `ADMIN`
+- 성공 응답: `{"data": ...}`
+- 목록 응답: `{"data": [...], "meta": {...}}`
+- 오류 응답: `{"error": {"code": "...", "message": "...", "details": {...}}}`
+
+## 우선 구현 순서
+
+1. 인증 및 현재 사용자
+2. 환자/의료진 조회
+3. 예약
+4. 진료기록 및 처방/복약
+5. CT Case 업로드와 추론 Job
+6. 일반 검사 결과 등록·환자 공개
+7. 알림 및 FCM 기기 등록
+8. 협진
+9. 환자 병합(후순위)
+
+OpenAPI 파일이 최종 계약의 기준이며, 문서와 예시 JSON은 이해 및 테스트를 돕는 보조 자료입니다.

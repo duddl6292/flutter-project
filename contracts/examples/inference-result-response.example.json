@@ -1,0 +1,39 @@
+{
+  "data": {
+    "case_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "job_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    "status": "COMPLETED",
+    "model": {
+      "model_id": "bhsd-nnunet-stage-attention",
+      "model_version": "1.0.0",
+      "checkpoint": "checkpoint_best.pth",
+      "threshold": 0.25
+    },
+    "prediction": {
+      "mask_uri": "gs://brainon-results/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/mask.nii.gz",
+      "preview_uri": "gs://brainon-results/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/preview.png",
+      "lesion_voxels": 56520,
+      "lesion_volume_ml": 12.48,
+      "lesion_slice_count": 18,
+      "lesion_slice_start": 42,
+      "lesion_slice_end": 59,
+      "max_lesion_slice": 51,
+      "shape": [
+        512,
+        512,
+        32
+      ],
+      "spacing": [
+        0.4883,
+        0.4883,
+        5.0936
+      ]
+    },
+    "timing": {
+      "preprocessing_seconds": 2.13,
+      "inference_seconds": 13.71,
+      "postprocessing_seconds": 1.22,
+      "total_seconds": 17.06
+    }
+  }
+}

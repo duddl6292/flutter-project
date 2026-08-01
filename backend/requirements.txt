@@ -4,3 +4,9 @@ djangorestframework-simplejwt==5.5.1
 django-cors-headers==4.9.0
 psycopg[binary]==3.3.4
 python-dotenv==1.2.2
+dj-database-url==3.0.1
+django-filter==25.1
+drf-spectacular==0.28.0
+httpx==0.28.1
+PyYAML==6.0.2
+openapi-spec-validator==0.7.2

@@ -1,0 +1,5 @@
+{
+  "threshold": 0.25,
+  "min_component_size": 30,
+  "sliding_window_step_size": 0.5
+}

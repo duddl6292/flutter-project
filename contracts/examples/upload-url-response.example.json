@@ -1,0 +1,11 @@
+{
+  "data": {
+    "case_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "upload_url": "https://storage.googleapis.com/signed-upload-url",
+    "object_path": "cases/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/input/ct.nii.gz",
+    "expires_in": 900,
+    "required_headers": {
+      "Content-Type": "application/gzip"
+    }
+  }
+}

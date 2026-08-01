@@ -9,8 +9,5 @@ class HealthViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
-            {
-                "status": "ok",
-                "service": "brainon-backend",
-            },
+            {"data": {"status": "ok", "service": "brainon-backend"}},
         )

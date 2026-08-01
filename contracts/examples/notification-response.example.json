@@ -1,0 +1,14 @@
+{
+  "data": {
+    "notification_id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+    "type": "TEST_RESULT_READY",
+    "title": "검사 결과가 공개되었습니다.",
+    "body": "뇌 CT 검사 결과를 확인해 주세요.",
+    "data": {
+      "test_result_id": "99999999-9999-4999-8999-999999999999"
+    },
+    "is_read": false,
+    "read_at": null,
+    "created_at": "2026-08-01T14:00:01+09:00"
+  }
+}

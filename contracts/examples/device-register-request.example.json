@@ -1,0 +1,5 @@
+{
+  "platform": "ANDROID",
+  "fcm_token": "firebase-device-token",
+  "device_name": "Galaxy S25"
+}

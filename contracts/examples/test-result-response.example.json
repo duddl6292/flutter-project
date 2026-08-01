@@ -1,0 +1,18 @@
+{
+  "data": {
+    "test_result_id": "99999999-9999-4999-8999-999999999999",
+    "patient_id": "22222222-2222-4222-8222-222222222222",
+    "case_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "test_type": "BRAIN_CT",
+    "title": "뇌 CT 검사 결과",
+    "performed_at": "2026-08-01T11:00:00+09:00",
+    "status": "FINAL",
+    "summary": "두개강 내 출혈 의심 영역이 확인되었습니다.",
+    "clinician_comment": "신경과 외래 추적 관찰이 필요합니다.",
+    "result_file_uri": "gs://brainon-results/case-uuid/report.pdf",
+    "is_released_to_patient": true,
+    "released_at": "2026-08-01T14:00:00+09:00",
+    "released_by": "33333333-3333-4333-8333-333333333333",
+    "created_at": "2026-08-01T12:00:00+09:00"
+  }
+}

@@ -1,0 +1,3603 @@
+openapi: 3.0.3
+info:
+  title: BrainOn Public API
+  version: 1.0.0
+  description: Flutter 환자 앱과 React 의료진 웹이 Django REST API를 통해 사용하는 공개 계약입니다.
+servers:
+- url: http://localhost:8000
+  description: Local
+- url: https://api.example.com
+  description: Production placeholder
+tags:
+- name: System
+- name: Auth
+- name: Clinicians
+- name: Patients
+- name: Appointments
+- name: Clinical Records
+- name: Prescriptions
+- name: Medications
+- name: Test Results
+- name: Consultations
+- name: CT Cases
+- name: Inference Jobs
+- name: Notifications
+security:
+- BearerAuth: []
+paths:
+  /api/v1/health:
+    get:
+      tags:
+      - System
+      summary: Django API 상태 확인
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                        example: ok
+                      service:
+                        type: string
+                        example: brainon-backend
+      security: []
+  /api/v1/auth/login:
+    post:
+      tags:
+      - Auth
+      summary: 로그인
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      security: []
+  /api/v1/auth/token/refresh:
+    post:
+      tags:
+      - Auth
+      summary: Access Token 갱신
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshTokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      security: []
+  /api/v1/auth/logout:
+    post:
+      tags:
+      - Auth
+      summary: 로그아웃 및 Refresh Token 폐기
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+  /api/v1/auth/password/reset:
+    post:
+      tags:
+      - Auth
+      summary: 비밀번호 재설정 요청
+      responses:
+        '202':
+          description: 요청 접수
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequest'
+      security: []
+  /api/v1/users/me:
+    get:
+      tags:
+      - Auth
+      summary: 현재 로그인 사용자 조회
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/UserSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/departments:
+    get:
+      tags:
+      - Clinicians
+      summary: 진료과 목록 조회
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Department'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/clinicians:
+    get:
+      tags:
+      - Clinicians
+      summary: 의료진 목록 및 검색
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Clinician'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      parameters:
+      - name: keyword
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: department_id
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+  /api/v1/clinicians/{clinician_id}:
+    get:
+      tags:
+      - Clinicians
+      summary: 의료진 상세 조회
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Clinician'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - name: clinician_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /api/v1/clinicians/me/dashboard:
+    get:
+      tags:
+      - Clinicians
+      summary: 의료진 대시보드 요약
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ClinicianDashboard'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+  /api/v1/patients:
+    get:
+      tags:
+      - Patients
+      summary: 환자 목록 및 검색
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Patient'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - name: keyword
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+    post:
+      tags:
+      - Patients
+      summary: 환자 등록
+      responses:
+        '201':
+          description: 생성됨
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Patient'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatientCreateRequest'
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+  /api/v1/patients/me:
+    get:
+      tags:
+      - Patients
+      summary: 내 환자 정보 조회
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Patient'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      x-roles:
+      - PATIENT
+    patch:
+      tags:
+      - Patients
+      summary: 내 환자 연락처 수정
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Patient'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatientUpdateRequest'
+      x-roles:
+      - PATIENT
+  /api/v1/patients/me/home:
+    get:
+      tags:
+      - Patients
+      summary: 환자 앱 홈 요약
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PatientHomeSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      x-roles:
+      - PATIENT
+  /api/v1/patients/{patient_id}:
+    get:
+      tags:
+      - Patients
+      summary: 환자 상세 조회
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Patient'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - name: patient_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+    patch:
+      tags:
+      - Patients
+      summary: 환자 정보 수정
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Patient'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - name: patient_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatientUpdateRequest'
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+  /api/v1/patients/{patient_id}/summary:
+    get:
+      tags:
+      - Patients
+      summary: 환자 진료 요약 조회
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      patient:
+                        $ref: '#/components/schemas/Patient'
+                      upcoming_appointments:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Appointment'
+                      active_prescriptions:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Prescription'
+                      latest_test_results:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/TestResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - name: patient_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+  /api/v1/appointments:
+    get:
+      tags:
+      - Appointments
+      summary: 예약 목록 조회
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Appointment'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - name: patient
+        in: query
+        required: false
+        schema:
+          type: string
+        description: '''me'' 또는 patient_id'
+      - name: clinician_id
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: date_from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: date_to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+    post:
+      tags:
+      - Appointments
+      summary: 예약 생성
+      responses:
+        '201':
+          description: 생성됨
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Appointment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentCreateRequest'
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+  /api/v1/appointments/{appointment_id}:
+    get:
+      tags:
+      - Appointments
+      summary: 예약 상세 조회
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Appointment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - name: appointment_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      tags:
+      - Appointments
+      summary: 예약 변경
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Appointment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      parameters:
+      - name: appointment_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentUpdateRequest'
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+  /api/v1/appointments/{appointment_id}/cancel:
+    post:
+      tags:
+      - Appointments
+      summary: 예약 취소
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Appointment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      parameters:
+      - name: appointment_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelRequest'
+  /api/v1/clinical-records:
+    get:
+      tags:
+      - Clinical Records
+      summary: 진료기록 목록 조회
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ClinicalRecord'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - name: patient_id
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: appointment_id
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+    post:
+      tags:
+      - Clinical Records
+      summary: 진료기록 등록
+      responses:
+        '201':
+          description: 생성됨
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ClinicalRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClinicalRecordCreateRequest'
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+  /api/v1/clinical-records/{clinical_record_id}:
+    get:
+      tags:
+      - Clinical Records
+      summary: 진료기록 상세 조회
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ClinicalRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - name: clinical_record_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+    patch:
+      tags:
+      - Clinical Records
+      summary: 진료기록 수정
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ClinicalRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - name: clinical_record_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClinicalRecordCreateRequest'
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+  /api/v1/prescriptions:
+    get:
+      tags:
+      - Prescriptions
+      summary: 처방 목록 조회
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Prescription'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - name: patient
+        in: query
+        required: false
+        schema:
+          type: string
+        description: '''me'' 또는 patient_id'
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+    post:
+      tags:
+      - Prescriptions
+      summary: 처방 등록
+      responses:
+        '201':
+          description: 생성됨
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Prescription'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrescriptionCreateRequest'
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+  /api/v1/prescriptions/{prescription_id}:
+    get:
+      tags:
+      - Prescriptions
+      summary: 처방 상세 조회
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Prescription'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - name: prescription_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      tags:
+      - Prescriptions
+      summary: 처방 수정
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Prescription'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      parameters:
+      - name: prescription_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrescriptionCreateRequest'
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+  /api/v1/prescriptions/{prescription_id}/discontinue:
+    post:
+      tags:
+      - Prescriptions
+      summary: 처방 중단
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Prescription'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      parameters:
+      - name: prescription_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelRequest'
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+  /api/v1/patients/me/medications:
+    get:
+      tags:
+      - Medications
+      summary: 현재 복용 중인 약 조회
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PrescriptionItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      x-roles:
+      - PATIENT
+  /api/v1/medication-schedules:
+    get:
+      tags:
+      - Medications
+      summary: 복약 일정 조회
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MedicationSchedule'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - name: date
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: patient_id
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+  /api/v1/medication-records:
+    get:
+      tags:
+      - Medications
+      summary: 복약 기록 조회
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MedicationRecord'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - name: date_from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: date_to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: patient_id
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+    post:
+      tags:
+      - Medications
+      summary: 복약 여부 기록
+      responses:
+        '201':
+          description: 기록됨
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MedicationRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MedicationRecordCreateRequest'
+      x-roles:
+      - PATIENT
+  /api/v1/test-results:
+    get:
+      tags:
+      - Test Results
+      summary: 검사 결과 목록 조회
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TestResult'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - name: patient
+        in: query
+        required: false
+        schema:
+          type: string
+        description: '''me'' 또는 patient_id'
+      - name: test_type
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: released_only
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+    post:
+      tags:
+      - Test Results
+      summary: 검사 결과 등록
+      responses:
+        '201':
+          description: 생성됨
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TestResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestResultCreateRequest'
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+  /api/v1/test-results/{test_result_id}:
+    get:
+      tags:
+      - Test Results
+      summary: 검사 결과 상세 조회
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TestResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - name: test_result_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      tags:
+      - Test Results
+      summary: 검사 결과 수정
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TestResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      parameters:
+      - name: test_result_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestResultCreateRequest'
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+  /api/v1/test-results/{test_result_id}/release:
+    post:
+      tags:
+      - Test Results
+      summary: 검사 결과를 환자에게 공개
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TestResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      description: 최종 상태(FINAL)의 결과만 공개할 수 있으며, 공개 시 알림 DB 기록과 FCM 발송을 함께 수행한다.
+      parameters:
+      - name: test_result_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+  /api/v1/consultations:
+    get:
+      tags:
+      - Consultations
+      summary: 협진 요청 목록 조회
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Consultation'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - name: patient_id
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+    post:
+      tags:
+      - Consultations
+      summary: 협진 요청 생성
+      responses:
+        '201':
+          description: 생성됨
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Consultation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConsultationCreateRequest'
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+  /api/v1/consultations/{consultation_id}:
+    get:
+      tags:
+      - Consultations
+      summary: 협진 상세 조회
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Consultation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - name: consultation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+    patch:
+      tags:
+      - Consultations
+      summary: 협진 상태 또는 답변 수정
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Consultation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      parameters:
+      - name: consultation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum:
+                  - IN_REVIEW
+                  - COMPLETED
+                  - CANCELLED
+                response:
+                  type: string
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+  /api/v1/cases:
+    get:
+      tags:
+      - CT Cases
+      summary: CT Case 목록 조회
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Case'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - name: patient_id
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+    post:
+      tags:
+      - CT Cases
+      summary: CT Case 생성
+      responses:
+        '201':
+          description: 생성됨
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Case'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaseCreateRequest'
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+  /api/v1/cases/{case_id}:
+    get:
+      tags:
+      - CT Cases
+      summary: CT Case 상세 조회
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Case'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - name: case_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+  /api/v1/cases/{case_id}/upload-url:
+    post:
+      tags:
+      - CT Cases
+      summary: CT 업로드 Signed URL 발급
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/UploadUrl'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      parameters:
+      - name: case_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadUrlRequest'
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+  /api/v1/cases/{case_id}/upload-complete:
+    post:
+      tags:
+      - CT Cases
+      summary: CT 업로드 완료 처리
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Case'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      parameters:
+      - name: case_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadCompleteRequest'
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+  /api/v1/cases/{case_id}/inference:
+    post:
+      tags:
+      - Inference Jobs
+      summary: CT 추론 Job 생성
+      responses:
+        '202':
+          description: 추론 요청 접수
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/InferenceJob'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      description: Django가 Job을 생성한 뒤 내부 FastAPI Gateway를 호출한다. 클라이언트는 내부 추론 API를 직접 호출하지 않는다.
+      parameters:
+      - name: case_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InferenceStartRequest'
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+  /api/v1/inference-jobs/{job_id}:
+    get:
+      tags:
+      - Inference Jobs
+      summary: 추론 상태 조회
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/InferenceJob'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+  /api/v1/inference-jobs/{job_id}/cancel:
+    post:
+      tags:
+      - Inference Jobs
+      summary: 추론 취소
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/InferenceJob'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+  /api/v1/cases/{case_id}/result:
+    get:
+      tags:
+      - Inference Jobs
+      summary: CT 추론 결과 조회
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/InferenceResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      parameters:
+      - name: case_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+  /api/v1/cases/{case_id}/viewer:
+    get:
+      tags:
+      - CT Cases
+      summary: CT Viewer용 Signed URL 조회
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ViewerInfo'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - name: case_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+  /api/v1/devices:
+    post:
+      tags:
+      - Notifications
+      summary: FCM 기기 등록 또는 토큰 갱신
+      responses:
+        '201':
+          description: 등록됨
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Device'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceCreateRequest'
+  /api/v1/devices/{device_id}:
+    delete:
+      tags:
+      - Notifications
+      summary: 기기 등록 해제
+      responses:
+        '204':
+          description: 삭제됨
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - name: device_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /api/v1/notifications:
+    get:
+      tags:
+      - Notifications
+      summary: 내 알림 목록 조회
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Notification'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - name: is_read
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - name: type
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+    post:
+      tags:
+      - Notifications
+      summary: 환자 알림 생성 및 선택적 FCM 발송
+      responses:
+        '201':
+          description: 생성됨
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Notification'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationCreateRequest'
+      x-roles:
+      - CLINICIAN
+      - ADMIN
+  /api/v1/notifications/{notification_id}/read:
+    patch:
+      tags:
+      - Notifications
+      summary: 알림 읽음 처리
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Notification'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - name: notification_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /api/v1/notifications/read-all:
+    patch:
+      tags:
+      - Notifications
+      summary: 모든 알림 읽음 처리
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    BadRequest:
+      description: 잘못된 요청
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: 인증 실패
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: 권한 없음
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: 리소스 없음
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: 현재 상태와 충돌
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ValidationError:
+      description: 입력값 검증 실패
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    ErrorResponse:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          required:
+          - code
+          - message
+          properties:
+            code:
+              type: string
+              example: PATIENT_NOT_FOUND
+            message:
+              type: string
+              example: 환자를 찾을 수 없습니다.
+            details:
+              type: object
+              additionalProperties: true
+    PaginationMeta:
+      type: object
+      required:
+      - page
+      - page_size
+      - total_count
+      - total_pages
+      properties:
+        page:
+          type: integer
+          minimum: 1
+          example: 1
+        page_size:
+          type: integer
+          minimum: 1
+          maximum: 100
+          example: 20
+        total_count:
+          type: integer
+          minimum: 0
+          example: 58
+        total_pages:
+          type: integer
+          minimum: 0
+          example: 3
+    MessageResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - message
+          properties:
+            message:
+              type: string
+    LoginRequest:
+      type: object
+      required:
+      - username
+      - password
+      properties:
+        username:
+          type: string
+          example: patient01
+        password:
+          type: string
+          format: password
+          example: password
+    RefreshTokenRequest:
+      type: object
+      required:
+      - refresh_token
+      properties:
+        refresh_token:
+          type: string
+    LogoutRequest:
+      type: object
+      required:
+      - refresh_token
+      properties:
+        refresh_token:
+          type: string
+    PasswordResetRequest:
+      type: object
+      required:
+      - username_or_email
+      properties:
+        username_or_email:
+          type: string
+          example: patient01
+    UserSummary:
+      type: object
+      required:
+      - user_id
+      - role
+      - name
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum:
+          - PATIENT
+          - CLINICIAN
+          - ADMIN
+        name:
+          type: string
+          example: 김환자
+        username:
+          type: string
+          example: patient01
+        email:
+          type: string
+          format: email
+          nullable: true
+    LoginResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - access_token
+          - refresh_token
+          - user
+          properties:
+            access_token:
+              type: string
+            refresh_token:
+              type: string
+            token_type:
+              type: string
+              example: Bearer
+            expires_in:
+              type: integer
+              example: 1800
+            user:
+              $ref: '#/components/schemas/UserSummary'
+    RefreshTokenResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - access_token
+          properties:
+            access_token:
+              type: string
+            token_type:
+              type: string
+              example: Bearer
+            expires_in:
+              type: integer
+              example: 1800
+    Department:
+      type: object
+      required:
+      - department_id
+      - code
+      - name
+      properties:
+        department_id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          example: NEU
+        name:
+          type: string
+          example: 신경과
+    Clinician:
+      type: object
+      required:
+      - clinician_id
+      - user_id
+      - name
+      - department
+      properties:
+        clinician_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: 이의사
+        license_number:
+          type: string
+          example: MD-000001
+        department:
+          $ref: '#/components/schemas/Department'
+        hospital_name:
+          type: string
+          example: BrainOn 대학병원
+    Patient:
+      type: object
+      required:
+      - patient_id
+      - user_id
+      - name
+      - medical_record_number
+      properties:
+        patient_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+          nullable: true
+        medical_record_number:
+          type: string
+          example: MRN-2026-00001
+        name:
+          type: string
+          example: 김환자
+        birth_date:
+          type: string
+          format: date
+          example: '1964-05-12'
+        sex:
+          type: string
+          enum:
+          - M
+          - F
+          - UNKNOWN
+        phone:
+          type: string
+          example: 010-1234-5678
+        emergency_contact:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum:
+          - ACTIVE
+          - INACTIVE
+          - MERGED
+          example: ACTIVE
+        created_at:
+          type: string
+          format: date-time
+    PatientCreateRequest:
+      type: object
+      required:
+      - name
+      - birth_date
+      - sex
+      properties:
+        name:
+          type: string
+        birth_date:
+          type: string
+          format: date
+        sex:
+          type: string
+          enum:
+          - M
+          - F
+          - UNKNOWN
+        phone:
+          type: string
+        emergency_contact:
+          type: string
+        address:
+          type: string
+    PatientUpdateRequest:
+      type: object
+      properties:
+        phone:
+          type: string
+        emergency_contact:
+          type: string
+        address:
+          type: string
+    PatientHomeSummary:
+      type: object
+      required:
+      - patient
+      - medications_today
+      - unread_notification_count
+      properties:
+        patient:
+          $ref: '#/components/schemas/Patient'
+        next_appointment:
+          allOf:
+          - $ref: '#/components/schemas/Appointment'
+          nullable: true
+        medications_today:
+          type: object
+          required:
+          - total
+          - taken
+          - remaining
+          properties:
+            total:
+              type: integer
+            taken:
+              type: integer
+            remaining:
+              type: integer
+        latest_result:
+          allOf:
+          - $ref: '#/components/schemas/TestResult'
+          nullable: true
+        unread_notification_count:
+          type: integer
+    Appointment:
+      type: object
+      required:
+      - appointment_id
+      - patient_id
+      - clinician
+      - department
+      - scheduled_at
+      - status
+      properties:
+        appointment_id:
+          type: string
+          format: uuid
+        patient_id:
+          type: string
+          format: uuid
+        clinician:
+          $ref: '#/components/schemas/Clinician'
+        department:
+          $ref: '#/components/schemas/Department'
+        scheduled_at:
+          type: string
+          format: date-time
+          example: '2026-08-05T10:30:00+09:00'
+        reason:
+          type: string
+          example: CT 검사 결과 상담
+        status:
+          type: string
+          enum:
+          - SCHEDULED
+          - COMPLETED
+          - CANCELLED
+          - NO_SHOW
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    AppointmentCreateRequest:
+      type: object
+      required:
+      - patient_id
+      - clinician_id
+      - department_id
+      - scheduled_at
+      properties:
+        patient_id:
+          type: string
+          format: uuid
+        clinician_id:
+          type: string
+          format: uuid
+        department_id:
+          type: string
+          format: uuid
+        scheduled_at:
+          type: string
+          format: date-time
+        reason:
+          type: string
+    AppointmentUpdateRequest:
+      type: object
+      properties:
+        clinician_id:
+          type: string
+          format: uuid
+        department_id:
+          type: string
+          format: uuid
+        scheduled_at:
+          type: string
+          format: date-time
+        reason:
+          type: string
+        status:
+          type: string
+          enum:
+          - SCHEDULED
+          - COMPLETED
+          - NO_SHOW
+    CancelRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          example: 환자 요청
+    ClinicalRecord:
+      type: object
+      required:
+      - clinical_record_id
+      - patient_id
+      - clinician_id
+      - recorded_at
+      - assessment
+      properties:
+        clinical_record_id:
+          type: string
+          format: uuid
+        patient_id:
+          type: string
+          format: uuid
+        clinician_id:
+          type: string
+          format: uuid
+        appointment_id:
+          type: string
+          format: uuid
+          nullable: true
+        recorded_at:
+          type: string
+          format: date-time
+        chief_complaint:
+          type: string
+          nullable: true
+        subjective:
+          type: string
+          nullable: true
+        objective:
+          type: string
+          nullable: true
+        assessment:
+          type: string
+        plan:
+          type: string
+          nullable: true
+        patient_visible_summary:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    ClinicalRecordCreateRequest:
+      type: object
+      required:
+      - patient_id
+      - assessment
+      properties:
+        patient_id:
+          type: string
+          format: uuid
+        appointment_id:
+          type: string
+          format: uuid
+        chief_complaint:
+          type: string
+        subjective:
+          type: string
+        objective:
+          type: string
+        assessment:
+          type: string
+        plan:
+          type: string
+        patient_visible_summary:
+          type: string
+    PrescriptionItem:
+      type: object
+      required:
+      - prescription_item_id
+      - medicine_name
+      - dosage
+      - frequency
+      - start_date
+      properties:
+        prescription_item_id:
+          type: string
+          format: uuid
+        medicine_name:
+          type: string
+          example: Aspirin
+        dosage:
+          type: number
+          example: 100
+        dose_unit:
+          type: string
+          example: mg
+        frequency:
+          type: string
+          example: 하루 1회
+        route:
+          type: string
+          example: oral
+        instructions:
+          type: string
+          example: 아침 식후 복용
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+          nullable: true
+    PrescriptionItemCreate:
+      type: object
+      required:
+      - medicine_name
+      - dosage
+      - dose_unit
+      - frequency
+      - start_date
+      properties:
+        medicine_name:
+          type: string
+        dosage:
+          type: number
+        dose_unit:
+          type: string
+        frequency:
+          type: string
+        route:
+          type: string
+        instructions:
+          type: string
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+    Prescription:
+      type: object
+      required:
+      - prescription_id
+      - patient_id
+      - clinician_id
+      - status
+      - items
+      - created_at
+      properties:
+        prescription_id:
+          type: string
+          format: uuid
+        patient_id:
+          type: string
+          format: uuid
+        clinician_id:
+          type: string
+          format: uuid
+        clinical_record_id:
+          type: string
+          format: uuid
+          nullable: true
+        status:
+          type: string
+          enum:
+          - ACTIVE
+          - DISCONTINUED
+          - COMPLETED
+        notes:
+          type: string
+          nullable: true
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PrescriptionItem'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    PrescriptionCreateRequest:
+      type: object
+      required:
+      - patient_id
+      - items
+      properties:
+        patient_id:
+          type: string
+          format: uuid
+        clinical_record_id:
+          type: string
+          format: uuid
+        notes:
+          type: string
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/PrescriptionItemCreate'
+    MedicationSchedule:
+      type: object
+      required:
+      - schedule_id
+      - prescription_item_id
+      - scheduled_at
+      - status
+      properties:
+        schedule_id:
+          type: string
+          format: uuid
+        prescription_item_id:
+          type: string
+          format: uuid
+        medicine_name:
+          type: string
+        scheduled_at:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+          - SCHEDULED
+          - TAKEN
+          - MISSED
+          - SKIPPED
+    MedicationRecord:
+      type: object
+      required:
+      - medication_record_id
+      - prescription_item_id
+      - scheduled_at
+      - status
+      properties:
+        medication_record_id:
+          type: string
+          format: uuid
+        prescription_item_id:
+          type: string
+          format: uuid
+        scheduled_at:
+          type: string
+          format: date-time
+        taken_at:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+          enum:
+          - SCHEDULED
+          - TAKEN
+          - MISSED
+          - SKIPPED
+        note:
+          type: string
+          nullable: true
+    MedicationRecordCreateRequest:
+      type: object
+      required:
+      - prescription_item_id
+      - scheduled_at
+      - status
+      properties:
+        prescription_item_id:
+          type: string
+          format: uuid
+        scheduled_at:
+          type: string
+          format: date-time
+        taken_at:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+          - TAKEN
+          - MISSED
+          - SKIPPED
+        note:
+          type: string
+    TestResult:
+      type: object
+      required:
+      - test_result_id
+      - patient_id
+      - test_type
+      - status
+      - is_released_to_patient
+      properties:
+        test_result_id:
+          type: string
+          format: uuid
+        patient_id:
+          type: string
+          format: uuid
+        case_id:
+          type: string
+          format: uuid
+          nullable: true
+        test_type:
+          type: string
+          enum:
+          - BRAIN_CT
+          - MRI
+          - LAB
+          - OTHER
+        title:
+          type: string
+          example: 뇌 CT 검사 결과
+        performed_at:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - FINAL
+        summary:
+          type: string
+          nullable: true
+        clinician_comment:
+          type: string
+          nullable: true
+        result_file_uri:
+          type: string
+          nullable: true
+        is_released_to_patient:
+          type: boolean
+        released_at:
+          type: string
+          format: date-time
+          nullable: true
+        released_by:
+          type: string
+          format: uuid
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+    TestResultCreateRequest:
+      type: object
+      required:
+      - patient_id
+      - test_type
+      - title
+      properties:
+        patient_id:
+          type: string
+          format: uuid
+        case_id:
+          type: string
+          format: uuid
+        test_type:
+          type: string
+          enum:
+          - BRAIN_CT
+          - MRI
+          - LAB
+          - OTHER
+        title:
+          type: string
+        performed_at:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - FINAL
+          default: DRAFT
+        summary:
+          type: string
+        clinician_comment:
+          type: string
+        result_file_uri:
+          type: string
+    Consultation:
+      type: object
+      required:
+      - consultation_id
+      - patient_id
+      - requester_clinician_id
+      - consultant_clinician_id
+      - status
+      properties:
+        consultation_id:
+          type: string
+          format: uuid
+        patient_id:
+          type: string
+          format: uuid
+        case_id:
+          type: string
+          format: uuid
+          nullable: true
+        requester_clinician_id:
+          type: string
+          format: uuid
+        consultant_clinician_id:
+          type: string
+          format: uuid
+        question:
+          type: string
+        response:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum:
+          - REQUESTED
+          - IN_REVIEW
+          - COMPLETED
+          - CANCELLED
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+    ConsultationCreateRequest:
+      type: object
+      required:
+      - patient_id
+      - consultant_clinician_id
+      - question
+      properties:
+        patient_id:
+          type: string
+          format: uuid
+        case_id:
+          type: string
+          format: uuid
+        consultant_clinician_id:
+          type: string
+          format: uuid
+        question:
+          type: string
+    Case:
+      type: object
+      required:
+      - case_id
+      - patient_id
+      - study_type
+      - status
+      - created_at
+      properties:
+        case_id:
+          type: string
+          format: uuid
+        patient_id:
+          type: string
+          format: uuid
+        study_type:
+          type: string
+          enum:
+          - BRAIN_CT
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum:
+          - CREATED
+          - UPLOADING
+          - UPLOADED
+          - INFERENCE_QUEUED
+          - INFERENCE_RUNNING
+          - COMPLETED
+          - FAILED
+        input_uri:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CaseCreateRequest:
+      type: object
+      required:
+      - patient_id
+      - study_type
+      properties:
+        patient_id:
+          type: string
+          format: uuid
+        study_type:
+          type: string
+          enum:
+          - BRAIN_CT
+        description:
+          type: string
+    UploadUrlRequest:
+      type: object
+      required:
+      - file_name
+      - content_type
+      - size_bytes
+      properties:
+        file_name:
+          type: string
+          example: ct.nii.gz
+        content_type:
+          type: string
+          example: application/gzip
+        size_bytes:
+          type: integer
+          minimum: 1
+    UploadUrl:
+      type: object
+      required:
+      - case_id
+      - upload_url
+      - object_path
+      - expires_in
+      properties:
+        case_id:
+          type: string
+          format: uuid
+        upload_url:
+          type: string
+          format: uri
+        object_path:
+          type: string
+          example: cases/case-uuid/input/ct.nii.gz
+        expires_in:
+          type: integer
+          example: 900
+        required_headers:
+          type: object
+          additionalProperties:
+            type: string
+    UploadCompleteRequest:
+      type: object
+      required:
+      - object_path
+      - size_bytes
+      - sha256
+      properties:
+        object_path:
+          type: string
+        size_bytes:
+          type: integer
+        sha256:
+          type: string
+          pattern: ^[a-fA-F0-9]{64}$
+    InferenceStartRequest:
+      type: object
+      properties:
+        threshold:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 0.25
+        min_component_size:
+          type: integer
+          minimum: 0
+          default: 30
+        sliding_window_step_size:
+          type: number
+          maximum: 1
+          default: 0.5
+          minimum: 0
+          exclusiveMinimum: true
+    InferenceJob:
+      type: object
+      required:
+      - job_id
+      - case_id
+      - status
+      - progress
+      properties:
+        job_id:
+          type: string
+          format: uuid
+        case_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - QUEUED
+          - RUNNING
+          - COMPLETED
+          - FAILED
+          - CANCELLED
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        error:
+          allOf:
+          - $ref: '#/components/schemas/InferenceError'
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+    InferenceError:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        retryable:
+          type: boolean
+    ModelInfo:
+      type: object
+      required:
+      - model_id
+      - model_version
+      properties:
+        model_id:
+          type: string
+          example: bhsd-nnunet-stage-attention
+        model_version:
+          type: string
+          example: 1.0.0
+        checkpoint:
+          type: string
+          example: checkpoint_best.pth
+        threshold:
+          type: number
+          example: 0.25
+    Prediction:
+      type: object
+      required:
+      - mask_uri
+      - lesion_voxels
+      - lesion_volume_ml
+      - shape
+      - spacing
+      properties:
+        mask_uri:
+          type: string
+        preview_uri:
+          type: string
+          nullable: true
+        lesion_voxels:
+          type: integer
+        lesion_volume_ml:
+          type: number
+          format: float
+        lesion_slice_count:
+          type: integer
+        lesion_slice_start:
+          type: integer
+          nullable: true
+        lesion_slice_end:
+          type: integer
+          nullable: true
+        max_lesion_slice:
+          type: integer
+          nullable: true
+        shape:
+          type: array
+          minItems: 3
+          maxItems: 3
+          items:
+            type: integer
+        spacing:
+          type: array
+          minItems: 3
+          maxItems: 3
+          items:
+            type: number
+    Timing:
+      type: object
+      properties:
+        preprocessing_seconds:
+          type: number
+        inference_seconds:
+          type: number
+        postprocessing_seconds:
+          type: number
+        total_seconds:
+          type: number
+    InferenceResult:
+      type: object
+      required:
+      - case_id
+      - job_id
+      - status
+      - model
+      - prediction
+      - timing
+      properties:
+        case_id:
+          type: string
+          format: uuid
+        job_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - COMPLETED
+        model:
+          $ref: '#/components/schemas/ModelInfo'
+        prediction:
+          $ref: '#/components/schemas/Prediction'
+        timing:
+          $ref: '#/components/schemas/Timing'
+    ViewerInfo:
+      type: object
+      required:
+      - case_id
+      - source_uri
+      properties:
+        case_id:
+          type: string
+          format: uuid
+        source_uri:
+          type: string
+        mask_uri:
+          type: string
+          nullable: true
+        preview_uri:
+          type: string
+          nullable: true
+        download_expires_in:
+          type: integer
+          example: 900
+    DeviceCreateRequest:
+      type: object
+      required:
+      - platform
+      - fcm_token
+      properties:
+        platform:
+          type: string
+          enum:
+          - ANDROID
+          - IOS
+          - WEB
+        fcm_token:
+          type: string
+        device_name:
+          type: string
+          example: Galaxy S25
+    Device:
+      type: object
+      required:
+      - device_id
+      - platform
+      - device_name
+      - registered_at
+      properties:
+        device_id:
+          type: string
+          format: uuid
+        platform:
+          type: string
+          enum:
+          - ANDROID
+          - IOS
+          - WEB
+        device_name:
+          type: string
+        registered_at:
+          type: string
+          format: date-time
+    Notification:
+      type: object
+      required:
+      - notification_id
+      - type
+      - title
+      - body
+      - is_read
+      - created_at
+      properties:
+        notification_id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum:
+          - APPOINTMENT_REMINDER
+          - APPOINTMENT_CHANGED
+          - MEDICATION_REMINDER
+          - PRESCRIPTION_CREATED
+          - TEST_RESULT_READY
+          - SYSTEM_NOTICE
+        title:
+          type: string
+        body:
+          type: string
+        data:
+          type: object
+          additionalProperties: true
+        is_read:
+          type: boolean
+        read_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+    NotificationCreateRequest:
+      type: object
+      required:
+      - patient_id
+      - type
+      - title
+      - body
+      properties:
+        patient_id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum:
+          - APPOINTMENT_CHANGED
+          - PRESCRIPTION_CREATED
+          - TEST_RESULT_READY
+          - SYSTEM_NOTICE
+        title:
+          type: string
+        body:
+          type: string
+        data:
+          type: object
+          additionalProperties: true
+        send_push:
+          type: boolean
+          default: true
+    ClinicianDashboard:
+      type: object
+      required:
+      - today_appointments
+      - waiting_patients
+      - running_inferences
+      - completed_results
+      - failed_inferences
+      properties:
+        today_appointments:
+          type: integer
+        waiting_patients:
+          type: integer
+        running_inferences:
+          type: integer
+        completed_results:
+          type: integer
+        failed_inferences:
+          type: integer
