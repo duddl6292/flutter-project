@@ -27,8 +27,8 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
               const SizedBox(height: 12),
               Image.asset(
                 'assets/images/logo.png',
-                width: 90,
-                height: 90,
+                width: 80,
+                height: 80,
                 fit: BoxFit.contain,
               ),
               const SizedBox(height: 8),
