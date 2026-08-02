@@ -34,12 +34,19 @@ INSTALLED_APPS = [
     "corsheaders",
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
-    "apps.patients",
-    "apps.core",
     "apps.accounts.apps.AccountsConfig",
     "apps.hospitals.apps.HospitalsConfig",
-    "apps.clinicians.apps.CliniciansConfig",    
     "apps.patients.apps.PatientsConfig",
+    "apps.clinicians.apps.CliniciansConfig",
+    "apps.appointments.apps.AppointmentsConfig",
+    "apps.clinical_records.apps.ClinicalRecordsConfig",
+    "apps.prescriptions.apps.PrescriptionsConfig",
+    "apps.medications.apps.MedicationsConfig",
+    "apps.ct_analysis.apps.CtAnalysisConfig",
+    "apps.test_results.apps.TestResultsConfig",
+    "apps.consultations.apps.ConsultationsConfig",
+    "apps.notifications.apps.NotificationsConfig",
+    "apps.core.apps.CoreConfig",
 ]
 
 MIDDLEWARE = [
@@ -72,6 +79,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
+
 
 DATABASES = {
     "default": {
@@ -157,7 +165,7 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
     ],
-    "DEFAULT_PAGINATION_CLASS": "apps.core.pagination.StandardPagination",
+    "DEFAULT_PAGINATION_CLASS": "apps.core.pagination.CommonPageNumberPagination",
     "EXCEPTION_HANDLER": "apps.core.exceptions.api_exception_handler",
 }
 
