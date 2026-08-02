@@ -45,7 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isSubmitting = false;
 
   /// 의료진이 선택한 D/R/P 코드
-  String? _selectedClinicianCode;
+  String? _selectedDepartmentCode;
 
   /// 의료진이 선택한 병원 ID
   ///
@@ -115,7 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
         SnackBar(
           content: Text(
             '의료진 로그인 입력 확인 완료\n'
-            '직군 코드: $_selectedClinicianCode\n'
+            '직군 코드: $_selectedDepartmentCode\n'
             '병원: $_selectedHospitalName\n'
             '병원 ID: $_selectedHospitalId\n'
             '면허번호: ${_licenseNumberController.text.trim()}',
@@ -191,7 +191,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 // 의료진 전용 입력 필드
                 // ==================================================
                 if (_isClinician) ...[
-                  _buildClinicianTypeField(),
+                  _buildDepartmentField(),
                   const SizedBox(height: 20),
 
                   _buildHospitalSearchField(),
@@ -318,14 +318,14 @@ class _LoginScreenState extends State<LoginScreen> {
   // 의료진 직군/진료과 선택
   // ==============================================================
 
-  Widget _buildClinicianTypeField() {
+  Widget _buildDepartmentField(){
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _FieldLabel('직군/진료과 선택'),
+        const _FieldLabel('진료과 선택'),
 
         DropdownButtonFormField<String>(
-          initialValue: _selectedClinicianCode,
+          initialValue: _selectedDepartmentCode,
           decoration: _inputDecoration(
             hintText: '선택해주세요',
             prefixIcon: Icons.medical_services_outlined,
@@ -341,13 +341,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
           onChanged: (value) {
             setState(() {
-              _selectedClinicianCode = value;
+              _selectedDepartmentCode = value;
             });
           },
 
           validator: (value) {
             if (value == null || value.isEmpty) {
-              return '직군 또는 진료과를 선택해주세요.';
+              return '진료과를 선택해주세요.';
             }
 
             return null;
