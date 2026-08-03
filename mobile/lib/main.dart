@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'firebase_options.dart';
 
+const bool uiPreviewMode = true; //ui만 확인할때 
+
 const notificationChannel = AndroidNotificationChannel(
   'brainon_high_v1',
   'BrainOn 알림',
@@ -18,6 +20,12 @@ final localNotifications = FlutterLocalNotificationsPlugin();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+    // UI 확인 모드면 Firebase 설정을 건너뛰고 바로 앱 실행
+  if (uiPreviewMode) {
+    runApp(const ProviderScope(child: BrainOnApp()));
+    return;
+  }
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 

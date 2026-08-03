@@ -11,7 +11,7 @@ class BrainOnApp extends ConsumerWidget {
     final router = ref.watch(appRouterProvider);
 
     return MaterialApp.router(
-      title: 'BrainOn',
+      title: '호닥',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       routerConfig: router,
