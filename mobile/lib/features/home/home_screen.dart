@@ -441,15 +441,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-              TextButton(
-                onPressed: () {
-                  context.pushNamed(RouteNames.appointments);
-                },
-                child: const Text(
-                  '더보기',
-                  style: TextStyle(color: subTextColor, fontSize: 13),
-                ),
-              ),
             ],
           ),
 
@@ -839,14 +830,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
         const menuNames = ['홈', '진료 일정', '상담', '내 기록', '마이페이지'];
 
-      if (index == 1) {
-        context.pushNamed(RouteNames.appointments);
-        return;
-      }
+        if (index == 1) {
+          context.pushNamed(RouteNames.appointments);
+          return;
+        }
 
-      if (index != 0) {
-        _showMessage('${menuNames[index]} 화면은 추후 연결합니다.');
-      }
+        if (index != 0) {
+          _showMessage('${menuNames[index]} 화면은 추후 연결합니다.');
+        }
       },
       type: BottomNavigationBarType.fixed,
       backgroundColor: Colors.white,

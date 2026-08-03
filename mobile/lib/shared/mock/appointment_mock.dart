@@ -1,9 +1,7 @@
 const List<Map<String, dynamic>> appointmentMock = [
   {
     'appointment_id': 'appointment-001',
-    'date': '5.20',
-    'day': '화요일',
-    'time': '10:30',
+    'scheduled_at': '2026-05-20T10:30:00+09:00',
     'type': '진료',
     'hospital_name': '서울아산병원',
     'department': '영상의학과',
@@ -14,9 +12,7 @@ const List<Map<String, dynamic>> appointmentMock = [
   },
   {
     'appointment_id': 'appointment-002',
-    'date': '6.03',
-    'day': '수요일',
-    'time': '14:00',
+    'scheduled_at': '2026-06-03T14:00:00+09:00',
     'type': '검사',
     'hospital_name': '서울아산병원',
     'department': '신경과',
@@ -27,9 +23,7 @@ const List<Map<String, dynamic>> appointmentMock = [
   },
   {
     'appointment_id': 'appointment-003',
-    'date': '6.18',
-    'day': '목요일',
-    'time': '09:20',
+    'scheduled_at': '2026-06-18T09:20:00+09:00',
     'type': '진료',
     'hospital_name': '서울대학교병원',
     'department': '신경외과',

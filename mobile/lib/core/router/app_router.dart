@@ -7,6 +7,8 @@ import 'package:brainon_mobile/features/auth/user_role.dart';
 import 'package:brainon_mobile/features/home/home_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:brainon_mobile/features/appointment/appointment_detail_screen.dart';
+import 'package:brainon_mobile/shared/models/appointment.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(
@@ -49,6 +51,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return const AppointmentListScreen();
         },
       ),
+
+      GoRoute(
+        path: '/appointments/detail',
+        name: RouteNames.appointmentDetail,
+        builder: (context, state) {
+          final appointment = state.extra;
+
+          if (appointment is! Appointment) {
+            return const AppointmentListScreen();
+          }
+
+          return AppointmentDetailScreen(
+            appointment: appointment,
+          );
+        },
+      ),
+
+
     ],
   );
 

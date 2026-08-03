@@ -1,46 +1,27 @@
+import 'package:brainon_mobile/core/router/route_names.dart';
+import 'package:brainon_mobile/features/appointment/repositories/appointment_repository.dart';
+import 'package:brainon_mobile/shared/models/appointment.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
-class AppointmentListScreen extends StatelessWidget {
+class AppointmentListScreen extends StatefulWidget {
   const AppointmentListScreen({super.key});
 
-  static const List<Map<String, dynamic>> _appointments = [
-    {
-      'date': '5.20',
-      'day': '화요일',
-      'time': '10:30',
-      'type': '진료',
-      'hospital_name': '서울아산병원',
-      'department': '영상의학과',
-      'doctor_name': '김준수 교수',
-      'location': '본관 2층 영상의학과 진료실',
-      'd_day': 'D-1',
-      'status': '예약 완료',
-    },
-    {
-      'date': '6.03',
-      'day': '수요일',
-      'time': '14:00',
-      'type': '검사',
-      'hospital_name': '서울아산병원',
-      'department': '신경과',
-      'doctor_name': '이도현 교수',
-      'location': '신관 1층 MRI 검사실',
-      'd_day': 'D-15',
-      'status': '예약 완료',
-    },
-    {
-      'date': '6.18',
-      'day': '목요일',
-      'time': '09:20',
-      'type': '진료',
-      'hospital_name': '서울대학교병원',
-      'department': '신경외과',
-      'doctor_name': '박지훈 교수',
-      'location': '본관 3층 신경외과 진료실',
-      'd_day': 'D-30',
-      'status': '예약 완료',
-    },
-  ];
+  @override
+  State<AppointmentListScreen> createState() => _AppointmentListScreenState();
+}
+
+class _AppointmentListScreenState extends State<AppointmentListScreen> {
+  final AppointmentRepository _repository = AppointmentRepository();
+
+  late final Future<List<Appointment>> _appointmentsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _appointmentsFuture = _repository.getAppointments();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,36 +42,54 @@ class AppointmentListScreen extends StatelessWidget {
         centerTitle: false,
       ),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-          children: [
-            const Text(
-              '다가오는 진료',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF111827),
-              ),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              '예정된 진료와 검사 일정을 확인하세요.',
-              style: TextStyle(
-                fontSize: 14,
-                color: Color(0xFF6B7280),
-              ),
-            ),
-            const SizedBox(height: 24),
+        child: FutureBuilder<List<Appointment>>(
+          future: _appointmentsFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-            ..._appointments.map(
-              (appointment) => Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: _AppointmentCard(
-                  appointment: appointment,
+            if (snapshot.hasError) {
+              return Center(
+                child: Text(
+                  '예약 정보를 불러오지 못했습니다.\n${snapshot.error}',
+                  textAlign: TextAlign.center,
                 ),
-              ),
-            ),
-          ],
+              );
+            }
+
+            final appointments = snapshot.data ?? <Appointment>[];
+
+            if (appointments.isEmpty) {
+              return const Center(child: Text('예정된 진료가 없습니다.'));
+            }
+
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+              children: [
+                const Text(
+                  '다가오는 진료',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF111827),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  '예정된 진료와 검사 일정을 확인하세요.',
+                  style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+                ),
+                const SizedBox(height: 24),
+                ...appointments.map(
+                  (appointment) => Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: _AppointmentCard(appointment: appointment),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -98,23 +97,17 @@ class AppointmentListScreen extends StatelessWidget {
 }
 
 class _AppointmentCard extends StatelessWidget {
-  const _AppointmentCard({
-    required this.appointment,
-  });
+  const _AppointmentCard({required this.appointment});
 
-  final Map<String, dynamic> appointment;
+  final Appointment appointment;
 
   @override
   Widget build(BuildContext context) {
+    final scheduledAt = appointment.scheduledAt;
+
     return InkWell(
       onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${appointment['hospital_name']} 상세 화면은 다음 단계에서 연결합니다.',
-            ),
-          ),
-        );
+        context.pushNamed(RouteNames.appointmentDetail, extra: appointment);
       },
       borderRadius: BorderRadius.circular(22),
       child: Container(
@@ -122,9 +115,7 @@ class _AppointmentCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(
-            color: const Color(0xFFE5E7EB),
-          ),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
           boxShadow: const [
             BoxShadow(
               color: Color(0x0D000000),
@@ -140,23 +131,17 @@ class _AppointmentCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _DateBox(
-                  date: appointment['date'] as String,
-                  day: appointment['day'] as String,
-                  dDay: appointment['d_day'] as String,
+                  date:
+                      '${scheduledAt.month}.${scheduledAt.day.toString().padLeft(2, '0')}',
+                  day: _weekdayText(scheduledAt),
+                  dDay: appointment.dDay,
                 ),
                 const SizedBox(width: 18),
-                Expanded(
-                  child: _AppointmentInfo(
-                    appointment: appointment,
-                  ),
-                ),
+                Expanded(child: _AppointmentInfo(appointment: appointment)),
               ],
             ),
             const SizedBox(height: 18),
-            const Divider(
-              height: 1,
-              color: Color(0xFFE5E7EB),
-            ),
+            const Divider(height: 1, color: Color(0xFFE5E7EB)),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -167,7 +152,7 @@ class _AppointmentCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  appointment['status'] as String,
+                  appointment.status,
                   style: const TextStyle(
                     color: Color(0xFF15803D),
                     fontSize: 14,
@@ -184,10 +169,7 @@ class _AppointmentCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 4),
-                const Icon(
-                  Icons.chevron_right,
-                  color: Color(0xFF2563EB),
-                ),
+                const Icon(Icons.chevron_right, color: Color(0xFF2563EB)),
               ],
             ),
           ],
@@ -195,14 +177,17 @@ class _AppointmentCard extends StatelessWidget {
       ),
     );
   }
+
+  String _weekdayText(DateTime date) {
+    const weekdays = ['월요일', '화요일', '수요일', '목요일', '금요일', '토요일', '일요일'];
+
+    return weekdays[date.weekday - 1];
+  }
 }
 
+// 날짜정보 클래스
 class _DateBox extends StatelessWidget {
-  const _DateBox({
-    required this.date,
-    required this.day,
-    required this.dDay,
-  });
+  const _DateBox({required this.date, required this.day, required this.dDay});
 
   final String date;
   final String day;
@@ -212,10 +197,7 @@ class _DateBox extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 84,
-      padding: const EdgeInsets.symmetric(
-        vertical: 14,
-        horizontal: 10,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
       decoration: BoxDecoration(
         color: const Color(0xFFEFF6FF),
         borderRadius: BorderRadius.circular(18),
@@ -241,10 +223,7 @@ class _DateBox extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 10,
-              vertical: 6,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(10),
@@ -264,22 +243,27 @@ class _DateBox extends StatelessWidget {
   }
 }
 
+//예약정보 클래스
 class _AppointmentInfo extends StatelessWidget {
-  const _AppointmentInfo({
-    required this.appointment,
-  });
+  const _AppointmentInfo({required this.appointment});
 
-  final Map<String, dynamic> appointment;
+  final Appointment appointment;
 
   @override
   Widget build(BuildContext context) {
+    final scheduledAt = appointment.scheduledAt;
+
+    final time =
+        '${scheduledAt.hour.toString().padLeft(2, '0')}:'
+        '${scheduledAt.minute.toString().padLeft(2, '0')}';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
             Text(
-              appointment['time'] as String,
+              time,
               style: const TextStyle(
                 color: Color(0xFF111827),
                 fontSize: 22,
@@ -288,16 +272,13 @@ class _AppointmentInfo extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 6,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: const Color(0xFFEFF6FF),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
-                appointment['type'] as String,
+                appointment.type,
                 style: const TextStyle(
                   color: Color(0xFF2563EB),
                   fontSize: 13,
@@ -309,7 +290,7 @@ class _AppointmentInfo extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         Text(
-          '${appointment['hospital_name']} ${appointment['department']}',
+          '${appointment.hospitalName} ${appointment.department}',
           style: const TextStyle(
             color: Color(0xFF111827),
             fontSize: 17,
@@ -318,7 +299,7 @@ class _AppointmentInfo extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          appointment['doctor_name'] as String,
+          appointment.doctorName,
           style: const TextStyle(
             color: Color(0xFF4B5563),
             fontSize: 15,
@@ -337,7 +318,7 @@ class _AppointmentInfo extends StatelessWidget {
             const SizedBox(width: 6),
             Expanded(
               child: Text(
-                appointment['location'] as String,
+                appointment.location,
                 style: const TextStyle(
                   color: Color(0xFF6B7280),
                   fontSize: 13,
