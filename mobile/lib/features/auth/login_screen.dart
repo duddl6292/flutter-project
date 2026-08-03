@@ -108,7 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     if (_isClinician) {
-      context.goNamed(RouteNames.home); //로그인되는지 임시 확인
+      context.goNamed(RouteNames.patientMain); //로그인되는지 임시 확인
       // ----------------------------------------------------------
       // 의료진 로그인 임시 확인
       //

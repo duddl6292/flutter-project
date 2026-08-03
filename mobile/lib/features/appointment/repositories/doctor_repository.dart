@@ -6,7 +6,7 @@ class DoctorRepository {
     String departmentId,
   ) async {
     await Future<void>.delayed(
-      const Duration(milliseconds: 400),
+      const Duration(milliseconds: 300),
     );
 
     return doctorMock

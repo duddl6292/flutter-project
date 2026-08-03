@@ -10,4 +10,5 @@ abstract final class RouteNames {
   static const forgotPassword = 'forgotPassword'; // 비번찾기
   static const String hospitalSelect = 'hospitalSelect'; //
   static const String appointmentCreate = 'appointmentCreate'; //진료예약하기
+  static const String patientMain = 'patientMain';
 }

@@ -21,8 +21,7 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
   final DepartmentRepository _departmentRepository =
       DepartmentRepository();
 
-  final DoctorRepository _doctorRepository =
-      DoctorRepository();
+  final DoctorRepository _doctorRepository = DoctorRepository();
 
   final AppointmentCreateRepository _appointmentRepository =
       AppointmentCreateRepository();
@@ -33,24 +32,13 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
   DateTime? _selectedDate;
   String? _selectedTime;
 
+  List<Department> _departments = [];
+  List<Doctor> _doctors = [];
+
+  int _currentStep = 0;
+
+  bool _isLoading = false;
   bool _isSubmitting = false;
-
-  bool get _canSelectDepartment => _selectedHospital != null;
-
-  bool get _canSelectDoctor =>
-      _selectedHospital != null &&
-      _selectedDepartment != null;
-
-  bool get _canSelectDate =>
-      _selectedHospital != null &&
-      _selectedDepartment != null &&
-      _selectedDoctor != null;
-
-  bool get _canSelectTime =>
-      _selectedHospital != null &&
-      _selectedDepartment != null &&
-      _selectedDoctor != null &&
-      _selectedDate != null;
 
   bool get _canSubmit =>
       _selectedHospital != null &&
@@ -59,6 +47,9 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
       _selectedDate != null &&
       _selectedTime != null;
 
+  // ============================================================
+  // 병원 선택
+  // ============================================================
   Future<void> _selectHospital() async {
     final hospital = await Navigator.of(context).push<Hospital>(
       MaterialPageRoute(
@@ -75,115 +66,125 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
     setState(() {
       _selectedHospital = hospital;
 
-      // 병원이 변경되면 하위 선택값 초기화
+      // 상위 항목이 바뀌면 하위 선택값 초기화
       _selectedDepartment = null;
       _selectedDoctor = null;
       _selectedDate = null;
       _selectedTime = null;
+
+      _departments = [];
+      _doctors = [];
+
+      _isLoading = true;
     });
+
+    try {
+      final departments =
+          await _departmentRepository.getDepartmentsByHospital(
+        hospital.hospitalId,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _departments = departments;
+        _isLoading = false;
+
+        // 병원 선택 후 진료과 단계로 자동 이동
+        _currentStep = 1;
+      });
+
+      if (departments.isEmpty) {
+        _showMessage('선택한 병원에 등록된 진료과가 없습니다.');
+      }
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      _showMessage('진료과 정보를 불러오지 못했습니다.');
+    }
   }
 
-  Future<void> _selectDepartment() async {
-    if (_selectedHospital == null) {
-      _showMessage('병원을 먼저 선택해 주세요.');
-      return;
-    }
-
-    final departments =
-        await _departmentRepository.getDepartmentsByHospital(
-      _selectedHospital!.hospitalId,
-    );
-
-    if (!mounted) {
-      return;
-    }
-
-    if (departments.isEmpty) {
-      _showMessage('선택 가능한 진료과가 없습니다.');
-      return;
-    }
-
-    final department =
-        await showModalBottomSheet<Department>(
-      context: context,
-      backgroundColor: Colors.white,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (context) {
-        return _DepartmentBottomSheet(
-          departments: departments,
-        );
-      },
-    );
-
-    if (department == null || !mounted) {
-      return;
-    }
-
+  // ============================================================
+  // 진료과 선택
+  // ============================================================
+  Future<void> _selectDepartment(
+    Department department,
+  ) async {
     setState(() {
       _selectedDepartment = department;
 
-      // 진료과가 변경되면 하위 선택값 초기화
       _selectedDoctor = null;
       _selectedDate = null;
       _selectedTime = null;
+
+      _doctors = [];
+      _isLoading = true;
     });
+
+    try {
+      final doctors =
+          await _doctorRepository.getDoctorsByDepartment(
+        department.departmentId,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _doctors = doctors;
+        _isLoading = false;
+
+        // 진료과 선택 후 의료진 단계로 자동 이동
+        _currentStep = 2;
+      });
+
+      if (doctors.isEmpty) {
+        _showMessage('선택한 진료과에 등록된 의료진이 없습니다.');
+      }
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      _showMessage('의료진 정보를 불러오지 못했습니다.');
+    }
   }
 
-  Future<void> _selectDoctor() async {
-    if (_selectedDepartment == null) {
-      _showMessage('진료과를 먼저 선택해 주세요.');
-      return;
-    }
-
-    final doctors =
-        await _doctorRepository.getDoctorsByDepartment(
-      _selectedDepartment!.departmentId,
-    );
-
-    if (!mounted) {
-      return;
-    }
-
-    if (doctors.isEmpty) {
-      _showMessage('선택 가능한 의료진이 없습니다.');
-      return;
-    }
-
-    final doctor = await showModalBottomSheet<Doctor>(
-      context: context,
-      backgroundColor: Colors.white,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (context) {
-        return _DoctorBottomSheet(
-          doctors: doctors,
-        );
-      },
-    );
-
-    if (doctor == null || !mounted) {
-      return;
-    }
-
+  // ============================================================
+  // 의료진 선택
+  // ============================================================
+  void _selectDoctor(Doctor doctor) {
     setState(() {
       _selectedDoctor = doctor;
 
-      // 의료진이 변경되면 하위 선택값 초기화
       _selectedDate = null;
       _selectedTime = null;
+
+      // 의료진 선택 후 날짜 단계로 자동 이동
+      _currentStep = 3;
     });
   }
 
+  // ============================================================
+  // 날짜 선택
+  // ============================================================
   Future<void> _selectDate() async {
-    if (_selectedDoctor == null) {
-      _showMessage('담당 의료진을 먼저 선택해 주세요.');
-      return;
-    }
-
     final today = DateTime.now();
 
-    final date = await showDatePicker(
+    final selectedDate = await showDatePicker(
       context: context,
       initialDate: _selectedDate ?? today,
       firstDate: DateTime(
@@ -197,53 +198,93 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
       confirmText: '선택',
     );
 
-    if (date == null || !mounted) {
+    if (selectedDate == null || !mounted) {
       return;
     }
 
     setState(() {
-      _selectedDate = date;
-
-      // 날짜가 변경되면 시간 초기화
+      _selectedDate = selectedDate;
       _selectedTime = null;
+
+      // 날짜 선택 후 시간 단계로 자동 이동
+      _currentStep = 4;
     });
   }
 
-  Future<void> _selectTime() async {
-    if (_selectedDate == null) {
-      _showMessage('진료 날짜를 먼저 선택해 주세요.');
-      return;
-    }
-
-    final time = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: Colors.white,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (context) {
-        return const _TimeBottomSheet();
-      },
-    );
-
-    if (time == null || !mounted) {
-      return;
-    }
-
+  // ============================================================
+  // 시간 선택
+  // ============================================================
+  void _selectTime(String time) {
     setState(() {
       _selectedTime = time;
+
+      // 시간 선택 후 예약 확인 단계로 자동 이동
+      _currentStep = 5;
     });
   }
 
+  // ============================================================
+  // 완료한 이전 단계로 돌아가기
+  // ============================================================
+  void _moveToStep(int step) {
+    final highestAvailableStep = _highestAvailableStep;
+
+    if (step > highestAvailableStep) {
+      return;
+    }
+
+    setState(() {
+      _currentStep = step;
+    });
+  }
+
+  int get _highestAvailableStep {
+    if (_selectedHospital == null) {
+      return 0;
+    }
+
+    if (_selectedDepartment == null) {
+      return 1;
+    }
+
+    if (_selectedDoctor == null) {
+      return 2;
+    }
+
+    if (_selectedDate == null) {
+      return 3;
+    }
+
+    if (_selectedTime == null) {
+      return 4;
+    }
+
+    return 5;
+  }
+
+  // ============================================================
+  // 예약 생성
+  // ============================================================
   Future<void> _submitAppointment() async {
-    if (!_canSubmit) {
+    if (!_canSubmit || _isSubmitting) {
       _showMessage('예약 정보를 모두 선택해 주세요.');
       return;
     }
 
     final timeParts = _selectedTime!.split(':');
 
-    final hour = int.parse(timeParts[0]);
-    final minute = int.parse(timeParts[1]);
+    if (timeParts.length != 2) {
+      _showMessage('진료 시간 형식이 올바르지 않습니다.');
+      return;
+    }
+
+    final hour = int.tryParse(timeParts[0]);
+    final minute = int.tryParse(timeParts[1]);
+
+    if (hour == null || minute == null) {
+      _showMessage('진료 시간 형식이 올바르지 않습니다.');
+      return;
+    }
 
     final scheduledAt = DateTime(
       _selectedDate!.year,
@@ -265,9 +306,7 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
     });
 
     try {
-      await _appointmentRepository.createAppointment(
-        request,
-      );
+      await _appointmentRepository.createAppointment(request);
 
       if (!mounted) {
         return;
@@ -275,13 +314,23 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
 
       await showDialog<void>(
         context: context,
-        builder: (context) {
+        barrierDismissible: false,
+        builder: (dialogContext) {
           return AlertDialog(
-            title: const Text(
-              '예약이 완료되었습니다.',
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-              ),
+            title: const Row(
+              children: [
+                Icon(
+                  Icons.check_circle_rounded,
+                  color: Color(0xFF2563EB),
+                ),
+                SizedBox(width: 8),
+                Text(
+                  '예약 완료',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
             ),
             content: Text(
               '${_selectedHospital!.hospitalName}\n'
@@ -292,7 +341,7 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
             actions: [
               FilledButton(
                 onPressed: () {
-                  Navigator.of(context).pop();
+                  Navigator.of(dialogContext).pop();
                 },
                 child: const Text('확인'),
               ),
@@ -305,15 +354,13 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
         return;
       }
 
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(true);
     } catch (error) {
       if (!mounted) {
         return;
       }
 
-      _showMessage(
-        '예약을 완료하지 못했습니다.\n$error',
-      );
+      _showMessage('예약을 완료하지 못했습니다.');
     } finally {
       if (mounted) {
         setState(() {
@@ -324,11 +371,14 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-      ),
-    );
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
   }
 
   String _formatDate(DateTime date) {
@@ -346,6 +396,44 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
 
     return '${date.year}.${date.month.toString().padLeft(2, '0')}.'
         '${date.day.toString().padLeft(2, '0')} ($weekday)';
+  }
+
+  String get _stepTitle {
+    switch (_currentStep) {
+      case 0:
+        return '병원을 선택해 주세요.';
+      case 1:
+        return '진료과를 선택해 주세요.';
+      case 2:
+        return '담당 의료진을 선택해 주세요.';
+      case 3:
+        return '진료 날짜를 선택해 주세요.';
+      case 4:
+        return '진료 시간을 선택해 주세요.';
+      case 5:
+        return '예약 정보를 확인해 주세요.';
+      default:
+        return '예약 정보를 선택해 주세요.';
+    }
+  }
+
+  String get _stepDescription {
+    switch (_currentStep) {
+      case 0:
+        return '검색하거나 찜한 병원에서 선택할 수 있습니다.';
+      case 1:
+        return '${_selectedHospital?.hospitalName ?? ''}의 진료과입니다.';
+      case 2:
+        return '${_selectedDepartment?.departmentName ?? ''} 의료진을 선택해 주세요.';
+      case 3:
+        return '진료 가능한 날짜를 선택해 주세요.';
+      case 4:
+        return '원하는 진료 시간을 선택해 주세요.';
+      case 5:
+        return '아래 정보가 맞는지 확인한 후 예약해 주세요.';
+      default:
+        return '';
+    }
   }
 
   @override
@@ -368,221 +456,547 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(
-                  20,
-                  24,
-                  20,
-                  24,
-                ),
-                children: [
-                  const Text(
-                    '예약 정보를 선택해 주세요.',
-                    style: TextStyle(
-                      color: Color(0xFF2563EB),
-                      fontSize: 21,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    '병원부터 진료 시간까지 순서대로 선택해 주세요.',
-                    style: TextStyle(
-                      color: Color(0xFF6B7280),
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: const Color(0xFFE5E7EB),
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        _AppointmentSelectTile(
-                          icon: Icons.local_hospital_outlined,
-                          title: '병원',
-                          value:
-                              _selectedHospital?.hospitalName,
-                          placeholder: '선택해 주세요',
-                          enabled: true,
-                          onTap: _selectHospital,
-                        ),
-                        const _TileDivider(),
-
-                        _AppointmentSelectTile(
-                          icon: Icons.medical_services_outlined,
-                          title: '진료과',
-                          value: _selectedDepartment
-                              ?.departmentName,
-                          placeholder: _canSelectDepartment
-                              ? '선택해 주세요'
-                              : '병원을 먼저 선택해 주세요',
-                          enabled: _canSelectDepartment,
-                          onTap: _selectDepartment,
-                        ),
-                        const _TileDivider(),
-
-                        _AppointmentSelectTile(
-                          icon: Icons.person_outline,
-                          title: '담당 의료진',
-                          value: _selectedDoctor?.doctorName,
-                          placeholder: _canSelectDoctor
-                              ? '선택해 주세요'
-                              : '진료과를 먼저 선택해 주세요',
-                          enabled: _canSelectDoctor,
-                          onTap: _selectDoctor,
-                        ),
-                        const _TileDivider(),
-
-                        _AppointmentSelectTile(
-                          icon: Icons.calendar_month_outlined,
-                          title: '진료 날짜',
-                          value: _selectedDate == null
-                              ? null
-                              : _formatDate(
-                                  _selectedDate!,
-                                ),
-                          placeholder: _canSelectDate
-                              ? '선택해 주세요'
-                              : '의료진을 먼저 선택해 주세요',
-                          enabled: _canSelectDate,
-                          onTap: _selectDate,
-                        ),
-                        const _TileDivider(),
-
-                        _AppointmentSelectTile(
-                          icon: Icons.access_time_outlined,
-                          title: '진료 시간',
-                          value: _selectedTime,
-                          placeholder: _canSelectTime
-                              ? '선택해 주세요'
-                              : '날짜를 먼저 선택해 주세요',
-                          enabled: _canSelectTime,
-                          onTap: _selectTime,
-                          isLast: true,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  if (_canSubmit) ...[
-                    const SizedBox(height: 20),
-
-                    _AppointmentSummaryCard(
-                      hospitalName:
-                          _selectedHospital!.hospitalName,
-                      departmentName:
-                          _selectedDepartment!.departmentName,
-                      doctorName:
-                          _selectedDoctor!.doctorName,
-                      date: _formatDate(_selectedDate!),
-                      time: _selectedTime!,
-                    ),
-                  ],
-                ],
+            // ======================================================
+            // 상단 진행 상태창
+            // ======================================================
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(
+                16,
+                14,
+                16,
+                16,
+              ),
+              child: _AppointmentStepIndicator(
+                currentStep: _currentStep,
+                highestAvailableStep: _highestAvailableStep,
+                onStepTap: _moveToStep,
               ),
             ),
 
-            Container(
-              padding: const EdgeInsets.fromLTRB(
-                20,
-                12,
-                20,
-                24,
-              ),
-              child: SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: FilledButton(
-                  onPressed:
-                      !_canSubmit || _isSubmitting
-                          ? null
-                          : _submitAppointment,
-                  style: FilledButton.styleFrom(
-                    backgroundColor:
-                        const Color(0xFF2563EB),
-                    disabledBackgroundColor:
-                        const Color(0xFFC7D2FE),
-                    disabledForegroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(16),
+            Expanded(
+              child: _isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(),
+                    )
+                  : AnimatedSwitcher(
+                      duration: const Duration(
+                        milliseconds: 280,
+                      ),
+                      switchInCurve: Curves.easeOut,
+                      switchOutCurve: Curves.easeIn,
+                      transitionBuilder: (
+                        child,
+                        animation,
+                      ) {
+                        final offsetAnimation = Tween<Offset>(
+                          begin: const Offset(0.08, 0),
+                          end: Offset.zero,
+                        ).animate(animation);
+
+                        return FadeTransition(
+                          opacity: animation,
+                          child: SlideTransition(
+                            position: offsetAnimation,
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: _buildCurrentStep(),
                     ),
-                  ),
-                  child: _isSubmitting
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child:
-                              CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2.4,
-                          ),
-                        )
-                      : const Text(
-                          '예약 확인하기',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                ),
-              ),
             ),
           ],
         ),
       ),
     );
   }
+
+  Widget _buildCurrentStep() {
+    return ListView(
+      key: ValueKey<int>(_currentStep),
+      padding: const EdgeInsets.fromLTRB(
+        20,
+        24,
+        20,
+        32,
+      ),
+      children: [
+        Text(
+          _stepTitle,
+          style: const TextStyle(
+            color: Color(0xFF111827),
+            fontSize: 23,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+
+        const SizedBox(height: 7),
+
+        Text(
+          _stepDescription,
+          style: const TextStyle(
+            color: Color(0xFF6B7280),
+            fontSize: 14,
+            height: 1.4,
+          ),
+        ),
+
+        const SizedBox(height: 26),
+
+        switch (_currentStep) {
+          0 => _buildHospitalStep(),
+          1 => _buildDepartmentStep(),
+          2 => _buildDoctorStep(),
+          3 => _buildDateStep(),
+          4 => _buildTimeStep(),
+          _ => _buildConfirmStep(),
+        },
+      ],
+    );
+  }
+
+  // ============================================================
+  // 1단계: 병원
+  // ============================================================
+  Widget _buildHospitalStep() {
+    return Column(
+      children: [
+        _SelectedValueCard(
+          icon: Icons.local_hospital_outlined,
+          title: '병원',
+          value: _selectedHospital?.hospitalName,
+          emptyText: '아직 병원을 선택하지 않았습니다.',
+        ),
+
+        const SizedBox(height: 18),
+
+        SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: FilledButton.icon(
+            onPressed: _selectHospital,
+            icon: const Icon(Icons.search_rounded),
+            label: Text(
+              _selectedHospital == null
+                  ? '병원 검색하기'
+                  : '병원 다시 선택하기',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF2563EB),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ============================================================
+  // 2단계: 진료과
+  // ============================================================
+  Widget _buildDepartmentStep() {
+    if (_departments.isEmpty) {
+      return _EmptyStepCard(
+        icon: Icons.medical_services_outlined,
+        message: '선택 가능한 진료과가 없습니다.',
+        buttonText: '병원 다시 선택하기',
+        onPressed: () {
+          _moveToStep(0);
+        },
+      );
+    }
+
+    return Column(
+      children: _departments.map((department) {
+        final selected =
+            _selectedDepartment?.departmentId ==
+            department.departmentId;
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: _SelectionCard(
+            icon: Icons.medical_services_outlined,
+            title: department.departmentName,
+            subtitle: _selectedHospital?.hospitalName,
+            selected: selected,
+            onTap: () {
+              _selectDepartment(department);
+            },
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  // ============================================================
+  // 3단계: 의료진
+  // ============================================================
+  Widget _buildDoctorStep() {
+    if (_doctors.isEmpty) {
+      return _EmptyStepCard(
+        icon: Icons.person_outline,
+        message: '선택 가능한 의료진이 없습니다.',
+        buttonText: '진료과 다시 선택하기',
+        onPressed: () {
+          _moveToStep(1);
+        },
+      );
+    }
+
+    return Column(
+      children: _doctors.map((doctor) {
+        final selected =
+            _selectedDoctor?.doctorId == doctor.doctorId;
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: _SelectionCard(
+            icon: Icons.person_outline,
+            title: doctor.doctorName,
+            subtitle: doctor.departmentName,
+            selected: selected,
+            onTap: () {
+              _selectDoctor(doctor);
+            },
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  // ============================================================
+  // 4단계: 날짜
+  // ============================================================
+  Widget _buildDateStep() {
+    return Column(
+      children: [
+        _SelectedValueCard(
+          icon: Icons.calendar_month_outlined,
+          title: '선택한 날짜',
+          value: _selectedDate == null
+              ? null
+              : _formatDate(_selectedDate!),
+          emptyText: '진료 날짜를 선택해 주세요.',
+        ),
+
+        const SizedBox(height: 18),
+
+        SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: FilledButton.icon(
+            onPressed: _selectDate,
+            icon: const Icon(
+              Icons.calendar_month_outlined,
+            ),
+            label: Text(
+              _selectedDate == null
+                  ? '날짜 선택하기'
+                  : '날짜 다시 선택하기',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF2563EB),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ============================================================
+  // 5단계: 시간
+  // ============================================================
+  Widget _buildTimeStep() {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: appointmentTimeMock.length,
+      gridDelegate:
+          const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        childAspectRatio: 2.1,
+      ),
+      itemBuilder: (context, index) {
+        final time = appointmentTimeMock[index];
+        final selected = _selectedTime == time;
+
+        return OutlinedButton(
+          onPressed: () {
+            _selectTime(time);
+          },
+          style: OutlinedButton.styleFrom(
+            foregroundColor: selected
+                ? Colors.white
+                : const Color(0xFF2563EB),
+            backgroundColor: selected
+                ? const Color(0xFF2563EB)
+                : Colors.white,
+            side: BorderSide(
+              color: selected
+                  ? const Color(0xFF2563EB)
+                  : const Color(0xFFBFDBFE),
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+          child: Text(
+            time,
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ============================================================
+  // 6단계: 예약 확인
+  // ============================================================
+  Widget _buildConfirmStep() {
+    return Column(
+      children: [
+        _AppointmentSummaryCard(
+          hospitalName:
+              _selectedHospital?.hospitalName ?? '',
+          departmentName:
+              _selectedDepartment?.departmentName ?? '',
+          doctorName: _selectedDoctor?.doctorName ?? '',
+          date: _selectedDate == null
+              ? ''
+              : _formatDate(_selectedDate!),
+          time: _selectedTime ?? '',
+          onEditStep: _moveToStep,
+        ),
+
+        const SizedBox(height: 22),
+
+        SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: FilledButton(
+            onPressed:
+                !_canSubmit || _isSubmitting
+                    ? null
+                    : _submitAppointment,
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF2563EB),
+              disabledBackgroundColor:
+                  const Color(0xFFC7D2FE),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            child: _isSubmitting
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2.4,
+                    ),
+                  )
+                : const Text(
+                    '예약 확정하기',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
-class _AppointmentSelectTile extends StatelessWidget {
-  const _AppointmentSelectTile({
+// =================================================================
+// 예약 진행 상태 표시기
+// =================================================================
+class _AppointmentStepIndicator extends StatelessWidget {
+  const _AppointmentStepIndicator({
+    required this.currentStep,
+    required this.highestAvailableStep,
+    required this.onStepTap,
+  });
+
+  final int currentStep;
+  final int highestAvailableStep;
+  final ValueChanged<int> onStepTap;
+
+  static const List<String> _labels = [
+    '병원',
+    '진료과',
+    '의료진',
+    '날짜',
+    '시간',
+    '확인',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: List.generate(
+        _labels.length * 2 - 1,
+        (position) {
+          if (position.isOdd) {
+            final leftStep = (position - 1) ~/ 2;
+            final completed =
+                highestAvailableStep > leftStep;
+
+            return Expanded(
+              child: AnimatedContainer(
+                duration: const Duration(
+                  milliseconds: 220,
+                ),
+                height: 2,
+                margin: const EdgeInsets.only(
+                  top: 15,
+                  left: 2,
+                  right: 2,
+                ),
+                color: completed
+                    ? const Color(0xFF2563EB)
+                    : const Color(0xFFE2E8F0),
+              ),
+            );
+          }
+
+          final index = position ~/ 2;
+          final completed = index < currentStep;
+          final current = index == currentStep;
+          final available =
+              index <= highestAvailableStep;
+
+          return GestureDetector(
+            onTap: available
+                ? () {
+                    onStepTap(index);
+                  }
+                : null,
+            behavior: HitTestBehavior.opaque,
+            child: SizedBox(
+              width: 38,
+              child: Column(
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(
+                      milliseconds: 220,
+                    ),
+                    width: 30,
+                    height: 30,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: completed || current
+                          ? const Color(0xFF2563EB)
+                          : Colors.white,
+                      border: Border.all(
+                        color: completed || current
+                            ? const Color(0xFF2563EB)
+                            : const Color(0xFFCBD5E1),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: completed
+                        ? const Icon(
+                            Icons.check_rounded,
+                            size: 18,
+                            color: Colors.white,
+                          )
+                        : Text(
+                            '${index + 1}',
+                            style: TextStyle(
+                              color: current
+                                  ? Colors.white
+                                  : const Color(
+                                      0xFF94A3B8,
+                                    ),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                  ),
+
+                  const SizedBox(height: 6),
+
+                  Text(
+                    _labels[index],
+                    maxLines: 1,
+                    style: TextStyle(
+                      color: completed || current
+                          ? const Color(0xFF2563EB)
+                          : const Color(0xFF94A3B8),
+                      fontSize: 10,
+                      fontWeight: current
+                          ? FontWeight.w800
+                          : FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// =================================================================
+// 공통 선택 카드
+// =================================================================
+class _SelectionCard extends StatelessWidget {
+  const _SelectionCard({
     required this.icon,
     required this.title,
-    required this.placeholder,
-    required this.enabled,
+    required this.selected,
     required this.onTap,
-    this.value,
-    this.isLast = false,
+    this.subtitle,
   });
 
   final IconData icon;
   final String title;
-  final String? value;
-  final String placeholder;
-  final bool enabled;
+  final String? subtitle;
+  final bool selected;
   final VoidCallback onTap;
-  final bool isLast;
 
   @override
   Widget build(BuildContext context) {
-    final hasValue =
-        value != null && value!.trim().isNotEmpty;
-
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.vertical(
-          top: title == '병원'
-              ? const Radius.circular(20)
-              : Radius.zero,
-          bottom: isLast
-              ? const Radius.circular(20)
-              : Radius.zero,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 17,
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: selected
+                  ? const Color(0xFF2563EB)
+                  : const Color(0xFFE5E7EB),
+              width: selected ? 1.5 : 1,
+            ),
           ),
           child: Row(
             children: [
@@ -590,19 +1004,15 @@ class _AppointmentSelectTile extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: enabled
-                      ? const Color(0xFFEFF6FF)
-                      : const Color(0xFFF1F5F9),
-                  borderRadius:
-                      BorderRadius.circular(14),
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(
                   icon,
-                  color: enabled
-                      ? const Color(0xFF2563EB)
-                      : const Color(0xFF94A3B8),
+                  color: const Color(0xFF2563EB),
                 ),
               ),
+
               const SizedBox(width: 14),
 
               Expanded(
@@ -612,36 +1022,35 @@ class _AppointmentSelectTile extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: TextStyle(
-                        color: enabled
-                            ? const Color(0xFF111827)
-                            : const Color(0xFF64748B),
+                      style: const TextStyle(
+                        color: Color(0xFF111827),
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(height: 5),
-                    Text(
-                      hasValue ? value! : placeholder,
-                      style: TextStyle(
-                        color: hasValue
-                            ? const Color(0xFF2563EB)
-                            : const Color(0xFF64748B),
-                        fontSize: 13,
-                        fontWeight: hasValue
-                            ? FontWeight.w700
-                            : FontWeight.w500,
+
+                    if (subtitle != null &&
+                        subtitle!.trim().isNotEmpty) ...[
+                      const SizedBox(height: 5),
+                      Text(
+                        subtitle!,
+                        style: const TextStyle(
+                          color: Color(0xFF6B7280),
+                          fontSize: 13,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
 
               Icon(
-                Icons.chevron_right,
-                color: enabled
-                    ? const Color(0xFF475569)
-                    : const Color(0xFFCBD5E1),
+                selected
+                    ? Icons.check_circle_rounded
+                    : Icons.chevron_right_rounded,
+                color: selected
+                    ? const Color(0xFF2563EB)
+                    : const Color(0xFF94A3B8),
               ),
             ],
           ),
@@ -651,232 +1060,150 @@ class _AppointmentSelectTile extends StatelessWidget {
   }
 }
 
-class _TileDivider extends StatelessWidget {
-  const _TileDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Divider(
-      height: 1,
-      indent: 16,
-      endIndent: 16,
-      color: Color(0xFFE8EBF1),
-    );
-  }
-}
-
-class _DepartmentBottomSheet extends StatelessWidget {
-  const _DepartmentBottomSheet({
-    required this.departments,
+// =================================================================
+// 현재 선택값 카드
+// =================================================================
+class _SelectedValueCard extends StatelessWidget {
+  const _SelectedValueCard({
+    required this.icon,
+    required this.title,
+    required this.emptyText,
+    this.value,
   });
 
-  final List<Department> departments;
+  final IconData icon;
+  final String title;
+  final String? value;
+  final String emptyText;
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          20,
-          4,
-          20,
-          28,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '진료과 선택',
-              style: TextStyle(
-                color: Color(0xFF111827),
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 14),
+    final hasValue =
+        value != null && value!.trim().isNotEmpty;
 
-            ...departments.map(
-              (department) {
-                return ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const CircleAvatar(
-                    backgroundColor: Color(0xFFEFF6FF),
-                    child: Icon(
-                      Icons.medical_services_outlined,
-                      color: Color(0xFF2563EB),
-                    ),
-                  ),
-                  title: Text(
-                    department.departmentName,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  trailing: const Icon(
-                    Icons.chevron_right,
-                  ),
-                  onTap: () {
-                    Navigator.of(context).pop(
-                      department,
-                    );
-                  },
-                );
-              },
-            ),
-          ],
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: const Color(0xFFE5E7EB),
         ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Icon(
+              icon,
+              color: const Color(0xFF2563EB),
+            ),
+          ),
+
+          const SizedBox(width: 14),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Color(0xFF6B7280),
+                    fontSize: 13,
+                  ),
+                ),
+
+                const SizedBox(height: 5),
+
+                Text(
+                  hasValue ? value! : emptyText,
+                  style: TextStyle(
+                    color: hasValue
+                        ? const Color(0xFF111827)
+                        : const Color(0xFF94A3B8),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _DoctorBottomSheet extends StatelessWidget {
-  const _DoctorBottomSheet({
-    required this.doctors,
+// =================================================================
+// 비어 있는 단계 안내
+// =================================================================
+class _EmptyStepCard extends StatelessWidget {
+  const _EmptyStepCard({
+    required this.icon,
+    required this.message,
+    required this.buttonText,
+    required this.onPressed,
   });
 
-  final List<Doctor> doctors;
+  final IconData icon;
+  final String message;
+  final String buttonText;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          20,
-          4,
-          20,
-          28,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: const Color(0xFFE5E7EB),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '담당 의료진 선택',
-              style: TextStyle(
-                color: Color(0xFF111827),
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 14),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            icon,
+            size: 42,
+            color: const Color(0xFF94A3B8),
+          ),
 
-            ...doctors.map(
-              (doctor) {
-                return ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const CircleAvatar(
-                    backgroundColor: Color(0xFFEFF6FF),
-                    child: Icon(
-                      Icons.person_outline,
-                      color: Color(0xFF2563EB),
-                    ),
-                  ),
-                  title: Text(
-                    doctor.doctorName,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  subtitle: Text(
-                    doctor.departmentName,
-                  ),
-                  trailing: const Icon(
-                    Icons.chevron_right,
-                  ),
-                  onTap: () {
-                    Navigator.of(context).pop(
-                      doctor,
-                    );
-                  },
-                );
-              },
+          const SizedBox(height: 12),
+
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Color(0xFF6B7280),
+              fontSize: 14,
             ),
-          ],
-        ),
+          ),
+
+          const SizedBox(height: 18),
+
+          OutlinedButton(
+            onPressed: onPressed,
+            child: Text(buttonText),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _TimeBottomSheet extends StatelessWidget {
-  const _TimeBottomSheet();
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          20,
-          4,
-          20,
-          28,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '진료 시간 선택',
-              style: TextStyle(
-                color: Color(0xFF111827),
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 18),
-
-            GridView.builder(
-              shrinkWrap: true,
-              physics:
-                  const NeverScrollableScrollPhysics(),
-              itemCount: appointmentTimeMock.length,
-              gridDelegate:
-                  const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 2.2,
-              ),
-              itemBuilder: (context, index) {
-                final time =
-                    appointmentTimeMock[index];
-
-                return OutlinedButton(
-                  onPressed: () {
-                    Navigator.of(context).pop(time);
-                  },
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor:
-                        const Color(0xFF2563EB),
-                    side: const BorderSide(
-                      color: Color(0xFFBFDBFE),
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Text(
-                    time,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
+// =================================================================
+// 예약 확인 카드
+// =================================================================
 class _AppointmentSummaryCard extends StatelessWidget {
   const _AppointmentSummaryCard({
     required this.hospitalName,
@@ -884,6 +1211,7 @@ class _AppointmentSummaryCard extends StatelessWidget {
     required this.doctorName,
     required this.date,
     required this.time,
+    required this.onEditStep,
   });
 
   final String hospitalName;
@@ -891,48 +1219,45 @@ class _AppointmentSummaryCard extends StatelessWidget {
   final String doctorName;
   final String date;
   final String time;
+  final ValueChanged<int> onEditStep;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: const Color(0xFFE5E7EB),
+        ),
       ),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
         children: [
-          const Text(
-            '예약 내용',
-            style: TextStyle(
-              color: Color(0xFF1D4ED8),
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 14),
-
           _SummaryRow(
             label: '병원',
             value: hospitalName,
+            onEdit: () => onEditStep(0),
           ),
           _SummaryRow(
             label: '진료과',
             value: departmentName,
+            onEdit: () => onEditStep(1),
           ),
           _SummaryRow(
             label: '의료진',
             value: doctorName,
+            onEdit: () => onEditStep(2),
           ),
           _SummaryRow(
             label: '날짜',
             value: date,
+            onEdit: () => onEditStep(3),
           ),
           _SummaryRow(
             label: '시간',
             value: time,
+            onEdit: () => onEditStep(4),
             isLast: true,
           ),
         ],
@@ -945,25 +1270,26 @@ class _SummaryRow extends StatelessWidget {
   const _SummaryRow({
     required this.label,
     required this.value,
+    required this.onEdit,
     this.isLast = false,
   });
 
   final String label;
   final String value;
+  final VoidCallback onEdit;
   final bool isLast;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(
-        bottom: isLast ? 0 : 10,
+        bottom: isLast ? 0 : 14,
       ),
       child: Row(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           SizedBox(
-            width: 60,
+            width: 58,
             child: Text(
               label,
               style: const TextStyle(
@@ -972,12 +1298,24 @@ class _SummaryRow extends StatelessWidget {
               ),
             ),
           ),
+
           Expanded(
             child: Text(
               value,
               style: const TextStyle(
                 color: Color(0xFF111827),
-                fontSize: 13,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+
+          TextButton(
+            onPressed: onEdit,
+            child: const Text(
+              '수정',
+              style: TextStyle(
+                fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
             ),
