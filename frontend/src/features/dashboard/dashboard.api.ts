@@ -5,10 +5,24 @@ import type {
   DashboardResponse,
 } from './dashboard.types'
 
+import {
+  apiRequest,
+} from '../../core/api/apiClient'
+
+import type {
+  BackendDashboardResponse,
+} from './dashboard.backend-types'
+
+import {
+  mapDashboardResponse,
+} from './dashboard.mapper'
+
 const DEFAULT_API_BASE_URL = 'http://localhost:8001/api/v1'
 
 export const API_BASE_URL = (
-  import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL
+  import.meta.env.MODE === 'mock'
+    ? window.location.origin
+    : import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL
 ).replace(/\/+$/, '')
 
 export class ApiError extends Error {
@@ -50,13 +64,25 @@ async function requestJson<T>(
   return body as T
 }
 
-export function getDashboard(
+export async function getDashboard(
   date: string,
   signal?: AbortSignal,
 ): Promise<DashboardResponse> {
-  return requestJson<DashboardResponse>(
-    `/dashboard/?date=${encodeURIComponent(date)}`,
-    { signal },
+  const response =
+    await apiRequest<
+      BackendDashboardResponse
+    >(
+      `/api/v1/clinicians/clinicians/me/dashboard?date=${
+      encodeURIComponent(date)
+      }`,
+      {
+        signal,
+      },
+    )
+
+  return mapDashboardResponse(
+    response,
+    date,
   )
 }
 

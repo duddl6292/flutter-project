@@ -70,6 +70,7 @@ button {
   color: #303096;
   font-size: 25px;
   font-weight: 800;
+  text-decoration: none;
 }
 
 .brand-icon {
@@ -245,15 +246,22 @@ button {
   color: #8993b0;
 }
 
-.search-box kbd {
-  min-width: 48px;
-  border: 1px solid #e2e5f0;
-  border-radius: 7px;
-  background: #fafaff;
-  padding: 5px 7px;
-  color: #8189a3;
-  font-size: 10px;
-  text-align: center;
+.header-search-button {
+  flex-shrink: 0;
+  min-width: 58px;
+  min-height: 34px;
+  border: 0;
+  border-radius: 8px;
+  background: #665ee1;
+  padding: 0 13px;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.header-search-button:hover {
+  background: #554dcf;
 }
 
 .topbar-actions {
@@ -280,25 +288,53 @@ button {
 
 .notification-button span {
   position: absolute;
-  top: 2px;
-  right: 1px;
+  top: 0;
+  right: 0;
   display: grid;
-  width: 19px;
-  height: 19px;
+  min-width: 18px;
+  height: 18px;
   place-items: center;
   border: 2px solid #ffffff;
-  border-radius: 50%;
+  border-radius: 999px;
   background: #665ee1;
+  padding: 0 4px;
   color: #ffffff;
   font-size: 9px;
+  font-weight: 800;
 }
 
 .doctor-profile {
   display: flex;
   align-items: center;
   gap: 11px;
-  margin-left: 8px;
-  padding-left: 9px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  padding: 6px 9px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.doctor-profile:hover,
+.doctor-profile[aria-expanded="true"] {
+  background: #f4f3ff;
+}
+
+.logout-button {
+  border: 1px solid #dfe2ef;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 9px 13px;
+  color: #4f5875;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.logout-button:hover {
+  border-color: #665ee1;
+  color: #665ee1;
+  background: #f7f6ff;
 }
 
 .doctor-avatar {
@@ -332,6 +368,213 @@ button {
 .doctor-info span {
   color: #737d9e;
   font-size: 12px;
+}
+
+.header-menu-container {
+  position: relative;
+}
+
+.header-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 200;
+  overflow: hidden;
+  border: 1px solid #e4e6f0;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow:
+    0 18px 45px
+    rgba(31, 41, 77, 0.16);
+}
+
+.notification-dropdown {
+  width: min(380px, calc(100vw - 32px));
+}
+
+.notification-dropdown-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #eceef5;
+  padding: 15px 17px;
+}
+
+.notification-dropdown-header button {
+  border: 0;
+  background: transparent;
+  color: #665ee1;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.notification-dropdown-header button:disabled {
+  color: #a8aec0;
+  cursor: not-allowed;
+}
+
+.notification-list {
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.notification-item {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  gap: 10px;
+  border: 0;
+  border-bottom: 1px solid #f0f1f6;
+  background: #ffffff;
+  padding: 14px 16px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.notification-item:hover {
+  background: #f8f8fd;
+}
+
+.notification-unread {
+  background: #f6f5ff;
+}
+
+.notification-dot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.notification-unread .notification-dot {
+  background: #665ee1;
+}
+
+.notification-content {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.notification-content strong {
+  color: #202844;
+  font-size: 13px;
+}
+
+.notification-content span {
+  color: #69718d;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.notification-content time {
+  color: #9aa0b5;
+  font-size: 11px;
+}
+
+.header-menu-message,
+.header-menu-error {
+  margin: 0;
+  padding: 24px 16px;
+  font-size: 13px;
+  text-align: center;
+}
+
+.header-menu-message {
+  color: #848ba2;
+}
+
+.header-menu-error {
+  color: #c2362b;
+}
+
+.profile-dropdown {
+  width: 280px;
+}
+
+.profile-dropdown-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 17px;
+}
+
+.profile-dropdown-summary > div:last-child {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.profile-dropdown-summary span,
+.profile-dropdown-summary small {
+  color: #737d9e;
+}
+
+.profile-dropdown-summary span {
+  font-size: 12px;
+}
+
+.profile-dropdown-summary small {
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-license {
+  margin: 0 14px 12px;
+  border-radius: 8px;
+  background: #f7f7fc;
+  padding: 9px 10px;
+  color: #747c97;
+  font-size: 11px;
+}
+
+.profile-menu-list {
+  border-top: 1px solid #eceef5;
+  padding: 7px;
+}
+
+.profile-menu-list button,
+.profile-logout-button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  padding: 10px 11px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.profile-menu-list button:hover {
+  background: #f4f3ff;
+  color: #5d55d5;
+}
+
+.profile-logout-button {
+  border-top: 1px solid #eceef5;
+  border-radius: 0;
+  color: #d92d20;
+}
+
+.profile-logout-button:hover {
+  background: #fff3f2;
+}
+
+.profile-chevron-open {
+  transform: rotate(180deg);
+}
+
+.doctor-profile svg {
+  transition: transform 160ms ease;
 }
 
 .dashboard-content {

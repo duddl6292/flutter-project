@@ -9,6 +9,7 @@ from rest_framework_simplejwt.serializers import (
 from .serializers import (
     ClinicianLoginSerializer,
     ClinicianSignupSerializer,
+    PatientClaimSignupSerializer,
     PatientLoginSerializer,
     PatientSignupSerializer,
 )
@@ -39,6 +40,29 @@ class PatientSignupView(APIView):
             status=status.HTTP_201_CREATED,
         )
 
+class PatientClaimSignupView(APIView):
+    """
+    기존 병원 환자의 모바일 계정 연결 회원가입.
+
+    POST /api/v1/auth/patient/claim/
+    """
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = PatientClaimSignupSerializer(
+            data=request.data,
+        )
+        serializer.is_valid(raise_exception=True)
+
+        result = serializer.save()
+
+        return Response(
+            {
+                "data": result,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 class PatientLoginView(APIView):
     permission_classes = [AllowAny]

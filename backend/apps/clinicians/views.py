@@ -13,8 +13,10 @@ from .serializers import (
     DepartmentSerializer,
 )
 
+from rest_framework.permissions import AllowAny
 
 class DepartmentListView(ListAPIView):
+    permission_classes = [AllowAny]
     serializer_class = DepartmentSerializer
 
     def get_queryset(self):

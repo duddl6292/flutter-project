@@ -16,6 +16,11 @@ class Appointment(TimeStampedModel):
         CANCELLED = "CANCELLED", "취소"
         NO_SHOW = "NO_SHOW", "미방문"
 
+    class Duration(models.IntegerChoices):
+        FIFTEEN = 15, "15분"
+        THIRTY = 30, "30분"
+        SIXTY = 60, "60분"
+
     patient = models.ForeignKey(
         "patients.Patient",
         on_delete=models.PROTECT,
@@ -47,8 +52,17 @@ class Appointment(TimeStampedModel):
         help_text="예: 본관 2층 내과 진료실",
     )
 
-    scheduled_at = models.DateTimeField(db_index=True)
-    reason = models.TextField(blank=True)
+    scheduled_at = models.DateTimeField(
+        db_index=True,
+    )
+    duration_minutes = models.PositiveSmallIntegerField(
+        choices=Duration.choices,
+        default=Duration.THIRTY,
+        verbose_name="예약 소요시간(분)",
+    )
+    reason = models.TextField(
+        blank=True,
+    )
     status = models.CharField(
         max_length=16,
         choices=Status.choices,

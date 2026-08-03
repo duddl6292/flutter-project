@@ -4,18 +4,33 @@ from typing import Any
 
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.exceptions import (ValidationError as DjangoValidationError,)
 from django.db import transaction
+from django.contrib.auth.hashers import check_password
+
+from apps.notifications.models import Notification
+
+
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.clinicians.models import Clinician, Department
 from apps.hospitals.models import Hospital
-from apps.patients.models import Patient
+from apps.patients.models import (Patient, PatientAccountClaim,)
 
 
 User = get_user_model()
 
+def normalize_phone(value: str) -> str:
+    """
+    전화번호 비교 시 하이픈·공백 등을 제거하고
+    숫자만 반환합니다.
+    """
+    return "".join(
+        character
+        for character in value
+        if character.isdigit()
+    )
 
 def issue_jwt_tokens(user: User) -> dict[str, str]:
     """
@@ -160,6 +175,425 @@ class PatientSignupSerializer(serializers.Serializer):
 
         return patient
 
+class PatientClaimSignupSerializer(serializers.Serializer):
+    """
+    병원에 이미 등록된 기존 환자가 모바일 앱에서
+    BrainOn 계정을 생성하고 기존 Patient와 연결한다.
+
+    새 Patient를 생성하지 않는다.
+    """
+
+    hospital_id = serializers.UUIDField()
+
+    medical_record_number = serializers.CharField(
+        max_length=50,
+    )
+
+    name = serializers.CharField(
+        max_length=100,
+    )
+
+    birth_date = serializers.DateField()
+
+    phone = serializers.CharField(
+        max_length=30,
+    )
+
+    claim_code = serializers.RegexField(
+        regex=r"^\d{6}$",
+        trim_whitespace=True,
+        error_messages={
+            "invalid": "연결 코드는 숫자 6자리여야 합니다.",
+        },
+    )
+
+    username = serializers.CharField(
+        max_length=150,
+    )
+
+    password = serializers.CharField(
+        write_only=True,
+        min_length=8,
+        trim_whitespace=False,
+    )
+
+    password_confirm = serializers.CharField(
+        write_only=True,
+        trim_whitespace=False,
+    )
+
+    email = serializers.EmailField(
+        required=False,
+        allow_blank=True,
+    )
+
+    def validate_username(self, value: str) -> str:
+        username = value.strip()
+
+        if User.objects.filter(
+            username=username,
+        ).exists():
+            raise serializers.ValidationError(
+                "이미 사용 중인 아이디입니다."
+            )
+
+        if username.isdigit() and len(username) == 6:
+            raise serializers.ValidationError(
+                "숫자 6자리만으로 된 아이디는 사용할 수 없습니다."
+            )
+
+        return username
+
+    def validate_medical_record_number(
+        self,
+        value: str,
+    ) -> str:
+        return value.strip()
+
+    def validate_name(self, value: str) -> str:
+        return value.strip()
+
+    def validate_phone(self, value: str) -> str:
+        value = value.strip()
+
+        if not normalize_phone(value):
+            raise serializers.ValidationError(
+                "전화번호를 입력해 주세요."
+            )
+
+        return value
+
+    def validate_password(self, value: str) -> str:
+        check_password_policy(value)
+        return value
+
+    def validate(
+        self,
+        attrs: dict[str, Any],
+    ) -> dict[str, Any]:
+        if attrs["password"] != attrs["password_confirm"]:
+            raise serializers.ValidationError({
+                "password_confirm": (
+                    "비밀번호가 일치하지 않습니다."
+                ),
+            })
+
+        hospital = Hospital.objects.filter(
+            id=attrs["hospital_id"],
+            is_active=True,
+        ).first()
+
+        if hospital is None:
+            raise serializers.ValidationError({
+                "hospital_id": (
+                    "사용 가능한 병원을 찾을 수 없습니다."
+                ),
+            })
+
+        patient = (
+            Patient.objects
+            .select_related("user")
+            .filter(
+                medical_record_number=(
+                    attrs["medical_record_number"]
+                ),
+            )
+            .first()
+        )
+
+        if patient is None:
+            raise serializers.ValidationError({
+                "medical_record_number": (
+                    "입력한 정보와 일치하는 기존 환자를 "
+                    "찾을 수 없습니다."
+                ),
+            })
+
+        if patient.status != Patient.Status.ACTIVE:
+            raise serializers.ValidationError({
+                "medical_record_number": (
+                    "현재 계정을 연결할 수 없는 환자입니다."
+                ),
+            })
+
+        if patient.user_id is not None:
+            raise serializers.ValidationError({
+                "medical_record_number": (
+                    "이미 모바일 계정이 연결된 환자입니다."
+                ),
+            })
+
+        identity_matches = (
+            patient.name.strip() == attrs["name"]
+            and patient.birth_date == attrs["birth_date"]
+            and normalize_phone(patient.phone)
+            == normalize_phone(attrs["phone"])
+        )
+
+        if not identity_matches:
+            raise serializers.ValidationError({
+                "patient_information": (
+                    "환자번호, 이름, 생년월일 또는 "
+                    "전화번호가 일치하지 않습니다."
+                ),
+            })
+
+        has_hospital_appointment = (
+            patient.appointments.filter(
+                hospital=hospital,
+            ).exists()
+        )
+
+        has_hospital_encounter = (
+            patient.encounters.filter(
+                hospital=hospital,
+            ).exists()
+        )
+
+        if (
+            not has_hospital_appointment
+            and not has_hospital_encounter
+        ):
+            raise serializers.ValidationError({
+                "hospital_id": (
+                    "선택한 병원에서 해당 환자의 "
+                    "예약 또는 진료이력을 찾을 수 없습니다."
+                ),
+            })
+
+        claim = (
+            PatientAccountClaim.objects
+            .select_related("patient")
+            .filter(
+                patient=patient,
+                status=PatientAccountClaim.Status.ISSUED,
+            )
+            .order_by("-created_at")
+            .first()
+        )
+
+        if claim is None:
+            raise serializers.ValidationError({
+                "claim_code": (
+                    "사용 가능한 환자 연결 코드가 없습니다."
+                ),
+            })
+
+        if claim.is_expired:
+            claim.mark_as_expired()
+
+            raise serializers.ValidationError({
+                "claim_code": (
+                    "연결 코드가 만료되었습니다. "
+                    "병원에서 다시 발급받아 주세요."
+                ),
+            })
+
+        if claim.failed_attempts >= 5:
+            claim.revoke()
+
+            raise serializers.ValidationError({
+                "claim_code": (
+                    "인증 시도 횟수를 초과하여 "
+                    "연결 코드가 취소되었습니다."
+                ),
+            })
+
+        if not claim.check_claim_code(
+            attrs["claim_code"]
+        ):
+            claim.refresh_from_db(
+                fields=[
+                    "failed_attempts",
+                    "status",
+                    "updated_at",
+                ]
+            )
+
+            if (
+                claim.failed_attempts >= 5
+                and claim.status
+                == PatientAccountClaim.Status.ISSUED
+            ):
+                claim.revoke()
+
+                raise serializers.ValidationError({
+                    "claim_code": (
+                        "인증 시도 횟수를 초과하여 "
+                        "연결 코드가 취소되었습니다."
+                    ),
+                })
+
+            remaining_attempts = max(
+                0,
+                5 - claim.failed_attempts,
+            )
+
+            raise serializers.ValidationError({
+                "claim_code": (
+                    "연결 코드가 올바르지 않습니다. "
+                    f"남은 시도 횟수: {remaining_attempts}회"
+                ),
+            })
+
+        attrs["patient"] = patient
+        attrs["claim"] = claim
+        attrs["hospital"] = hospital
+
+        return attrs
+
+    @transaction.atomic
+    def create(
+        self,
+        validated_data: dict[str, Any],
+    ) -> dict[str, Any]:
+        patient_id = validated_data["patient"].id
+        claim_id = validated_data["claim"].id
+        hospital = validated_data["hospital"]
+
+        raw_claim_code = validated_data["claim_code"]
+        username = validated_data["username"]
+        password = validated_data["password"]
+        email = validated_data.get("email", "")
+
+        patient = (
+            Patient.objects
+            .select_for_update()
+            .get(id=patient_id)
+        )
+
+        claim = (
+            PatientAccountClaim.objects
+            .select_for_update()
+            .select_related("patient")
+            .get(id=claim_id)
+        )
+
+        if patient.user_id is not None:
+            raise serializers.ValidationError({
+                "medical_record_number": (
+                    "이미 모바일 계정이 연결된 환자입니다."
+                ),
+            })
+
+        if (
+            claim.status
+            != PatientAccountClaim.Status.ISSUED
+        ):
+            raise serializers.ValidationError({
+                "claim_code": (
+                    "이미 사용되었거나 취소된 연결 코드입니다."
+                ),
+            })
+
+        if claim.is_expired:
+            raise serializers.ValidationError({
+                "claim_code": "연결 코드가 만료되었습니다.",
+            })
+
+        if not check_password(
+            raw_claim_code.strip(),
+            claim.claim_code_hash,
+        ):
+            raise serializers.ValidationError({
+                "claim_code": (
+                    "연결 코드 검증 상태가 변경되었습니다. "
+                    "다시 시도해 주세요."
+                ),
+            })
+
+        user = User.objects.create_user(
+            username=username,
+            password=password,
+            email=email,
+            role=User.Role.PATIENT,
+        )
+
+        patient.user = user
+        patient.save(
+            update_fields=[
+                "user",
+                "updated_at",
+            ]
+        )
+
+        # mark_as_used 내부에서 사용하는 patient 객체가
+        # 방금 갱신한 객체를 참조하도록 설정
+        claim.patient = patient
+
+        try:
+            claim.mark_as_used(user)
+        except DjangoValidationError as exc:
+            if hasattr(exc, "message_dict"):
+                error_detail = exc.message_dict
+            else:
+                error_detail = {
+                    "claim_code": exc.messages,
+                }
+
+            raise serializers.ValidationError(
+                error_detail
+            ) from exc
+
+        Notification.objects.create(
+            recipient=user,
+            type=Notification.Type.SYSTEM,
+            title="기존 진료정보 연결 완료",
+            body=(
+                f"{hospital.name}의 기존 진료정보가 "
+                "BrainOn 계정에 연결되었습니다."
+            ),
+            data={
+                "patient_id": str(patient.id),
+                "hospital_id": str(hospital.id),
+                "claim_id": str(claim.id),
+                "route": "/home",
+            },
+            is_read=False,
+            read_at=None,
+            deduplication_key=(
+                f"patient-claim-complete:{claim.id}"
+            ),
+        )
+
+        tokens = issue_jwt_tokens(user)
+
+        return {
+            **tokens,
+            "user": {
+                "id": str(user.id),
+                "username": user.username,
+                "email": user.email,
+                "role": user.role,
+            },
+            "patient": {
+                "id": str(patient.id),
+                "medical_record_number": (
+                    patient.medical_record_number
+                ),
+                "name": patient.name,
+                "birth_date": (
+                    patient.birth_date.isoformat()
+                    if patient.birth_date
+                    else None
+                ),
+                "sex": patient.sex,
+                "phone": patient.phone,
+            },
+            "hospital": {
+                "id": str(hospital.id),
+                "name": hospital.name,
+            },
+            "claim": {
+                "id": str(claim.id),
+                "status": claim.status,
+                "used_at": (
+                    claim.used_at.isoformat()
+                    if claim.used_at
+                    else None
+                ),
+            },
+        }
 
 class PatientLoginSerializer(serializers.Serializer):
     """
