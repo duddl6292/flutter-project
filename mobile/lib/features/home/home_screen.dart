@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:brainon_mobile/shared/mock/patient_home_mock.dart';
+import 'package:brainon_mobile/core/router/route_names.dart';
+import 'package:go_router/go_router.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -257,7 +259,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               TextButton(
                 onPressed: () {
-                  _showMessage('전체 진료 일정 화면은 추후 연결합니다.');
+                  context.pushNamed(RouteNames.appointments);
                 },
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
@@ -437,15 +439,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                   ),
-                ),
-              ),
-              TextButton(
-                onPressed: () {
-                  _showMessage('예약 목록 화면은 추후 연결합니다.');
-                },
-                child: const Text(
-                  '더보기',
-                  style: TextStyle(color: subTextColor, fontSize: 13),
                 ),
               ),
             ],
@@ -836,6 +829,11 @@ class _HomeScreenState extends State<HomeScreen> {
         });
 
         const menuNames = ['홈', '진료 일정', '상담', '내 기록', '마이페이지'];
+
+        if (index == 1) {
+          context.pushNamed(RouteNames.appointments);
+          return;
+        }
 
         if (index != 0) {
           _showMessage('${menuNames[index]} 화면은 추후 연결합니다.');
