@@ -259,6 +259,156 @@ class Notification(TimeStampedModel):
             f"{self.title}"
         )
 
+
+class NotificationPreference(TimeStampedModel):
+    """사용자별 알림 유형과 전달 채널 설정을 관리한다."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="notification_preferences",
+        verbose_name="사용자",
+    )
+    notification_type = models.CharField(
+        max_length=24,
+        choices=Notification.Type.choices,
+        verbose_name="알림 유형",
+    )
+    push_enabled = models.BooleanField(
+        default=True,
+        verbose_name="푸시 알림 사용",
+    )
+    email_enabled = models.BooleanField(
+        default=False,
+        verbose_name="이메일 알림 사용",
+    )
+
+    class Meta:
+        ordering = ["user", "notification_type"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "notification_type"],
+                name="noti_pref_user_type_unique",
+            ),
+        ]
+        verbose_name = "알림 설정"
+        verbose_name_plural = "알림 설정"
+
+    def __str__(self) -> str:
+        return (
+            f"{self.user.username} - "
+            f"{self.get_notification_type_display()}"
+        )
+
+
+class NotificationSetting(TimeStampedModel):
+    """사용자의 모든 알림에 공통으로 적용되는 방해금지 설정."""
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="notification_setting",
+        verbose_name="사용자",
+    )
+    quiet_hours_enabled = models.BooleanField(
+        default=False,
+        verbose_name="방해금지 사용",
+    )
+    quiet_hours_start = models.TimeField(
+        null=True,
+        blank=True,
+        verbose_name="방해금지 시작 시간",
+    )
+    quiet_hours_end = models.TimeField(
+        null=True,
+        blank=True,
+        verbose_name="방해금지 종료 시간",
+    )
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        quiet_hours_start__isnull=True,
+                        quiet_hours_end__isnull=True,
+                    )
+                    | models.Q(
+                        quiet_hours_start__isnull=False,
+                        quiet_hours_end__isnull=False,
+                    )
+                ),
+                name="noti_quiet_hours_pair_valid",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(quiet_hours_enabled=False)
+                    | models.Q(
+                        quiet_hours_start__isnull=False,
+                        quiet_hours_end__isnull=False,
+                    )
+                ),
+                name="noti_quiet_hours_required",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(quiet_hours_start__isnull=True)
+                    | ~models.Q(
+                        quiet_hours_start=models.F("quiet_hours_end"),
+                    )
+                ),
+                name="noti_quiet_hours_different",
+            ),
+        ]
+        verbose_name = "공통 알림 설정"
+        verbose_name_plural = "공통 알림 설정"
+
+    def clean(self) -> None:
+        super().clean()
+
+        has_start = self.quiet_hours_start is not None
+        has_end = self.quiet_hours_end is not None
+
+        if has_start != has_end:
+            raise ValidationError({
+                "quiet_hours_start": (
+                    "방해금지 시작 시간과 종료 시간을 "
+                    "모두 입력해야 합니다."
+                ),
+                "quiet_hours_end": (
+                    "방해금지 시작 시간과 종료 시간을 "
+                    "모두 입력해야 합니다."
+                ),
+            })
+
+        if self.quiet_hours_enabled and not (has_start and has_end):
+            raise ValidationError({
+                "quiet_hours_start": (
+                    "방해금지를 사용하려면 시작 시간이 필요합니다."
+                ),
+                "quiet_hours_end": (
+                    "방해금지를 사용하려면 종료 시간이 필요합니다."
+                ),
+            })
+
+        if (
+            has_start
+            and has_end
+            and self.quiet_hours_start == self.quiet_hours_end
+        ):
+            raise ValidationError({
+                "quiet_hours_end": (
+                    "방해금지 시작 시간과 종료 시간은 달라야 합니다."
+                ),
+            })
+
+    def save(self, *args, **kwargs) -> None:
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        return f"{self.user.username} - 방해금지 설정"
+
 # Device.fcm_token
 # → Flutter·Web 앱에서 발급된 FCM 토큰
 

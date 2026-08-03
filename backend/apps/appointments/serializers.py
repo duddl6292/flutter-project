@@ -1,5 +1,3 @@
-from datetime import timedelta
-
 from django.utils import timezone
 from rest_framework import serializers
 
@@ -7,6 +5,10 @@ from apps.clinicians.models import Clinician
 from apps.patients.models import Patient
 
 from .models import Appointment
+from .services import (
+    AppointmentSchedulingError,
+    create_appointment,
+)
 
 
 class AppointmentSummarySerializer(
@@ -160,51 +162,6 @@ class AppointmentCreateSerializer(
                 ),
             })
 
-        requested_end = (
-            scheduled_at
-            + timedelta(
-                minutes=attrs[
-                    "duration_minutes"
-                ],
-            )
-        )
-
-        possible_conflicts = (
-            Appointment.objects
-            .filter(
-                clinician=clinician,
-                scheduled_at__lt=requested_end,
-                scheduled_at__gte=(
-                    scheduled_at
-                    - timedelta(hours=8)
-                ),
-            )
-            .exclude(
-                status__in=[
-                    Appointment.Status.CANCELLED,
-                    Appointment.Status.NO_SHOW,
-                ],
-            )
-        )
-
-        for existing in possible_conflicts:
-            existing_end = (
-                existing.scheduled_at
-                + timedelta(
-                    minutes=(
-                        existing.duration_minutes
-                    ),
-                )
-            )
-
-            if existing_end > scheduled_at:
-                raise serializers.ValidationError({
-                    "scheduled_at": (
-                        "해당 시간에는 이미 "
-                        "다른 예약이 있습니다."
-                    ),
-                })
-
         attrs["_patient"] = patient
         attrs["_clinician"] = clinician
 
@@ -223,11 +180,16 @@ class AppointmentCreateSerializer(
             "patient_id"
         )
 
-        return Appointment.objects.create(
-            patient=patient,
-            clinician=clinician,
-            department=clinician.department,
-            hospital=clinician.hospital,
-            status=Appointment.Status.SCHEDULED,
-            **validated_data,
-        )
+        request = self.context["request"]
+
+        try:
+            return create_appointment(
+                patient=patient,
+                clinician_id=clinician.id,
+                created_by=request.user,
+                **validated_data,
+            )
+        except AppointmentSchedulingError as exc:
+            raise serializers.ValidationError({
+                exc.field: exc.message,
+            }) from exc

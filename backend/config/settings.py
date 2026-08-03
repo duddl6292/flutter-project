@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "apps.test_results.apps.TestResultsConfig",
     "apps.consultations.apps.ConsultationsConfig",
     "apps.notifications.apps.NotificationsConfig",
+    "apps.chatbot.apps.ChatbotConfig",
     "apps.core.apps.CoreConfig",
 ]
 
