@@ -43,10 +43,6 @@ NavigationItem[] = [
     path: '/appointments',
   },
   {
-    label: '검사 요청',
-    icon: FlaskConical,
-  },
-  {
     label: '검사 결과',
     icon: ClipboardCheck,
   },
