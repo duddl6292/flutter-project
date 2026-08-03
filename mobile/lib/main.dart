@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'firebase_options.dart';
 
-const bool uiPreviewMode = true; //ui만 확인할때 
+const bool uiPreviewMode = true; //ui만 확인할때
 
 const notificationChannel = AndroidNotificationChannel(
   'brainon_high_v1',

@@ -2,33 +2,84 @@ import { useAuthStore } from '../auth/authStore'
 import { env } from '../config/env'
 import { ApiError } from './apiError'
 
-interface RequestOptions extends RequestInit {
+interface RequestOptions
+  extends RequestInit {
   retryAfterRefresh?: boolean
 }
 
-let refreshInFlight: Promise<string> | null = null
+interface ApiEnvelope<T> {
+  data: T
+}
 
-async function refreshAccessToken(): Promise<string> {
+interface RefreshResponse {
+  access: string
+  refresh?: string
+}
+
+let refreshInFlight:
+Promise<string> | null = null
+
+async function refreshAccessToken():
+Promise<string> {
   if (refreshInFlight) {
     return refreshInFlight
   }
+
   refreshInFlight = (async () => {
-    const response = await fetch(`${env.apiBaseUrl}/api/v1/auth/refresh/`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ client_type: 'WEB' }),
-    })
-    if (!response.ok) {
-      throw await ApiError.fromResponse(response)
+    const refreshToken =
+      useAuthStore
+        .getState()
+        .refreshToken
+
+    if (!refreshToken) {
+      throw new Error(
+        'Refresh Token이 없습니다.',
+      )
     }
-    const data = (await response.json()) as { access: string }
-    useAuthStore.getState().setAccessToken(data.access)
-    return data.access
+
+    const response = await fetch(
+      `${env.apiBaseUrl}/api/v1/auth/token/refresh/`,
+      {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type':
+            'application/json',
+        },
+        body: JSON.stringify({
+          refresh: refreshToken,
+        }),
+      },
+    )
+
+    if (!response.ok) {
+      throw await ApiError.fromResponse(
+        response,
+      )
+    }
+
+    const body =
+      await response.json() as
+        ApiEnvelope<RefreshResponse>
+
+    useAuthStore
+      .getState()
+      .updateTokens(
+        body.data.access,
+        body.data.refresh,
+      )
+
+    return body.data.access
   })()
 
   try {
     return await refreshInFlight
+  } catch (error) {
+    useAuthStore
+      .getState()
+      .clearSession()
+
+    throw error
   } finally {
     refreshInFlight = null
   }
@@ -38,44 +89,71 @@ export async function apiRequest<T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
-  const { retryAfterRefresh = true, headers, ...requestInit } = options
-  const accessToken = useAuthStore.getState().accessToken
-  const requestHeaders = new Headers(headers)
-  requestHeaders.set('Accept', 'application/json')
+  const {
+    retryAfterRefresh = true,
+    headers,
+    ...requestInit
+  } = options
+
+  const accessToken =
+    useAuthStore
+      .getState()
+      .accessToken
+
+  const requestHeaders =
+    new Headers(headers)
+
+  requestHeaders.set(
+    'Accept',
+    'application/json',
+  )
+
   if (accessToken) {
-    requestHeaders.set('Authorization', `Bearer ${accessToken}`)
+    requestHeaders.set(
+      'Authorization',
+      `Bearer ${accessToken}`,
+    )
   }
 
-  const response = await fetch(`${env.apiBaseUrl}${path}`, {
-    ...requestInit,
-    credentials: 'include',
-    headers: requestHeaders,
-  })
+  const response = await fetch(
+    `${env.apiBaseUrl}${path}`,
+    {
+      ...requestInit,
+      headers: requestHeaders,
+    },
+  )
 
   if (
-    response.status === 401 &&
-    retryAfterRefresh &&
-    path !== '/api/v1/auth/refresh/'
+    response.status === 401
+    && retryAfterRefresh
   ) {
-    try {
-      const refreshedAccessToken = await refreshAccessToken()
-      requestHeaders.set('Authorization', `Bearer ${refreshedAccessToken}`)
-      return apiRequest<T>(path, {
+    const newAccessToken =
+      await refreshAccessToken()
+
+    requestHeaders.set(
+      'Authorization',
+      `Bearer ${newAccessToken}`,
+    )
+
+    return apiRequest<T>(
+      path,
+      {
         ...requestInit,
         headers: requestHeaders,
         retryAfterRefresh: false,
-      })
-    } catch (error) {
-      useAuthStore.getState().clearSession()
-      throw error
-    }
+      },
+    )
   }
 
   if (!response.ok) {
-    throw await ApiError.fromResponse(response)
+    throw await ApiError.fromResponse(
+      response,
+    )
   }
+
   if (response.status === 204) {
     return undefined as T
   }
-  return (await response.json()) as T
+
+  return await response.json() as T
 }

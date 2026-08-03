@@ -34,10 +34,19 @@ INSTALLED_APPS = [
     "corsheaders",
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
-    "apps.accounts",
-    "apps.patients",
-    "apps.clinicians",
-    "apps.core",
+    "apps.accounts.apps.AccountsConfig",
+    "apps.hospitals.apps.HospitalsConfig",
+    "apps.patients.apps.PatientsConfig",
+    "apps.clinicians.apps.CliniciansConfig",
+    "apps.appointments.apps.AppointmentsConfig",
+    "apps.clinical_records.apps.ClinicalRecordsConfig",
+    "apps.prescriptions.apps.PrescriptionsConfig",
+    "apps.medications.apps.MedicationsConfig",
+    "apps.ct_analysis.apps.CtAnalysisConfig",
+    "apps.test_results.apps.TestResultsConfig",
+    "apps.consultations.apps.ConsultationsConfig",
+    "apps.notifications.apps.NotificationsConfig",
+    "apps.core.apps.CoreConfig",
 ]
 
 MIDDLEWARE = [
@@ -71,14 +80,24 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("POSTGRES_DB", "brainon"),
-        "USER": os.getenv("POSTGRES_USER", "brainon"),
+        "NAME": os.getenv("POSTGRES_DB", "medical_cdss"),
+        "USER": os.getenv("POSTGRES_USER", "cdssadmin"),
         "PASSWORD": os.getenv("POSTGRES_PASSWORD", ""),
-        "HOST": os.getenv("POSTGRES_HOST", "localhost"),
+        "HOST": os.getenv("POSTGRES_HOST", ""),
         "PORT": os.getenv("POSTGRES_PORT", "5432"),
+        "CONN_MAX_AGE": int(
+            os.getenv("POSTGRES_CONN_MAX_AGE", "0")
+        ),
+        "OPTIONS": {
+            "sslmode": os.getenv(
+                "POSTGRES_SSLMODE",
+                "require",
+            ),
+        },
     },
 }
 
@@ -146,7 +165,7 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
     ],
-    "DEFAULT_PAGINATION_CLASS": "apps.core.pagination.StandardPagination",
+    "DEFAULT_PAGINATION_CLASS": "apps.core.pagination.CommonPageNumberPagination",
     "EXCEPTION_HANDLER": "apps.core.exceptions.api_exception_handler",
 }
 

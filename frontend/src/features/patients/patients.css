@@ -1,0 +1,180 @@
+.patient-management-content {
+  padding: 28px 32px 40px;
+}
+
+.patient-page-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.patient-page-heading h1 {
+  margin: 0;
+  color: #1f294d;
+  font-size: 25px;
+}
+
+.patient-page-heading p {
+  margin: 8px 0 0;
+  color: #737d9e;
+  font-size: 14px;
+}
+
+.patient-create-button {
+  border: 0;
+  border-radius: 10px;
+  background: #665ee1;
+  padding: 12px 18px;
+  color: #ffffff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.patient-filter-card,
+.patient-list-card {
+  border: 1px solid #e5e7f1;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow:
+    0 8px 24px
+    rgba(59, 66, 114, 0.04);
+}
+
+.patient-filter-card {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding: 17px 20px;
+}
+
+.patient-filter-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: #4c5575;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.patient-filter-card select {
+  min-width: 150px;
+  min-height: 40px;
+  border: 1px solid #dfe2ed;
+  border-radius: 9px;
+  background: #ffffff;
+  padding: 0 11px;
+}
+
+.patient-filter-card span {
+  color: #68718f;
+  font-size: 14px;
+}
+
+.patient-list-card {
+  overflow: hidden;
+}
+
+.patient-table-wrapper {
+  overflow-x: auto;
+}
+
+.patient-management-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.patient-management-table th,
+.patient-management-table td {
+  border-bottom: 1px solid #eceef5;
+  padding: 15px 18px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.patient-management-table th {
+  background: #f7f7fc;
+  color: #525c7e;
+  font-size: 13px;
+}
+
+.patient-management-table td {
+  color: #303957;
+  font-size: 14px;
+}
+
+.patient-number {
+  color: #554fd1 !important;
+  font-weight: 700;
+}
+
+.patient-status {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 5px 9px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.patient-status-active {
+  background: #e9f8f0;
+  color: #198754;
+}
+
+.patient-status-inactive,
+.patient-status-merged {
+  background: #f0f1f5;
+  color: #687086;
+}
+
+.patient-empty,
+.patient-loading {
+  padding: 30px !important;
+  color: #7c849e;
+  text-align: center !important;
+}
+
+.patient-error {
+  border-radius: 9px;
+  background: #fff1f0;
+  padding: 12px 15px;
+  color: #b42318;
+}
+
+.patient-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 18px;
+}
+
+.patient-pagination button {
+  border: 1px solid #dfe2ed;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 8px 13px;
+  cursor: pointer;
+}
+
+.patient-pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.patient-pagination span {
+  color: #5f6886;
+  font-size: 13px;
+}
+
+@media (max-width: 760px) {
+  .patient-management-content {
+    padding: 18px 15px;
+  }
+
+  .patient-page-heading {
+    align-items: flex-start;
+    gap: 15px;
+  }
+}
