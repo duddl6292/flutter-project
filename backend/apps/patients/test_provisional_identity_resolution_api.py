@@ -1,4 +1,5 @@
 from datetime import date
+from unittest import skipUnless
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -334,6 +335,10 @@ class ProvisionalIdentityResolveApiTests(
         )
 
 
+@skipUnless(
+    connection.vendor == "postgresql",
+    "PostgreSQL 전용 트리거 테스트",
+)
 class ProvisionalIdentityChartTriggerTests(
     IdentityResolutionFixtureMixin,
     TransactionTestCase,

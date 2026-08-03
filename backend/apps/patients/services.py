@@ -5,7 +5,7 @@ from typing import Any
 from uuid import UUID
 
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import connection, transaction
 from django.db.models import Q
 from django.utils import timezone
 
@@ -252,6 +252,55 @@ def _complete_resolution(
 
     # PostgreSQL Trigger가 삭제 조건을 재검증하고,
     # 삭제 시점 스냅샷을 resolution_log에 기록한다.
+    # PostgreSQL records this audit data in the database trigger. SQLite,
+    # which is used by CI, cannot install that PL/pgSQL trigger, so preserve
+    # the same service-level result in non-PostgreSQL environments.
+    if connection.vendor != "postgresql":
+        deleted_at = timezone.now()
+        resolution_log.deletion_snapshot = {
+            "id": str(provisional_identity.id),
+            "temporary_number": (
+                provisional_identity.temporary_number
+            ),
+            "temporary_name": (
+                provisional_identity.temporary_name
+            ),
+            "estimated_sex": (
+                provisional_identity.estimated_sex
+            ),
+            "estimated_age": (
+                provisional_identity.estimated_age
+            ),
+            "distinguishing_features": (
+                provisional_identity.distinguishing_features
+            ),
+            "status": provisional_identity.status,
+            "resolved_patient_id": str(
+                provisional_identity.resolved_patient_id
+            ),
+            "resolved_at": (
+                provisional_identity.resolved_at.isoformat()
+            ),
+            "resolved_by_id": str(
+                provisional_identity.resolved_by_id
+            ),
+            "created_at": (
+                provisional_identity.created_at.isoformat()
+            ),
+            "updated_at": (
+                provisional_identity.updated_at.isoformat()
+            ),
+            "deleted_at": deleted_at.isoformat(),
+        }
+        resolution_log.provisional_deleted_at = deleted_at
+        resolution_log.save(
+            update_fields=[
+                "deletion_snapshot",
+                "provisional_deleted_at",
+                "updated_at",
+            ]
+        )
+
     provisional_identity.delete()
 
     resolution_log.refresh_from_db()
