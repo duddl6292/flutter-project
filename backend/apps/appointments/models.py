@@ -45,6 +45,22 @@ class Appointment(TimeStampedModel):
         blank=True,
         verbose_name="진료 병원",
     )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="created_appointments",
+        null=True,
+        blank=True,
+        verbose_name="예약 생성자",
+    )
+    cancelled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="cancelled_appointments",
+        null=True,
+        blank=True,
+        verbose_name="예약 취소자",
+    )
     location = models.CharField(
         max_length=255,
         blank=True,
@@ -102,6 +118,13 @@ class Appointment(TimeStampedModel):
                 ),
                 name="appointment_cancelled_at_required",
             ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(status="CANCELLED")
+                    | models.Q(cancelled_by__isnull=True)
+                ),
+                name="appointment_cancelled_by_valid",
+            ),
         ]
 
     def clean(self) -> None:
@@ -151,16 +174,30 @@ class Appointment(TimeStampedModel):
                     }
                 )
 
-        # 취소 상태가 아니면 취소일시 입력 금지
-        elif self.cancelled_at is not None:
-            raise ValidationError(
-                {
-                    "cancelled_at": (
-                        "취소 상태가 아닌 예약에는 "
-                        "취소일시를 입력할 수 없습니다."
-                    )
-                }
-            )
+        # 취소 상태가 아니면 취소 관련 정보 입력 금지
+        else:
+            cancellation_errors = {}
+
+            if self.cancelled_at is not None:
+                cancellation_errors["cancelled_at"] = (
+                    "취소 상태가 아닌 예약에는 "
+                    "취소일시를 입력할 수 없습니다."
+                )
+
+            if self.cancelled_by_id is not None:
+                cancellation_errors["cancelled_by"] = (
+                    "취소 상태가 아닌 예약에는 "
+                    "취소자를 입력할 수 없습니다."
+                )
+
+            if self.cancellation_reason:
+                cancellation_errors["cancellation_reason"] = (
+                    "취소 상태가 아닌 예약에는 "
+                    "취소 사유를 입력할 수 없습니다."
+                )
+
+            if cancellation_errors:
+                raise ValidationError(cancellation_errors)
 
     def save(self, *args, **kwargs) -> None:
         # 신규 예약에서 병원이 비어 있으면
@@ -175,6 +212,89 @@ class Appointment(TimeStampedModel):
         return (
             f"Appointment #{self.pk} - "
             f"{self.scheduled_at} - {self.status}"
+        )
+
+
+class AppointmentStatusHistory(TimeStampedModel):
+    """예약 상태가 변경된 순서와 변경 주체를 기록한다."""
+
+    appointment = models.ForeignKey(
+        Appointment,
+        on_delete=models.CASCADE,
+        related_name="status_history",
+        verbose_name="예약",
+    )
+    previous_status = models.CharField(
+        max_length=16,
+        choices=Appointment.Status.choices,
+        blank=True,
+        verbose_name="이전 상태",
+    )
+    new_status = models.CharField(
+        max_length=16,
+        choices=Appointment.Status.choices,
+        verbose_name="변경 상태",
+    )
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="appointment_status_changes",
+        null=True,
+        blank=True,
+        verbose_name="변경자",
+        help_text="자동 처리나 기존 데이터 이관이면 비워둘 수 있습니다.",
+    )
+    reason = models.TextField(
+        blank=True,
+        verbose_name="변경 사유",
+    )
+
+    class Meta:
+        ordering = ["created_at"]
+        indexes = [
+            models.Index(
+                fields=["appointment", "created_at"],
+                name="appt_history_date_idx",
+            ),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(previous_status="")
+                    | ~models.Q(
+                        previous_status=models.F("new_status"),
+                    )
+                ),
+                name="appt_history_status_changed",
+            ),
+            models.UniqueConstraint(
+                fields=["appointment"],
+                condition=models.Q(previous_status=""),
+                name="appt_history_one_initial",
+            ),
+        ]
+        verbose_name = "예약 상태 이력"
+        verbose_name_plural = "예약 상태 이력"
+
+    def clean(self) -> None:
+        super().clean()
+
+        if (
+            self.previous_status
+            and self.previous_status == self.new_status
+        ):
+            raise ValidationError({
+                "new_status": "이전 상태와 변경 상태는 달라야 합니다.",
+            })
+
+    def save(self, *args, **kwargs) -> None:
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        return (
+            f"{self.appointment_id}: "
+            f"{self.previous_status or '-'} -> {self.new_status}"
         )
 
 

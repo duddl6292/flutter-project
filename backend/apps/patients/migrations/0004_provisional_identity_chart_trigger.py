@@ -103,6 +103,28 @@ patients_audit_provisional_identity_delete();
 """
 
 
+def execute_postgresql_sql(schema_editor, sql: str) -> None:
+    """PostgreSQL에서만 PL/pgSQL 스크립트를 실행한다."""
+
+    if schema_editor.connection.vendor != "postgresql":
+        return
+
+    statements = (
+        schema_editor.connection.ops.prepare_sql_script(sql)
+    )
+
+    for statement in statements:
+        schema_editor.execute(statement, params=None)
+
+
+def create_chart_delete_trigger(apps, schema_editor) -> None:
+    execute_postgresql_sql(schema_editor, FORWARD_SQL)
+
+
+def drop_chart_delete_trigger(apps, schema_editor) -> None:
+    execute_postgresql_sql(schema_editor, REVERSE_SQL)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -113,8 +135,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunSQL(
-            sql=FORWARD_SQL,
-            reverse_sql=REVERSE_SQL,
+        migrations.RunPython(
+            code=create_chart_delete_trigger,
+            reverse_code=drop_chart_delete_trigger,
         ),
     ]

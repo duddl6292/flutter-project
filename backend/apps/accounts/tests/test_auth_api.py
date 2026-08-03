@@ -1,9 +1,10 @@
-from django.conf import settings
 from rest_framework import status
 from rest_framework.test import APITestCase
-from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.accounts.models import User
+from apps.clinicians.models import Clinician, Department
+from apps.hospitals.models import Hospital
+from apps.patients.models import Patient
 
 
 class AuthApiTests(APITestCase):
@@ -14,103 +15,163 @@ class AuthApiTests(APITestCase):
             role=User.Role.PATIENT,
             email="patient@example.test",
         )
+        self.patient = Patient.objects.create(
+            user=self.user,
+            medical_record_number="TEST-PATIENT-001",
+            name="Test Patient",
+        )
 
-    def _login(self, client_type: str = "MOBILE"):
+    def _patient_login(
+        self,
+        password: str = "strong-test-password",
+    ):
         return self.client.post(
-            "/api/v1/auth/login/",
+            "/api/v1/auth/patient/login/",
             {
                 "username": self.user.username,
-                "password": "strong-test-password",
-                "expected_role": User.Role.PATIENT,
-                "client_type": client_type,
+                "password": password,
             },
             format="json",
         )
 
-    def test_mobile_login_and_me(self) -> None:
-        response = self._login()
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn("access", response.data)
-        self.assertIn("refresh", response.data)
+    def test_patient_login_and_me(self) -> None:
+        response = self._patient_login()
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+        self.assertIn("access", response.data["data"])
+        self.assertIn("refresh", response.data["data"])
+        self.assertEqual(
+            response.data["data"]["user"]["role"],
+            User.Role.PATIENT,
+        )
 
         self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {response.data['access']}"
+            HTTP_AUTHORIZATION=(
+                f"Bearer {response.data['data']['access']}"
+            )
         )
-        me_response = self.client.get("/api/v1/auth/me/")
-        self.assertEqual(me_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(me_response.data["role"], User.Role.PATIENT)
-        self.assertNotIn("password", me_response.data)
+        me_response = self.client.get(
+            "/api/v1/patients/me/"
+        )
 
-    def test_wrong_expected_role_is_rejected(self) -> None:
-        response = self.client.post(
-            "/api/v1/auth/login/",
-            {
-                "username": self.user.username,
-                "password": "strong-test-password",
-                "expected_role": User.Role.CLINICIAN,
-                "client_type": "MOBILE",
-            },
-            format="json",
+        self.assertEqual(
+            me_response.status_code,
+            status.HTTP_200_OK,
         )
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(
+            me_response.data["data"]["patient_id"],
+            str(self.patient.id),
+        )
+        self.assertNotIn(
+            "password",
+            me_response.data["data"],
+        )
+
+    def test_wrong_password_is_rejected(self) -> None:
+        response = self._patient_login(
+            password="wrong-password",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertEqual(
+            response.data["error"]["code"],
+            "VALIDATION_ERROR",
+        )
 
     def test_inactive_user_is_rejected(self) -> None:
         self.user.is_active = False
         self.user.save(update_fields=["is_active"])
-        response = self._login()
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_mobile_refresh_rotates_and_blacklists_old_token(self) -> None:
-        login_response = self._login()
-        old_refresh = login_response.data["refresh"]
+        response = self._patient_login()
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+
+    def test_refresh_rotates_and_blacklists_old_token(
+        self,
+    ) -> None:
+        login_response = self._patient_login()
+        old_refresh = (
+            login_response.data["data"]["refresh"]
+        )
+
         response = self.client.post(
-            "/api/v1/auth/refresh/",
-            {"refresh": old_refresh, "client_type": "MOBILE"},
+            "/api/v1/auth/token/refresh/",
+            {"refresh": old_refresh},
             format="json",
         )
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn("refresh", response.data)
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+        self.assertIn("refresh", response.data["data"])
+
         second_response = self.client.post(
-            "/api/v1/auth/refresh/",
-            {"refresh": old_refresh, "client_type": "MOBILE"},
+            "/api/v1/auth/token/refresh/",
+            {"refresh": old_refresh},
             format="json",
         )
-        self.assertEqual(second_response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_web_login_refresh_and_logout_use_cookie(self) -> None:
-        login_response = self._login("WEB")
-        self.assertNotIn("refresh", login_response.data)
-        self.assertIn(settings.JWT_REFRESH_COOKIE_NAME, login_response.cookies)
-
-        refresh_response = self.client.post(
-            "/api/v1/auth/refresh/",
-            {"client_type": "WEB"},
-            format="json",
+        self.assertEqual(
+            second_response.status_code,
+            status.HTTP_401_UNAUTHORIZED,
         )
-        self.assertEqual(refresh_response.status_code, status.HTTP_200_OK)
-        self.assertNotIn("refresh", refresh_response.data)
-        self.assertIn(settings.JWT_REFRESH_COOKIE_NAME, refresh_response.cookies)
 
-        access = login_response.data["access"]
-        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
-        logout_response = self.client.post(
-            "/api/v1/auth/logout/",
-            {},
-            format="json",
+    def test_clinician_login_uses_current_contract(
+        self,
+    ) -> None:
+        hospital = Hospital.objects.create(
+            hospital_code="TEST-HOSPITAL-001",
+            name="Test Hospital",
+            is_active=True,
         )
-        self.assertEqual(logout_response.status_code, status.HTTP_204_NO_CONTENT)
+        department = Department.objects.create(
+            code="RADIOLOGY",
+            name="Radiology",
+            is_active=True,
+        )
+        clinician_user = User.objects.create_user(
+            username="123456",
+            password="clinician-test-password",
+            role=User.Role.CLINICIAN,
+        )
+        clinician = Clinician.objects.create(
+            user=clinician_user,
+            name="Test Clinician",
+            license_number="123456",
+            hospital=hospital,
+            department=department,
+            approval_status=(
+                Clinician.ApprovalStatus.APPROVED
+            ),
+        )
 
-    def test_mobile_logout_blacklists_refresh(self) -> None:
-        refresh = str(RefreshToken.for_user(self.user))
         response = self.client.post(
-            "/api/v1/auth/logout/",
-            {"refresh": refresh},
+            "/api/v1/auth/clinician/login/",
+            {
+                "hospital_id": str(hospital.id),
+                "department_code": department.code,
+                "license_number": clinician.license_number,
+                "password": "clinician-test-password",
+            },
             format="json",
         )
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        refresh_response = self.client.post(
-            "/api/v1/auth/refresh/",
-            {"refresh": refresh, "client_type": "MOBILE"},
-            format="json",
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
         )
-        self.assertEqual(refresh_response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertIn("access", response.data["data"])
+        self.assertEqual(
+            response.data["data"]["clinician"]["id"],
+            str(clinician.id),
+        )

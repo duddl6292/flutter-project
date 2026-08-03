@@ -5,6 +5,10 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.serializers import (
     TokenRefreshSerializer,
 )
+from rest_framework_simplejwt.exceptions import (
+    InvalidToken,
+    TokenError,
+)
 
 from .serializers import (
     ClinicianLoginSerializer,
@@ -140,7 +144,10 @@ class TokenRefreshAPIView(APIView):
         serializer = TokenRefreshSerializer(
             data=request.data,
         )
-        serializer.is_valid(raise_exception=True)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except TokenError as exc:
+            raise InvalidToken(str(exc)) from exc
 
         return Response(
             {

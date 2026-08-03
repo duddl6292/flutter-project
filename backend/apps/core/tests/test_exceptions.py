@@ -1,11 +1,10 @@
-from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 
 class ExceptionFormatTests(APITestCase):
     def test_protected_endpoint_uses_common_error_shape(self) -> None:
-        response = self.client.get(reverse("auth-me"))
+        response = self.client.get("/api/v1/patients/me/")
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertEqual(
