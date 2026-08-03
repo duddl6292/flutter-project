@@ -228,15 +228,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('비밀번호 찾기 화면은 다음 단계에서 구현합니다.'),
-                        ),
-                      );
+                      context.pushNamed(RouteNames.forgotPassword);
                     },
                     child: const Text('비밀번호를 잊으셨나요?'),
                   ),
                 ),
+
+                const SizedBox(height: 16),
 
                 const SizedBox(height: 16),
 
@@ -245,7 +243,38 @@ class _LoginScreenState extends State<LoginScreen> {
                 // ==================================================
                 _buildLoginButton(),
 
-                // 의료진 화면에서만 보안 안내 표시
+                // ==================================================
+                // 환자 로그인 화면에서만 회원가입 표시
+                // ==================================================
+                if (!_isClinician) ...[
+                  const SizedBox(height: 12),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        '계정이 없으신가요?',
+                        style: TextStyle(color: Color(0xFF6B7280)),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          context.pushNamed(RouteNames.patientSignup);
+                        },
+                        child: const Text(
+                          '회원가입',
+                          style: TextStyle(
+                            color: Color(0xFF2563EB),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+
+                // ==================================================
+                // 의료진 로그인 화면에서만 보안 안내 표시
+                // ==================================================
                 if (_isClinician) ...[
                   const SizedBox(height: 24),
                   _buildSecurityNotice(),
@@ -323,7 +352,7 @@ class _LoginScreenState extends State<LoginScreen> {
   // 의료진 직군/진료과 선택
   // ==============================================================
 
-  Widget _buildDepartmentField(){
+  Widget _buildDepartmentField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -372,33 +401,43 @@ class _LoginScreenState extends State<LoginScreen> {
       children: [
         const _FieldLabel('병원 검색'),
 
-        Autocomplete<Map<String, String>>(
+        Autocomplete<Map<String, dynamic>>(
           // 사용자가 입력한 검색어와 일치하는 병원을 반환한다.
-          optionsBuilder: (textEditingValue) {
-            final keyword = textEditingValue.text.trim().toLowerCase();
-
-            if (keyword.isEmpty) {
-              return const Iterable<Map<String, String>>.empty();
+          optionsBuilder: (TextEditingValue textEditingValue) {
+            if (textEditingValue.text.trim().isEmpty) {
+              return const Iterable<Map<String, dynamic>>.empty();
             }
+
+            final keyword = textEditingValue.text.trim().toLowerCase();
 
             return hospitalMockList.where((hospital) {
               final hospitalName =
-                  hospital['hospital_name']?.toLowerCase() ?? '';
+                  hospital['name']?.toString() ??
+                  hospital['hospital_name']?.toString() ??
+                  '';
 
-              return hospitalName.contains(keyword);
+              return hospitalName.toLowerCase().contains(keyword);
             });
           },
 
           // 입력창에 표시할 값은 hospital_name이다.
           displayStringForOption: (hospital) {
-            return hospital['hospital_name'] ?? '';
+            return hospital['name']?.toString() ??
+                hospital['hospital_name']?.toString() ??
+                '';
           },
 
           // 사용자가 추천 목록에서 병원을 선택했을 때 실행된다.
           onSelected: (hospital) {
             setState(() {
-              _selectedHospitalId = hospital['hospital_id'];
-              _selectedHospitalName = hospital['hospital_name'] ?? '';
+              _selectedHospitalId =
+                  hospital['id']?.toString() ??
+                  hospital['hospital_id']?.toString();
+
+              _selectedHospitalName =
+                  hospital['name']?.toString() ??
+                  hospital['hospital_name']?.toString() ??
+                  '';
             });
           },
 
@@ -454,7 +493,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                     itemBuilder: (context, index) {
                       final hospital = optionList[index];
-                      final hospitalName = hospital['hospital_name'] ?? '';
+
+                      final hospitalName =
+                          hospital['name']?.toString() ??
+                          hospital['hospital_name']?.toString() ??
+                          '';
 
                       return ListTile(
                         // --------------------------------------------------

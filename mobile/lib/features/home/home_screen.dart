@@ -244,7 +244,9 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ============================================================
           // 카드 제목
+          // ============================================================
           Row(
             children: [
               const Expanded(
@@ -279,7 +281,35 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
+
+          // ============================================================
+          // 진료 예약 버튼
+          // ============================================================
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                context.pushNamed(RouteNames.appointmentCreate);
+              },
+              icon: const Icon(Icons.add_circle_outline, size: 20),
+              label: const Text(
+                '진료 예약하기',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF2563EB),
+                backgroundColor: const Color(0xFFEFF6FF),
+                side: const BorderSide(color: Color(0xFFBFDBFE)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 18),
 
           // 가장 가까운 진료 일정
           Container(

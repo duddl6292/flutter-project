@@ -9,6 +9,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:brainon_mobile/features/appointment/appointment_detail_screen.dart';
 import 'package:brainon_mobile/shared/models/appointment.dart';
+import 'package:brainon_mobile/features/auth/patient_signup_screen.dart';
+import 'package:brainon_mobile/features/auth/forgot_password_screen.dart';
+import 'package:brainon_mobile/features/appointment/hospital_select_screen.dart';
+import 'package:brainon_mobile/features/appointment/appointment_create_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(
@@ -45,6 +49,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
 
       GoRoute(
+        //회원가입
+        path: '/patient/signup',
+        name: RouteNames.patientSignup,
+        builder: (context, state) {
+          return const PatientSignupScreen();
+        },
+      ),
+
+      GoRoute(
+        //비밀번호 찾기 화면
+        path: '/forgot-password',
+        name: RouteNames.forgotPassword,
+        builder: (context, state) {
+          return const ForgotPasswordScreen();
+        },
+      ),
+
+      GoRoute(
         path: '/appointments',
         name: RouteNames.appointments,
         builder: (context, state) {
@@ -62,13 +84,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             return const AppointmentListScreen();
           }
 
-          return AppointmentDetailScreen(
-            appointment: appointment,
-          );
+          return AppointmentDetailScreen(appointment: appointment);
         },
       ),
 
+      GoRoute(
+        path: '/appointments/hospital-select',
+        name: RouteNames.hospitalSelect,
+        builder: (context, state) {
+          return const HospitalSelectScreen();
+        },
+      ),
 
+      GoRoute(
+        path: '/appointments/create',
+        name: RouteNames.appointmentCreate,
+        builder: (context, state) {
+          return const AppointmentCreateScreen();
+        },
+      ),
     ],
   );
 
