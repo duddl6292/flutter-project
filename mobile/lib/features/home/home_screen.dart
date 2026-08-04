@@ -1,31 +1,25 @@
-import 'package:flutter/material.dart';
-import 'package:brainon_mobile/shared/mock/patient_home_mock.dart';
 import 'package:brainon_mobile/core/router/route_names.dart';
+import 'package:brainon_mobile/shared/mock/patient_home_mock.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({required this.onOpenDrawer, super.key});
+
+  /// PatientMainScreen이 관리하는 공통 Drawer를 엽니다.
+  final VoidCallback onOpenDrawer;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // 하단 네비게이션에서 현재 선택된 메뉴 번호
-  int _selectedBottomIndex = 0;
-
-  // 햄버거 메뉴를 열기 위해 사용하는 Key
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-
-  // 앱의 대표 색상
   static const Color primaryColor = Color(0xFF2563EB);
-  static const Color backgroundColor = Color(0xFFF6F8FC);
   static const Color textColor = Color(0xFF111827);
   static const Color subTextColor = Color(0xFF6B7280);
 
   @override
   Widget build(BuildContext context) {
-    // Mock 데이터에서 각 영역의 데이터를 꺼냅니다.
     final patient = patientHomeMock['patient'] as Map<String, dynamic>;
 
     final nextAppointment =
@@ -38,45 +32,33 @@ class _HomeScreenState extends State<HomeScreen> {
     final medicationItems = medication['items'] as List<dynamic>;
 
     return Scaffold(
-      key: _scaffoldKey,
-      backgroundColor: backgroundColor,
-
-      // 왼쪽 햄버거 메뉴를 눌렀을 때 열리는 메뉴
-      drawer: _buildDrawer(),
-
-      // 오른쪽 아래 챗봇 버튼
+      // 챗봇 버튼
       floatingActionButton: _buildChatbotButton(),
 
-      // 하단 네비게이션 바
-      bottomNavigationBar: _buildBottomNavigationBar(),
-
+      // HomeScreen 자체의 BottomNavigationBar는 제거합니다.
+      // 하단 네비게이션은 PatientMainScreen에서만 관리합니다.
       body: SafeArea(
         child: Column(
           children: [
-            // 상단 햄버거 메뉴 / 로고 / 알림
             _buildTopBar(
               notificationCount: patient['notification_count'] as int,
             ),
 
-            // 스크롤 가능한 본문
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 26, 20, 100),
                 child: Center(
-                  // Chrome에서 실행해도 모바일 화면처럼 보이게 최대 폭을 제한
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 520),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // 인사말
                         _buildGreetingSection(
                           patientName: patient['name'] as String,
                         ),
 
                         const SizedBox(height: 24),
 
-                        // 진료 일정 + 다가오는 예약
                         _buildScheduleCard(
                           appointment: nextAppointment,
                           upcomingDates: upcomingDates,
@@ -84,16 +66,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
                         const SizedBox(height: 18),
 
-                        // 오늘의 복약
                         _buildMedicationCard(
                           medication: medication,
                           items: medicationItems,
                         ),
-
-                        const SizedBox(height: 18),
-
-                        // 진료 일정 등록
-                        _buildRegisterScheduleCard(),
                       ],
                     ),
                   ),
@@ -107,10 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ============================================================
-  // 상단 영역
-  // 왼쪽: 햄버거 메뉴
-  // 가운데: 호닥 로고
-  // 오른쪽: 알림 아이콘
+  // 상단 바
   // ============================================================
   Widget _buildTopBar({required int notificationCount}) {
     return Container(
@@ -121,7 +94,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: Stack(
         children: [
-          // 가운데 로고
           Positioned.fill(
             child: Align(
               alignment: Alignment.center,
@@ -134,21 +106,19 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          // 왼쪽 햄버거 메뉴
+          // 햄버거 메뉴
           Positioned(
             left: 12,
             top: 10,
             bottom: 10,
             child: IconButton(
               tooltip: '메뉴',
-              onPressed: () {
-                _scaffoldKey.currentState?.openDrawer();
-              },
+              onPressed: widget.onOpenDrawer,
               icon: const Icon(Icons.menu_rounded, size: 32, color: textColor),
             ),
           ),
 
-          // 오른쪽 알림 아이콘
+          // 알림
           Positioned(
             right: 12,
             top: 10,
@@ -159,7 +129,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 IconButton(
                   tooltip: '알림',
                   onPressed: () {
-                    _showMessage('알림 화면은 추후 연결할 예정입니다.');
+                    _showMessage('알림 목록 화면은 추후 연결할 예정입니다.');
                   },
                   icon: const Icon(
                     Icons.notifications_none_rounded,
@@ -168,7 +138,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
 
-                // 알림 개수가 1개 이상일 때만 숫자 배지 표시
                 if (notificationCount > 0)
                   Positioned(
                     right: 3,
@@ -203,7 +172,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ============================================================
-  // 인사말 영역
+  // 인사말
   // ============================================================
   Widget _buildGreetingSection({required String patientName}) {
     return Column(
@@ -221,11 +190,7 @@ class _HomeScreenState extends State<HomeScreen> {
         const SizedBox(height: 6),
         const Text(
           '오늘도 건강한 하루 되세요.',
-          style: TextStyle(
-            color: subTextColor,
-            fontSize: 16,
-            fontWeight: FontWeight.w400,
-          ),
+          style: TextStyle(color: subTextColor, fontSize: 16),
         ),
       ],
     );
@@ -244,7 +209,6 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 카드 제목
           Row(
             children: [
               const Expanded(
@@ -279,9 +243,33 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
-          // 가장 가까운 진료 일정
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                context.pushNamed(RouteNames.appointmentCreate);
+              },
+              icon: const Icon(Icons.add_circle_outline, size: 20),
+              label: const Text(
+                '진료 예약하기',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: primaryColor,
+                backgroundColor: const Color(0xFFEFF6FF),
+                side: const BorderSide(color: Color(0xFFBFDBFE)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 18),
+
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
             decoration: BoxDecoration(
@@ -292,7 +280,6 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // 왼쪽 날짜 영역
                 SizedBox(
                   width: 66,
                   child: Column(
@@ -346,7 +333,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 const SizedBox(width: 16),
 
-                // 진료 상세 정보
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -428,21 +414,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
           const SizedBox(height: 18),
 
-          // 다가오는 예약
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  '다가오는 예약',
-                  style: TextStyle(
-                    color: textColor,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ],
+          const Text(
+            '다가오는 예약',
+            style: TextStyle(
+              color: textColor,
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+            ),
           ),
+
+          const SizedBox(height: 10),
 
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
@@ -464,7 +445,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // 진료/검사 등의 상태 표시 Chip
   Widget _buildTypeChip(String type) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -483,11 +463,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // 다가오는 예약의 날짜 한 칸
   Widget _buildUpcomingDate(Map<String, dynamic> date) {
-    final String day = date['day'] as String;
-    final bool isSelected = date['is_selected'] as bool;
-    final bool hasSchedule = date['has_schedule'] as bool;
+    final day = date['day'] as String;
+    final isSelected = date['is_selected'] as bool;
+    final hasSchedule = date['has_schedule'] as bool;
 
     Color dayColor = subTextColor;
 
@@ -542,7 +521,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ============================================================
-  // 오늘의 복약 카드
+  // 복약 카드
   // ============================================================
   Widget _buildMedicationCard({
     required Map<String, dynamic> medication,
@@ -622,7 +601,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
           const Divider(height: 1, color: Color(0xFFE5E7EB)),
 
-          // 약 목록
           ...items.map((itemData) {
             final item = itemData as Map<String, dynamic>;
 
@@ -633,13 +611,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // 약 한 개의 정보
   Widget _buildMedicationItem(Map<String, dynamic> item) {
-    final bool isPurple = item['icon_type'] == 'purple';
+    final isPurple = item['icon_type'] == 'purple';
 
-    final Color iconColor = isPurple ? const Color(0xFF8B5CF6) : primaryColor;
+    final iconColor = isPurple ? const Color(0xFF8B5CF6) : primaryColor;
 
-    final Color iconBackground = isPurple
+    final iconBackground = isPurple
         ? const Color(0xFFF3EEFF)
         : const Color(0xFFEAF2FF);
 
@@ -700,30 +677,13 @@ class _HomeScreenState extends State<HomeScreen> {
               borderRadius: BorderRadius.circular(24),
               border: Border.all(color: const Color(0xFFD9CCFF)),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 16,
-                  height: 16,
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: const Color(0xFFA78BFA),
-                      width: 2,
-                    ),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 7),
-                Text(
-                  item['status'] as String,
-                  style: const TextStyle(
-                    color: Color(0xFF8B5CF6),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
+            child: Text(
+              item['status'] as String,
+              style: const TextStyle(
+                color: Color(0xFF8B5CF6),
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -732,77 +692,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ============================================================
-  // 진료 일정 등록 카드
-  // ============================================================
-  Widget _buildRegisterScheduleCard() {
-    return InkWell(
-      borderRadius: BorderRadius.circular(20),
-      onTap: () {
-        _showMessage('진료 일정 등록 화면은 추후 연결합니다.');
-      },
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF3F7FF),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFCFE0FF)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 58,
-              height: 58,
-              decoration: BoxDecoration(
-                color: const Color(0xFFDDEAFF),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(
-                Icons.event_available_outlined,
-                color: primaryColor,
-                size: 31,
-              ),
-            ),
-
-            const SizedBox(width: 15),
-
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '진료 일정 등록하기',
-                    style: TextStyle(
-                      color: primaryColor,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  SizedBox(height: 6),
-                  Text(
-                    '병원에서 받은 일정을 등록하고\n알림을 받아보세요.',
-                    style: TextStyle(
-                      color: subTextColor,
-                      fontSize: 13,
-                      height: 1.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: primaryColor,
-              size: 32,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // 챗봇 플로팅 버튼
+  // 챗봇 버튼
   // ============================================================
   Widget _buildChatbotButton() {
     return FloatingActionButton(
@@ -818,144 +708,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ============================================================
-  // 하단 네비게이션
+  // 공통 카드 디자인
   // ============================================================
-  Widget _buildBottomNavigationBar() {
-    return BottomNavigationBar(
-      currentIndex: _selectedBottomIndex,
-      onTap: (index) {
-        setState(() {
-          _selectedBottomIndex = index;
-        });
-
-        const menuNames = ['홈', '진료 일정', '상담', '내 기록', '마이페이지'];
-
-        if (index == 1) {
-          context.pushNamed(RouteNames.appointments);
-          return;
-        }
-
-        if (index != 0) {
-          _showMessage('${menuNames[index]} 화면은 추후 연결합니다.');
-        }
-      },
-      type: BottomNavigationBarType.fixed,
-      backgroundColor: Colors.white,
-      selectedItemColor: primaryColor,
-      unselectedItemColor: const Color(0xFF8B8F98),
-      selectedFontSize: 12,
-      unselectedFontSize: 12,
-      selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700),
-      elevation: 12,
-      items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.home_outlined),
-          activeIcon: Icon(Icons.home_rounded),
-          label: '홈',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.calendar_month_outlined),
-          activeIcon: Icon(Icons.calendar_month_rounded),
-          label: '진료 일정',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.chat_bubble_outline_rounded),
-          activeIcon: Icon(Icons.chat_bubble_rounded),
-          label: '상담',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.folder_outlined),
-          activeIcon: Icon(Icons.folder_rounded),
-          label: '내 기록',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.person_outline_rounded),
-          activeIcon: Icon(Icons.person_rounded),
-          label: '마이페이지',
-        ),
-      ],
-    );
-  }
-
-  // ============================================================
-  // 햄버거 메뉴 Drawer
-  // ============================================================
-  Widget _buildDrawer() {
-    return Drawer(
-      backgroundColor: Colors.white,
-      child: SafeArea(
-        child: Column(
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
-              color: const Color(0xFFF3F7FF),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Image.asset(
-                    'assets/images/logo.png',
-                    width: 105,
-                    fit: BoxFit.contain,
-                  ),
-                  const SizedBox(height: 18),
-                  const Text(
-                    '김지환님',
-                    style: TextStyle(
-                      color: textColor,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    '오늘도 건강한 하루 되세요.',
-                    style: TextStyle(color: subTextColor, fontSize: 13),
-                  ),
-                ],
-              ),
-            ),
-            _buildDrawerItem(icon: Icons.home_outlined, title: '홈'),
-            _buildDrawerItem(
-              icon: Icons.calendar_month_outlined,
-              title: '진료 일정',
-            ),
-            _buildDrawerItem(icon: Icons.medication_outlined, title: '복약 관리'),
-            _buildDrawerItem(icon: Icons.description_outlined, title: '검사 결과'),
-            _buildDrawerItem(icon: Icons.emergency_outlined, title: '응급 증상 안내'),
-            const Spacer(),
-            const Divider(height: 1),
-            _buildDrawerItem(icon: Icons.logout_rounded, title: '로그아웃'),
-            const SizedBox(height: 10),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDrawerItem({required IconData icon, required String title}) {
-    return ListTile(
-      leading: Icon(icon, color: const Color(0xFF4B5563)),
-      title: Text(
-        title,
-        style: const TextStyle(
-          color: textColor,
-          fontSize: 15,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      trailing: const Icon(
-        Icons.chevron_right_rounded,
-        color: Color(0xFF9CA3AF),
-      ),
-      onTap: () {
-        Navigator.pop(context);
-        _showMessage('$title 화면은 추후 연결합니다.');
-      },
-    );
-  }
-
-  // 카드 공통 디자인
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
       color: Colors.white,
@@ -971,7 +725,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // 아직 구현되지 않은 기능을 임시로 알려주는 메시지
   void _showMessage(String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
