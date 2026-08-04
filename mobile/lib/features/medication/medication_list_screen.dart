@@ -6,8 +6,7 @@ class MedicationListScreen extends StatefulWidget {
   const MedicationListScreen({super.key});
 
   @override
-  State<MedicationListScreen> createState() =>
-      _MedicationListScreenState();
+  State<MedicationListScreen> createState() => _MedicationListScreenState();
 }
 
 class _MedicationListScreenState extends State<MedicationListScreen> {
@@ -43,9 +42,7 @@ class _MedicationListScreenState extends State<MedicationListScreen> {
           future: _medicationsFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
-                child: CircularProgressIndicator(),
-              );
+              return const Center(child: CircularProgressIndicator());
             }
 
             if (snapshot.hasError) {
@@ -57,18 +54,13 @@ class _MedicationListScreenState extends State<MedicationListScreen> {
               );
             }
 
-            final medications =
-                snapshot.data ?? <Medication>[];
+            final medications = snapshot.data ?? <Medication>[];
 
             if (medications.isEmpty) {
-              return const Center(
-                child: Text('오늘 복용할 약이 없습니다.'),
-              );
+              return const Center(child: Text('오늘 복용할 약이 없습니다.'));
             }
 
-            return _MedicationContent(
-              medications: medications,
-            );
+            return _MedicationContent(medications: medications);
           },
         ),
       ),
@@ -77,15 +69,12 @@ class _MedicationListScreenState extends State<MedicationListScreen> {
 }
 
 class _MedicationContent extends StatefulWidget {
-  const _MedicationContent({
-    required this.medications,
-  });
+  const _MedicationContent({required this.medications});
 
   final List<Medication> medications;
 
   @override
-  State<_MedicationContent> createState() =>
-      _MedicationContentState();
+  State<_MedicationContent> createState() => _MedicationContentState();
 }
 
 class _MedicationContentState extends State<_MedicationContent> {
@@ -94,15 +83,11 @@ class _MedicationContentState extends State<_MedicationContent> {
   @override
   void initState() {
     super.initState();
-    _medications = List<Medication>.from(
-      widget.medications,
-    );
+    _medications = List<Medication>.from(widget.medications);
   }
 
   int get _completedCount {
-    return _medications
-        .where((medication) => medication.completed)
-        .length;
+    return _medications.where((medication) => medication.completed).length;
   }
 
   void _toggleMedication(int index) {
@@ -119,17 +104,10 @@ class _MedicationContentState extends State<_MedicationContent> {
   Widget build(BuildContext context) {
     final totalCount = _medications.length;
 
-    final progress = totalCount == 0
-        ? 0.0
-        : _completedCount / totalCount;
+    final progress = totalCount == 0 ? 0.0 : _completedCount / totalCount;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        20,
-        20,
-        32,
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
       children: [
         const Text(
           '오늘 복용할 약',
@@ -142,10 +120,7 @@ class _MedicationContentState extends State<_MedicationContent> {
         const SizedBox(height: 6),
         const Text(
           '복용 시간을 확인하고 복용 여부를 기록해 주세요.',
-          style: TextStyle(
-            color: Color(0xFF6B7280),
-            fontSize: 14,
-          ),
+          style: TextStyle(color: Color(0xFF6B7280), fontSize: 14),
         ),
         const SizedBox(height: 22),
 
@@ -157,24 +132,19 @@ class _MedicationContentState extends State<_MedicationContent> {
 
         const SizedBox(height: 24),
 
-        ...List.generate(
-          _medications.length,
-          (index) {
-            final medication = _medications[index];
+        ...List.generate(_medications.length, (index) {
+          final medication = _medications[index];
 
-            return Padding(
-              padding: const EdgeInsets.only(
-                bottom: 16,
-              ),
-              child: _MedicationCard(
-                medication: medication,
-                onChanged: () {
-                  _toggleMedication(index);
-                },
-              ),
-            );
-          },
-        ),
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: _MedicationCard(
+              medication: medication,
+              onChanged: () {
+                _toggleMedication(index);
+              },
+            ),
+          );
+        }),
       ],
     );
   }
@@ -219,8 +189,7 @@ class _ProgressCard extends StatelessWidget {
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
                       '오늘의 복용 현황',
@@ -259,8 +228,7 @@ class _ProgressCard extends StatelessWidget {
               value: progress,
               minHeight: 10,
               backgroundColor: Colors.white,
-              valueColor:
-                  const AlwaysStoppedAnimation<Color>(
+              valueColor: const AlwaysStoppedAnimation<Color>(
                 Color(0xFF2563EB),
               ),
             ),
@@ -272,10 +240,7 @@ class _ProgressCard extends StatelessWidget {
 }
 
 class _MedicationCard extends StatelessWidget {
-  const _MedicationCard({
-    required this.medication,
-    required this.onChanged,
-  });
+  const _MedicationCard({required this.medication, required this.onChanged});
 
   final Medication medication;
   final VoidCallback onChanged;
@@ -309,20 +274,16 @@ class _MedicationCard extends StatelessWidget {
       child: Column(
         children: [
           Row(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 width: 58,
-                padding: const EdgeInsets.symmetric(
-                  vertical: 12,
-                ),
+                padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
                   color: isCompleted
                       ? const Color(0xFFF0FDF4)
                       : const Color(0xFFEFF6FF),
-                  borderRadius:
-                      BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Column(
                   children: [
@@ -349,8 +310,7 @@ class _MedicationCard extends StatelessWidget {
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
@@ -359,14 +319,12 @@ class _MedicationCard extends StatelessWidget {
                           style: const TextStyle(
                             color: Color(0xFF111827),
                             fontSize: 20,
-                            fontWeight:
-                                FontWeight.w800,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                         const Spacer(),
                         Container(
-                          padding:
-                              const EdgeInsets.symmetric(
+                          padding: const EdgeInsets.symmetric(
                             horizontal: 10,
                             vertical: 6,
                           ),
@@ -374,20 +332,16 @@ class _MedicationCard extends StatelessWidget {
                             color: isCompleted
                                 ? const Color(0xFFF0FDF4)
                                 : const Color(0xFFF1F5F9),
-                            borderRadius:
-                                BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
-                            isCompleted
-                                ? '복용 완료'
-                                : '복용 예정',
+                            isCompleted ? '복용 완료' : '복용 예정',
                             style: TextStyle(
                               color: isCompleted
                                   ? const Color(0xFF15803D)
                                   : const Color(0xFF64748B),
                               fontSize: 12,
-                              fontWeight:
-                                  FontWeight.w700,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
@@ -413,8 +367,7 @@ class _MedicationCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Row(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Icon(
                           Icons.info_outline,
@@ -453,22 +406,13 @@ class _MedicationCard extends StatelessWidget {
                     ? const Color(0xFF475569)
                     : Colors.white,
                 shape: RoundedRectangleBorder(
-                  borderRadius:
-                      BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
-              icon: Icon(
-                isCompleted
-                    ? Icons.undo
-                    : Icons.check_circle_outline,
-              ),
+              icon: Icon(isCompleted ? Icons.undo : Icons.check_circle_outline),
               label: Text(
-                isCompleted
-                    ? '복용 취소'
-                    : '복용 완료',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                ),
+                isCompleted ? '복용 취소' : '복용 완료',
+                style: const TextStyle(fontWeight: FontWeight.w800),
               ),
             ),
           ),

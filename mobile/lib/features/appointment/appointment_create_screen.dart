@@ -10,7 +10,9 @@ import 'package:brainon_mobile/shared/models/hospital.dart';
 import 'package:flutter/material.dart';
 
 class AppointmentCreateScreen extends StatefulWidget {
-  const AppointmentCreateScreen({super.key});
+  const AppointmentCreateScreen({required this.onOpenDrawer, super.key});
+
+  final VoidCallback onOpenDrawer;
 
   @override
   State<AppointmentCreateScreen> createState() =>
@@ -492,17 +494,22 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
+
       appBar: AppBar(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
         elevation: 0,
-
+        centerTitle: true,
+        leadingWidth: 64,
         leading: IconButton(
-          tooltip: '이전',
-          onPressed: _goBack,
-          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF111827)),
+          tooltip: '메뉴',
+          onPressed: widget.onOpenDrawer,
+          icon: const Icon(
+            Icons.menu_rounded,
+            color: Color(0xFF111827),
+            size: 30,
+          ),
         ),
-
         title: const Text(
           '진료 예약',
           style: TextStyle(
@@ -511,7 +518,22 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
             fontWeight: FontWeight.w800,
           ),
         ),
+        actions: [
+          IconButton(
+            tooltip: '알림',
+            onPressed: () {
+              _showMessage('알림함 기능은 준비 중입니다.');
+            },
+            icon: const Icon(
+              Icons.notifications_none_rounded,
+              color: Color(0xFF111827),
+              size: 29,
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
+
       body: SafeArea(
         child: Column(
           children: [

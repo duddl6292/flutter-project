@@ -56,8 +56,7 @@ class _PatientMainScreenState extends State<PatientMainScreen> {
 
   List<Widget> get _screens {
     return [
-      // 예약 화면은 별도 push 화면으로 이동하므로 자리만 유지합니다.
-      const SizedBox.shrink(),
+      AppointmentCreateScreen(onOpenDrawer: _openDrawer),
 
       // 검사결과 화면은 실제 파일을 전달받으면 교체합니다.
       const Center(
@@ -71,7 +70,12 @@ class _PatientMainScreenState extends State<PatientMainScreen> {
         ),
       ),
 
-      HomeScreen(onOpenDrawer: _openDrawer),
+      HomeScreen(
+        onOpenDrawer: _openDrawer,
+        onOpenAppointment: () {
+          _moveToTab(0);
+        },
+      ),
 
       EmergencyGuideScreen(
         onOpenDrawer: _openDrawer,
@@ -102,19 +106,7 @@ class _PatientMainScreenState extends State<PatientMainScreen> {
     });
   }
 
-  Future<void> _onDestinationSelected(int index) async {
-    if (index == 0) {
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (context) {
-            return const AppointmentCreateScreen();
-          },
-        ),
-      );
-
-      return;
-    }
-
+  void _onDestinationSelected(int index) {
     _moveToTab(index);
   }
 
@@ -234,8 +226,7 @@ class _PatientMainScreenState extends State<PatientMainScreen> {
               icon: Icons.calendar_month_outlined,
               title: '예약',
               onTap: () {
-                _closeDrawer();
-                context.pushNamed(RouteNames.appointmentCreate);
+                _closeDrawerAndMoveToTab(0);
               },
             ),
 

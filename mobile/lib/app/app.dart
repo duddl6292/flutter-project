@@ -19,10 +19,7 @@ class BrainOnApp extends ConsumerWidget {
 
       locale: const Locale('ko', 'KR'),
 
-      supportedLocales: const [
-        Locale('ko', 'KR'),
-        Locale('en', 'US'),
-      ],
+      supportedLocales: const [Locale('ko', 'KR'), Locale('en', 'US')],
 
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,

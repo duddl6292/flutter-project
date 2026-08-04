@@ -24,9 +24,7 @@ class Appointment {
   factory Appointment.fromJson(Map<String, dynamic> json) {
     return Appointment(
       appointmentId: json['appointment_id']?.toString() ?? '',
-      scheduledAt: DateTime.parse(
-        json['scheduled_at']?.toString() ?? '',
-      ),
+      scheduledAt: DateTime.parse(json['scheduled_at']?.toString() ?? ''),
       type: json['type']?.toString() ?? '',
       hospitalName: json['hospital_name']?.toString() ?? '',
       department: json['department']?.toString() ?? '',

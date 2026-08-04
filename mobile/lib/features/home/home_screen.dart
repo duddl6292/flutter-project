@@ -4,10 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({required this.onOpenDrawer, super.key});
+  const HomeScreen({
+    required this.onOpenDrawer,
+    required this.onOpenAppointment,
+    super.key,
+  });
 
   /// PatientMainScreen이 관리하는 공통 Drawer를 엽니다.
   final VoidCallback onOpenDrawer;
+
+  /// PatientMainScreen의 예약 탭으로 이동합니다.
+  final VoidCallback onOpenAppointment;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -249,9 +256,7 @@ class _HomeScreenState extends State<HomeScreen> {
             width: double.infinity,
             height: 48,
             child: OutlinedButton.icon(
-              onPressed: () {
-                context.pushNamed(RouteNames.appointmentCreate);
-              },
+              onPressed: widget.onOpenAppointment,
               icon: const Icon(Icons.add_circle_outline, size: 20),
               label: const Text(
                 '진료 예약하기',

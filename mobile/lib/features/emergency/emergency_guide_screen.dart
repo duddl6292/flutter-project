@@ -18,13 +18,11 @@ class EmergencyGuideScreen extends StatefulWidget {
   final String? accessToken;
 
   @override
-  State<EmergencyGuideScreen> createState() =>
-      _EmergencyGuideScreenState();
+  State<EmergencyGuideScreen> createState() => _EmergencyGuideScreenState();
 }
 
 class _EmergencyGuideScreenState extends State<EmergencyGuideScreen> {
-  final TextEditingController _symptomController =
-      TextEditingController();
+  final TextEditingController _symptomController = TextEditingController();
 
   bool _isAiLoading = false;
   EmergencyAiResponse? _aiResult;
@@ -81,9 +79,7 @@ class _EmergencyGuideScreenState extends State<EmergencyGuideScreen> {
       height: 76,
       decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(
-          bottom: BorderSide(color: Color(0xFFE5E7EB)),
-        ),
+        border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
       ),
       child: Stack(
         children: [
@@ -107,11 +103,7 @@ class _EmergencyGuideScreenState extends State<EmergencyGuideScreen> {
             child: IconButton(
               tooltip: '메뉴',
               onPressed: widget.onOpenDrawer,
-              icon: const Icon(
-                Icons.menu_rounded,
-                size: 32,
-                color: textColor,
-              ),
+              icon: const Icon(Icons.menu_rounded, size: 32, color: textColor),
             ),
           ),
           Positioned(
@@ -146,8 +138,7 @@ class _EmergencyGuideScreenState extends State<EmergencyGuideScreen> {
       ),
       child: const Row(
         children: [
-          Icon(Icons.emergency_rounded,
-              color: emergencyColor, size: 42),
+          Icon(Icons.emergency_rounded, color: emergencyColor, size: 42),
           SizedBox(width: 14),
           Expanded(
             child: Text(
@@ -215,9 +206,7 @@ class _EmergencyGuideScreenState extends State<EmergencyGuideScreen> {
                       ),
                     )
                   : const Icon(Icons.send_rounded),
-              label: Text(
-                _isAiLoading ? 'AI 분석 중...' : 'AI에게 물어보기',
-              ),
+              label: Text(_isAiLoading ? 'AI 분석 중...' : 'AI에게 물어보기'),
             ),
           ),
           if (_aiResult != null) ...[
@@ -262,10 +251,7 @@ class _EmergencyGuideScreenState extends State<EmergencyGuideScreen> {
       ),
       child: Text(
         message,
-        style: const TextStyle(
-          color: Color(0xFF9A3412),
-          height: 1.5,
-        ),
+        style: const TextStyle(color: Color(0xFF9A3412), height: 1.5),
       ),
     );
   }
@@ -273,9 +259,7 @@ class _EmergencyGuideScreenState extends State<EmergencyGuideScreen> {
   Widget _buildSymptomCheckCard() {
     return ListTile(
       tileColor: const Color(0xFFF4F1FF),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       leading: const Icon(Icons.fact_check_outlined),
       title: const Text(
         '증상 체크하기',
@@ -314,10 +298,7 @@ class _EmergencyGuideScreenState extends State<EmergencyGuideScreen> {
         icon: const Icon(Icons.phone_in_talk_rounded),
         label: const Text(
           '119 전화하기',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-          ),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
         ),
         style: FilledButton.styleFrom(
           backgroundColor: const Color(0xFFEF233C),
@@ -334,11 +315,7 @@ class _EmergencyGuideScreenState extends State<EmergencyGuideScreen> {
       '• 음식이나 물을 먹이지 마세요.\n'
       '• 직접 운전하지 마세요.\n'
       '• 복용 중인 약을 의료진에게 알리세요.',
-      style: TextStyle(
-        color: textColor,
-        fontSize: 14,
-        height: 1.8,
-      ),
+      style: TextStyle(color: textColor, fontSize: 14, height: 1.8),
     );
   }
 
@@ -397,10 +374,7 @@ class _EmergencyGuideScreenState extends State<EmergencyGuideScreen> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          behavior: SnackBarBehavior.floating,
-        ),
+        SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
       );
   }
 }

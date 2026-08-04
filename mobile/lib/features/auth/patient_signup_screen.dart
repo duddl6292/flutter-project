@@ -11,7 +11,7 @@ class PatientSignupScreen extends StatefulWidget {
 
 class _PatientSignupScreenState extends State<PatientSignupScreen> {
   final _formKey = GlobalKey<FormState>();
-  
+
   final AuthRepository _authRepository = AuthRepository();
 
   final _usernameController = TextEditingController();
@@ -102,14 +102,12 @@ class _PatientSignupScreenState extends State<PatientSignupScreen> {
         email: _emailController.text.trim(),
         firstName: _firstNameController.text.trim(),
         lastName: _lastNameController.text.trim(),
-        medicalRecordNumber:
-            _medicalRecordNumberController.text.trim(),
+        medicalRecordNumber: _medicalRecordNumberController.text.trim(),
         patientName: _patientNameController.text.trim(),
         birthDate: _birthDateController.text.trim(),
         sex: _selectedSex,
         phone: _phoneController.text.trim(),
-        emergencyContact:
-            _emergencyContactController.text.trim(),
+        emergencyContact: _emergencyContactController.text.trim(),
         address: _addressController.text.trim(),
       );
 
@@ -119,15 +117,12 @@ class _PatientSignupScreenState extends State<PatientSignupScreen> {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('회원가입이 완료되었습니다.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('회원가입이 완료되었습니다.')));
 
       Navigator.of(context).pop();
-    }
-    finally {
+    } finally {
       if (mounted) {
         setState(() {
           _isSubmitting = false;
