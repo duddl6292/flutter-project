@@ -18,8 +18,7 @@ class AppointmentCreateScreen extends StatefulWidget {
 }
 
 class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
-  final DepartmentRepository _departmentRepository =
-      DepartmentRepository();
+  final DepartmentRepository _departmentRepository = DepartmentRepository();
 
   final DoctorRepository _doctorRepository = DoctorRepository();
 
@@ -36,6 +35,9 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
   List<Doctor> _doctors = [];
 
   int _currentStep = 0;
+
+  // 확인 화면에서 어떤 항목을 수정하러 왔는지 저장
+  int? _editingStepFromConfirm;
 
   bool _isLoading = false;
   bool _isSubmitting = false;
@@ -62,6 +64,17 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
     if (hospital == null || !mounted) {
       return;
     }
+    final isSameHospital = _selectedHospital?.hospitalId == hospital.hospitalId;
+
+    // 같은 병원을 다시 선택했다면 확인 화면으로 복귀
+    if (_editingStepFromConfirm == 0 && isSameHospital) {
+      setState(() {
+        _editingStepFromConfirm = null;
+        _currentStep = 5;
+      });
+
+      return;
+    }
 
     setState(() {
       _selectedHospital = hospital;
@@ -79,8 +92,7 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
     });
 
     try {
-      final departments =
-          await _departmentRepository.getDepartmentsByHospital(
+      final departments = await _departmentRepository.getDepartmentsByHospital(
         hospital.hospitalId,
       );
 
@@ -115,12 +127,24 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
   // ============================================================
   // 진료과 선택
   // ============================================================
-  Future<void> _selectDepartment(
-    Department department,
-  ) async {
+  Future<void> _selectDepartment(Department department) async {
+    final isSameDepartment =
+        _selectedDepartment?.departmentId == department.departmentId;
+
+    // 같은 진료과를 다시 선택했다면 확인 화면으로 복귀
+    if (_editingStepFromConfirm == 1 && isSameDepartment) {
+      setState(() {
+        _editingStepFromConfirm = null;
+        _currentStep = 5;
+      });
+
+      return;
+    }
+
     setState(() {
       _selectedDepartment = department;
 
+      // 진료과가 바뀌면 하위 선택값 초기화
       _selectedDoctor = null;
       _selectedDate = null;
       _selectedTime = null;
@@ -130,8 +154,7 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
     });
 
     try {
-      final doctors =
-          await _doctorRepository.getDoctorsByDepartment(
+      final doctors = await _doctorRepository.getDoctorsByDepartment(
         department.departmentId,
       );
 
@@ -142,8 +165,9 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
       setState(() {
         _doctors = doctors;
         _isLoading = false;
+        _editingStepFromConfirm = null;
 
-        // 진료과 선택 후 의료진 단계로 자동 이동
+        // 새 진료과라면 의료진부터 다시 선택
         _currentStep = 2;
       });
 
@@ -167,13 +191,26 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
   // 의료진 선택
   // ============================================================
   void _selectDoctor(Doctor doctor) {
-    setState(() {
-      _selectedDoctor = doctor;
+    final isSameDoctor = _selectedDoctor?.doctorId == doctor.doctorId;
 
+    // 같은 의료진을 다시 선택했다면 확인 화면 복귀
+    if (_editingStepFromConfirm == 2 && isSameDoctor) {
+      setState(() {
+        _editingStepFromConfirm = null;
+        _currentStep = 5;
+      });
+
+      return;
+    }
+
+    setState(() {
+      // 진료과가 변경되면 기존 의료진, 날짜, 시간은
+      // 새 진료과와 맞지 않을 수 있으므로 초기화합니다.
+      _selectedDoctor = doctor;
       _selectedDate = null;
       _selectedTime = null;
 
-      // 의료진 선택 후 날짜 단계로 자동 이동
+      _editingStepFromConfirm = null;
       _currentStep = 3;
     });
   }
@@ -186,12 +223,9 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
 
     final selectedDate = await showDatePicker(
       context: context,
+      locale: const Locale('ko', 'KR'),
       initialDate: _selectedDate ?? today,
-      firstDate: DateTime(
-        today.year,
-        today.month,
-        today.day,
-      ),
+      firstDate: DateTime(today.year, today.month, today.day),
       lastDate: DateTime(today.year + 1),
       helpText: '진료 날짜 선택',
       cancelText: '취소',
@@ -202,11 +236,27 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
       return;
     }
 
+    final isSameDate =
+        _selectedDate?.year == selectedDate.year &&
+        _selectedDate?.month == selectedDate.month &&
+        _selectedDate?.day == selectedDate.day;
+
+    // 기존과 같은 날짜를 골랐다면 확인 화면 복귀
+    if (_editingStepFromConfirm == 3 && isSameDate && _selectedTime != null) {
+      setState(() {
+        _editingStepFromConfirm = null;
+        _currentStep = 5;
+      });
+
+      return;
+    }
+
     setState(() {
       _selectedDate = selectedDate;
-      _selectedTime = null;
 
-      // 날짜 선택 후 시간 단계로 자동 이동
+      // 날짜가 바뀌면 시간은 다시 선택해야 함
+      _selectedTime = null;
+      _editingStepFromConfirm = null;
       _currentStep = 4;
     });
   }
@@ -217,8 +267,9 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
   void _selectTime(String time) {
     setState(() {
       _selectedTime = time;
+      _editingStepFromConfirm = null;
 
-      // 시간 선택 후 예약 확인 단계로 자동 이동
+      // 시간 선택 후 바로 확인 화면
       _currentStep = 5;
     });
   }
@@ -236,6 +287,26 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
     setState(() {
       _currentStep = step;
     });
+  }
+
+  //수정 시작하는 함수
+  void _startEditFromConfirm(int step) {
+    setState(() {
+      _editingStepFromConfirm = step;
+      _currentStep = step;
+    });
+  }
+
+  //이전 함수
+  void _goBack() {
+    if (_currentStep > 0) {
+      setState(() {
+        _currentStep--;
+      });
+      return;
+    }
+
+    Navigator.of(context).pop();
   }
 
   int get _highestAvailableStep {
@@ -319,17 +390,9 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
           return AlertDialog(
             title: const Row(
               children: [
-                Icon(
-                  Icons.check_circle_rounded,
-                  color: Color(0xFF2563EB),
-                ),
+                Icon(Icons.check_circle_rounded, color: Color(0xFF2563EB)),
                 SizedBox(width: 8),
-                Text(
-                  '예약 완료',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
+                Text('예약 완료', style: TextStyle(fontWeight: FontWeight.w800)),
               ],
             ),
             content: Text(
@@ -374,23 +437,12 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          behavior: SnackBarBehavior.floating,
-        ),
+        SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
       );
   }
 
   String _formatDate(DateTime date) {
-    const weekdays = <String>[
-      '월',
-      '화',
-      '수',
-      '목',
-      '금',
-      '토',
-      '일',
-    ];
+    const weekdays = <String>['월', '화', '수', '목', '금', '토', '일'];
 
     final weekday = weekdays[date.weekday - 1];
 
@@ -444,6 +496,13 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
         elevation: 0,
+
+        leading: IconButton(
+          tooltip: '이전',
+          onPressed: _goBack,
+          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF111827)),
+        ),
+
         title: const Text(
           '진료 예약',
           style: TextStyle(
@@ -461,12 +520,7 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
             // ======================================================
             Container(
               color: Colors.white,
-              padding: const EdgeInsets.fromLTRB(
-                16,
-                14,
-                16,
-                16,
-              ),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
               child: _AppointmentStepIndicator(
                 currentStep: _currentStep,
                 highestAvailableStep: _highestAvailableStep,
@@ -476,19 +530,12 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
 
             Expanded(
               child: _isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(),
-                    )
+                  ? const Center(child: CircularProgressIndicator())
                   : AnimatedSwitcher(
-                      duration: const Duration(
-                        milliseconds: 280,
-                      ),
+                      duration: const Duration(milliseconds: 280),
                       switchInCurve: Curves.easeOut,
                       switchOutCurve: Curves.easeIn,
-                      transitionBuilder: (
-                        child,
-                        animation,
-                      ) {
+                      transitionBuilder: (child, animation) {
                         final offsetAnimation = Tween<Offset>(
                           begin: const Offset(0.08, 0),
                           end: Offset.zero,
@@ -514,12 +561,7 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
   Widget _buildCurrentStep() {
     return ListView(
       key: ValueKey<int>(_currentStep),
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        24,
-        20,
-        32,
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
       children: [
         Text(
           _stepTitle,
@@ -551,6 +593,30 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
           4 => _buildTimeStep(),
           _ => _buildConfirmStep(),
         },
+
+        const SizedBox(height: 24),
+
+        if (_currentStep > 0 && _currentStep < 5)
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: OutlinedButton.icon(
+              onPressed: _goBack,
+              icon: const Icon(Icons.arrow_back_rounded, size: 20),
+              label: const Text(
+                '이전',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF2563EB),
+                backgroundColor: Colors.white,
+                side: const BorderSide(color: Color(0xFFBFDBFE)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -577,13 +643,8 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
             onPressed: _selectHospital,
             icon: const Icon(Icons.search_rounded),
             label: Text(
-              _selectedHospital == null
-                  ? '병원 검색하기'
-                  : '병원 다시 선택하기',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-              ),
+              _selectedHospital == null ? '병원 검색하기' : '병원 다시 선택하기',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
             ),
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFF2563EB),
@@ -615,8 +676,7 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
     return Column(
       children: _departments.map((department) {
         final selected =
-            _selectedDepartment?.departmentId ==
-            department.departmentId;
+            _selectedDepartment?.departmentId == department.departmentId;
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
@@ -651,8 +711,7 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
 
     return Column(
       children: _doctors.map((doctor) {
-        final selected =
-            _selectedDoctor?.doctorId == doctor.doctorId;
+        final selected = _selectedDoctor?.doctorId == doctor.doctorId;
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
@@ -679,9 +738,7 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
         _SelectedValueCard(
           icon: Icons.calendar_month_outlined,
           title: '선택한 날짜',
-          value: _selectedDate == null
-              ? null
-              : _formatDate(_selectedDate!),
+          value: _selectedDate == null ? null : _formatDate(_selectedDate!),
           emptyText: '진료 날짜를 선택해 주세요.',
         ),
 
@@ -692,17 +749,10 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
           height: 56,
           child: FilledButton.icon(
             onPressed: _selectDate,
-            icon: const Icon(
-              Icons.calendar_month_outlined,
-            ),
+            icon: const Icon(Icons.calendar_month_outlined),
             label: Text(
-              _selectedDate == null
-                  ? '날짜 선택하기'
-                  : '날짜 다시 선택하기',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-              ),
+              _selectedDate == null ? '날짜 선택하기' : '날짜 다시 선택하기',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
             ),
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFF2563EB),
@@ -724,8 +774,7 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: appointmentTimeMock.length,
-      gridDelegate:
-          const SliverGridDelegateWithFixedCrossAxisCount(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
@@ -740,12 +789,8 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
             _selectTime(time);
           },
           style: OutlinedButton.styleFrom(
-            foregroundColor: selected
-                ? Colors.white
-                : const Color(0xFF2563EB),
-            backgroundColor: selected
-                ? const Color(0xFF2563EB)
-                : Colors.white,
+            foregroundColor: selected ? Colors.white : const Color(0xFF2563EB),
+            backgroundColor: selected ? const Color(0xFF2563EB) : Colors.white,
             side: BorderSide(
               color: selected
                   ? const Color(0xFF2563EB)
@@ -757,9 +802,7 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
           ),
           child: Text(
             time,
-            style: const TextStyle(
-              fontWeight: FontWeight.w800,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.w800),
           ),
         );
       },
@@ -773,16 +816,12 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
     return Column(
       children: [
         _AppointmentSummaryCard(
-          hospitalName:
-              _selectedHospital?.hospitalName ?? '',
-          departmentName:
-              _selectedDepartment?.departmentName ?? '',
+          hospitalName: _selectedHospital?.hospitalName ?? '',
+          departmentName: _selectedDepartment?.departmentName ?? '',
           doctorName: _selectedDoctor?.doctorName ?? '',
-          date: _selectedDate == null
-              ? ''
-              : _formatDate(_selectedDate!),
+          date: _selectedDate == null ? '' : _formatDate(_selectedDate!),
           time: _selectedTime ?? '',
-          onEditStep: _moveToStep,
+          onEditStep: _startEditFromConfirm,
         ),
 
         const SizedBox(height: 22),
@@ -791,14 +830,10 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
           width: double.infinity,
           height: 56,
           child: FilledButton(
-            onPressed:
-                !_canSubmit || _isSubmitting
-                    ? null
-                    : _submitAppointment,
+            onPressed: !_canSubmit || _isSubmitting ? null : _submitAppointment,
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFF2563EB),
-              disabledBackgroundColor:
-                  const Color(0xFFC7D2FE),
+              disabledBackgroundColor: const Color(0xFFC7D2FE),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
@@ -814,10 +849,7 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
                   )
                 : const Text(
                     '예약 확정하기',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                   ),
           ),
         ),
@@ -840,122 +872,98 @@ class _AppointmentStepIndicator extends StatelessWidget {
   final int highestAvailableStep;
   final ValueChanged<int> onStepTap;
 
-  static const List<String> _labels = [
-    '병원',
-    '진료과',
-    '의료진',
-    '날짜',
-    '시간',
-    '확인',
-  ];
+  static const List<String> _labels = ['병원', '진료과', '의료진', '날짜', '시간', '확인'];
 
   @override
   Widget build(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: List.generate(
-        _labels.length * 2 - 1,
-        (position) {
-          if (position.isOdd) {
-            final leftStep = (position - 1) ~/ 2;
-            final completed =
-                highestAvailableStep > leftStep;
+      children: List.generate(_labels.length * 2 - 1, (position) {
+        if (position.isOdd) {
+          final leftStep = (position - 1) ~/ 2;
+          final completed = highestAvailableStep > leftStep;
 
-            return Expanded(
-              child: AnimatedContainer(
-                duration: const Duration(
-                  milliseconds: 220,
-                ),
-                height: 2,
-                margin: const EdgeInsets.only(
-                  top: 15,
-                  left: 2,
-                  right: 2,
-                ),
-                color: completed
-                    ? const Color(0xFF2563EB)
-                    : const Color(0xFFE2E8F0),
-              ),
-            );
-          }
-
-          final index = position ~/ 2;
-          final completed = index < currentStep;
-          final current = index == currentStep;
-          final available =
-              index <= highestAvailableStep;
-
-          return GestureDetector(
-            onTap: available
-                ? () {
-                    onStepTap(index);
-                  }
-                : null,
-            behavior: HitTestBehavior.opaque,
-            child: SizedBox(
-              width: 38,
-              child: Column(
-                children: [
-                  AnimatedContainer(
-                    duration: const Duration(
-                      milliseconds: 220,
-                    ),
-                    width: 30,
-                    height: 30,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: completed || current
-                          ? const Color(0xFF2563EB)
-                          : Colors.white,
-                      border: Border.all(
-                        color: completed || current
-                            ? const Color(0xFF2563EB)
-                            : const Color(0xFFCBD5E1),
-                        width: 1.5,
-                      ),
-                    ),
-                    child: completed
-                        ? const Icon(
-                            Icons.check_rounded,
-                            size: 18,
-                            color: Colors.white,
-                          )
-                        : Text(
-                            '${index + 1}',
-                            style: TextStyle(
-                              color: current
-                                  ? Colors.white
-                                  : const Color(
-                                      0xFF94A3B8,
-                                    ),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                  ),
-
-                  const SizedBox(height: 6),
-
-                  Text(
-                    _labels[index],
-                    maxLines: 1,
-                    style: TextStyle(
-                      color: completed || current
-                          ? const Color(0xFF2563EB)
-                          : const Color(0xFF94A3B8),
-                      fontSize: 10,
-                      fontWeight: current
-                          ? FontWeight.w800
-                          : FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
+          return Expanded(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              height: 2,
+              margin: const EdgeInsets.only(top: 15, left: 2, right: 2),
+              color: completed
+                  ? const Color(0xFF2563EB)
+                  : const Color(0xFFE2E8F0),
             ),
           );
-        },
-      ),
+        }
+
+        final index = position ~/ 2;
+        final completed = index < currentStep;
+        final current = index == currentStep;
+        final available = index <= highestAvailableStep;
+
+        return GestureDetector(
+          onTap: available
+              ? () {
+                  onStepTap(index);
+                }
+              : null,
+          behavior: HitTestBehavior.opaque,
+          child: SizedBox(
+            width: 38,
+            child: Column(
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  width: 30,
+                  height: 30,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: completed || current
+                        ? const Color(0xFF2563EB)
+                        : Colors.white,
+                    border: Border.all(
+                      color: completed || current
+                          ? const Color(0xFF2563EB)
+                          : const Color(0xFFCBD5E1),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: completed
+                      ? const Icon(
+                          Icons.check_rounded,
+                          size: 18,
+                          color: Colors.white,
+                        )
+                      : Text(
+                          '${index + 1}',
+                          style: TextStyle(
+                            color: current
+                                ? Colors.white
+                                : const Color(0xFF94A3B8),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                ),
+
+                const SizedBox(height: 6),
+
+                Text(
+                  _labels[index],
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: completed || current
+                        ? const Color(0xFF2563EB)
+                        : const Color(0xFF94A3B8),
+                    fontSize: 10,
+                    fontWeight: current ? FontWeight.w800 : FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }),
     );
   }
 }
@@ -1007,18 +1015,14 @@ class _SelectionCard extends StatelessWidget {
                   color: const Color(0xFFEFF6FF),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(
-                  icon,
-                  color: const Color(0xFF2563EB),
-                ),
+                child: Icon(icon, color: const Color(0xFF2563EB)),
               ),
 
               const SizedBox(width: 14),
 
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       title,
@@ -1029,8 +1033,7 @@ class _SelectionCard extends StatelessWidget {
                       ),
                     ),
 
-                    if (subtitle != null &&
-                        subtitle!.trim().isNotEmpty) ...[
+                    if (subtitle != null && subtitle!.trim().isNotEmpty) ...[
                       const SizedBox(height: 5),
                       Text(
                         subtitle!,
@@ -1078,8 +1081,7 @@ class _SelectedValueCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasValue =
-        value != null && value!.trim().isNotEmpty;
+    final hasValue = value != null && value!.trim().isNotEmpty;
 
     return Container(
       width: double.infinity,
@@ -1087,9 +1089,7 @@ class _SelectedValueCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: const Color(0xFFE5E7EB),
-        ),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
       child: Row(
         children: [
@@ -1100,18 +1100,14 @@ class _SelectedValueCard extends StatelessWidget {
               color: const Color(0xFFEFF6FF),
               borderRadius: BorderRadius.circular(15),
             ),
-            child: Icon(
-              icon,
-              color: const Color(0xFF2563EB),
-            ),
+            child: Icon(icon, color: const Color(0xFF2563EB)),
           ),
 
           const SizedBox(width: 14),
 
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
@@ -1166,35 +1162,23 @@ class _EmptyStepCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: const Color(0xFFE5E7EB),
-        ),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
       child: Column(
         children: [
-          Icon(
-            icon,
-            size: 42,
-            color: const Color(0xFF94A3B8),
-          ),
+          Icon(icon, size: 42, color: const Color(0xFF94A3B8)),
 
           const SizedBox(height: 12),
 
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Color(0xFF6B7280),
-              fontSize: 14,
-            ),
+            style: const TextStyle(color: Color(0xFF6B7280), fontSize: 14),
           ),
 
           const SizedBox(height: 18),
 
-          OutlinedButton(
-            onPressed: onPressed,
-            child: Text(buttonText),
-          ),
+          OutlinedButton(onPressed: onPressed, child: Text(buttonText)),
         ],
       ),
     );
@@ -1228,9 +1212,7 @@ class _AppointmentSummaryCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: const Color(0xFFE5E7EB),
-        ),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
       child: Column(
         children: [
@@ -1249,11 +1231,7 @@ class _AppointmentSummaryCard extends StatelessWidget {
             value: doctorName,
             onEdit: () => onEditStep(2),
           ),
-          _SummaryRow(
-            label: '날짜',
-            value: date,
-            onEdit: () => onEditStep(3),
-          ),
+          _SummaryRow(label: '날짜', value: date, onEdit: () => onEditStep(3)),
           _SummaryRow(
             label: '시간',
             value: time,
@@ -1282,9 +1260,7 @@ class _SummaryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(
-        bottom: isLast ? 0 : 14,
-      ),
+      padding: EdgeInsets.only(bottom: isLast ? 0 : 14),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -1292,10 +1268,7 @@ class _SummaryRow extends StatelessWidget {
             width: 58,
             child: Text(
               label,
-              style: const TextStyle(
-                color: Color(0xFF64748B),
-                fontSize: 13,
-              ),
+              style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
             ),
           ),
 
@@ -1314,10 +1287,7 @@ class _SummaryRow extends StatelessWidget {
             onPressed: onEdit,
             child: const Text(
               '수정',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
             ),
           ),
         ],
