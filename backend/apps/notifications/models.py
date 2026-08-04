@@ -14,6 +14,11 @@ class Device(TimeStampedModel):
         IOS = "IOS", "iOS"
         WEB = "WEB", "Web"
 
+    class ClientType(models.TextChoices):
+        PATIENT_APP = "PATIENT_APP", "환자 앱"
+        CLINICIAN_APP = "CLINICIAN_APP", "의료진 앱"
+        CLINICIAN_WEB = "CLINICIAN_WEB", "의료진 웹"
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -26,6 +31,16 @@ class Device(TimeStampedModel):
         db_index=True,
         verbose_name="플랫폼",
     )
+    client_type = models.CharField(
+        max_length=24,
+        choices=ClientType.choices,
+        db_index=True,
+        verbose_name="클라이언트 유형",
+    )
+    device_identifier = models.CharField(
+        max_length=255,
+        verbose_name="앱 설치 또는 브라우저 식별자",
+    )
     fcm_token = models.CharField(
         max_length=512,
         unique=True,
@@ -35,6 +50,11 @@ class Device(TimeStampedModel):
         max_length=200,
         blank=True,
         verbose_name="기기 이름",
+    )
+    app_version = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="앱 버전",
     )
     is_active = models.BooleanField(
         default=True,
@@ -65,6 +85,33 @@ class Device(TimeStampedModel):
             ),
         ]
         constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "user",
+                    "client_type",
+                    "device_identifier",
+                ],
+                name="device_user_client_ident_uniq",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        client_type="CLINICIAN_WEB",
+                        platform="WEB",
+                    )
+                    | models.Q(
+                        client_type__in=[
+                            "PATIENT_APP",
+                            "CLINICIAN_APP",
+                        ],
+                        platform__in=[
+                            "ANDROID",
+                            "IOS",
+                        ],
+                    )
+                ),
+                name="device_client_platform_valid",
+            ),
             models.CheckConstraint(
                 condition=(
                     models.Q(last_used_at__isnull=True)
@@ -82,6 +129,22 @@ class Device(TimeStampedModel):
 
     def clean(self) -> None:
         super().clean()
+
+        web_client = (
+            self.client_type
+            == self.ClientType.CLINICIAN_WEB
+        )
+        web_platform = (
+            self.platform == self.Platform.WEB
+        )
+
+        if web_client != web_platform:
+            raise ValidationError({
+                "platform": (
+                    "의료진 웹은 WEB 플랫폼만, 앱은 "
+                    "ANDROID 또는 IOS 플랫폼만 사용할 수 있습니다."
+                ),
+            })
 
         if (
             self.last_used_at is not None
@@ -408,6 +471,83 @@ class NotificationSetting(TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.user.username} - 방해금지 설정"
+
+
+class NotificationDelivery(TimeStampedModel):
+    """푸시·이메일 알림의 전송 및 재시도 결과."""
+
+    class Channel(models.TextChoices):
+        PUSH = "PUSH", "푸시"
+        EMAIL = "EMAIL", "이메일"
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "전송 대기"
+        SUPPRESSED = "SUPPRESSED", "설정에 따라 보류"
+        SENDING = "SENDING", "전송 중"
+        SENT = "SENT", "전송 완료"
+        DELIVERED = "DELIVERED", "수신 확인"
+        FAILED = "FAILED", "전송 실패"
+        CANCELLED = "CANCELLED", "취소"
+
+    notification = models.ForeignKey(
+        Notification,
+        on_delete=models.CASCADE,
+        related_name="deliveries",
+    )
+    device = models.ForeignKey(
+        Device,
+        on_delete=models.SET_NULL,
+        related_name="notification_deliveries",
+        null=True,
+        blank=True,
+    )
+    channel = models.CharField(max_length=16, choices=Channel.choices, db_index=True)
+    destination = models.CharField(max_length=512, blank=True)
+    status = models.CharField(
+        max_length=16,
+        choices=Status.choices,
+        default=Status.PENDING,
+        db_index=True,
+    )
+    provider_message_id = models.CharField(max_length=255, blank=True, db_index=True)
+    attempt_count = models.PositiveIntegerField(default=0)
+    scheduled_at = models.DateTimeField(default=timezone.now, db_index=True)
+    next_attempt_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+    failed_at = models.DateTimeField(null=True, blank=True)
+    error_code = models.CharField(max_length=100, blank=True)
+    error_message = models.TextField(blank=True)
+    provider_response = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["scheduled_at", "created_at"]
+        indexes = [
+            models.Index(
+                fields=["status", "next_attempt_at"],
+                name="notidelivery_retry_idx",
+            ),
+            models.Index(
+                fields=["notification", "channel"],
+                name="notidelivery_noti_channel_idx",
+            ),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(channel="PUSH", device__isnull=False)
+                    | models.Q(channel="EMAIL", device__isnull=True)
+                ),
+                name="notidelivery_target_valid",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(delivered_at__isnull=True)
+                    | models.Q(sent_at__isnull=False, delivered_at__gte=models.F("sent_at"))
+                ),
+                name="notidelivery_time_valid",
+            ),
+        ]
 
 # Device.fcm_token
 # → Flutter·Web 앱에서 발급된 FCM 토큰

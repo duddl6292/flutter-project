@@ -45,3 +45,9 @@ export interface AppointmentCreateInput {
   location: string
   reason: string
 }
+
+export type AppointmentUpdateInput =
+  Omit<
+    AppointmentCreateInput,
+    'patient_id'
+  >

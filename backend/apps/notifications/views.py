@@ -1,13 +1,16 @@
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from rest_framework import serializers
+from rest_framework import serializers, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Notification
+from .models import Device, Notification
 from .serializers import (
+    DeviceRegisterSerializer,
+    DeviceSerializer,
+    DeviceUnregisterSerializer,
     NotificationPreferenceSerializer,
     NotificationSerializer,
     NotificationSettingSerializer,
@@ -39,6 +42,134 @@ def _notification_settings_data(user):
             many=True,
         ).data,
     }
+
+
+class DeviceRegisterView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request):
+        input_serializer = DeviceRegisterSerializer(
+            data=request.data,
+            context={"request": request},
+        )
+        input_serializer.is_valid(raise_exception=True)
+
+        data = input_serializer.validated_data
+        now = timezone.now()
+
+        identity_device = (
+            Device.objects
+            .select_for_update()
+            .filter(
+                user=request.user,
+                client_type=data["client_type"],
+                device_identifier=(
+                    data["device_identifier"]
+                ),
+            )
+            .first()
+        )
+
+        token_device = (
+            Device.objects
+            .select_for_update()
+            .filter(
+                fcm_token=data["fcm_token"],
+            )
+            .first()
+        )
+
+        created = False
+
+        if identity_device is not None:
+            if (
+                token_device is not None
+                and token_device.id
+                != identity_device.id
+            ):
+                token_device.delete()
+
+            device = identity_device
+        elif token_device is not None:
+            device = token_device
+            device.user = request.user
+            device.client_type = data["client_type"]
+            device.device_identifier = (
+                data["device_identifier"]
+            )
+            device.registered_at = now
+        else:
+            device = Device(
+                user=request.user,
+                client_type=data["client_type"],
+                device_identifier=(
+                    data["device_identifier"]
+                ),
+                registered_at=now,
+            )
+            created = True
+
+        device.platform = data["platform"]
+        device.fcm_token = data["fcm_token"]
+        device.device_name = data.get(
+            "device_name",
+            "",
+        )
+        device.app_version = data.get(
+            "app_version",
+            "",
+        )
+        device.is_active = True
+        device.last_used_at = now
+        device.save()
+
+        return Response(
+            {
+                "data": DeviceSerializer(device).data,
+            },
+            status=(
+                status.HTTP_201_CREATED
+                if created
+                else status.HTTP_200_OK
+            ),
+        )
+
+
+class DeviceUnregisterView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        input_serializer = DeviceUnregisterSerializer(
+            data=request.data,
+        )
+        input_serializer.is_valid(raise_exception=True)
+
+        data = input_serializer.validated_data
+        now = timezone.now()
+
+        updated_count = (
+            Device.objects
+            .filter(
+                user=request.user,
+                client_type=data["client_type"],
+                device_identifier=(
+                    data["device_identifier"]
+                ),
+                is_active=True,
+            )
+            .update(
+                is_active=False,
+                last_used_at=now,
+                updated_at=now,
+            )
+        )
+
+        return Response({
+            "data": {
+                "updated_count": updated_count,
+            },
+        })
 
 
 class NotificationListView(APIView):

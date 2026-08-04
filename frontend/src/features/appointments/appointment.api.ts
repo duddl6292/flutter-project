@@ -7,6 +7,7 @@ import type {
   AppointmentCreateInput,
   AppointmentListResponse,
   AppointmentStatus,
+  AppointmentUpdateInput,
 } from './appointment.types'
 
 interface GetAppointmentsParams {
@@ -98,6 +99,32 @@ export async function cancelAppointment(
         body: JSON.stringify({
           status: 'CANCELLED',
         }),
+      },
+    )
+
+  return response.data
+}
+
+export async function updateAppointment(
+  appointmentId: string,
+  input: AppointmentUpdateInput,
+): Promise<Appointment> {
+  const response =
+    await apiRequest<
+      AppointmentCancelResponse
+    >(
+      `/api/v1/appointments/${
+        encodeURIComponent(
+          appointmentId,
+        )
+      }/`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type':
+            'application/json',
+        },
+        body: JSON.stringify(input),
       },
     )
 

@@ -46,6 +46,10 @@ interface AuthState {
     refreshToken?: string,
   ) => void
 
+  updateUser: (
+    user: AuthUser,
+  ) => void
+
   clearSession: () => void
 }
 
@@ -120,6 +124,31 @@ export const useAuthStore =
             refreshToken:
               nextRefreshToken,
             user: current.user,
+            clinician:
+              current.clinician,
+          }),
+        )
+      }
+    },
+
+    updateUser: (user) => {
+      const current = get()
+
+      set({ user })
+
+      if (
+        current.accessToken
+        && current.refreshToken
+        && current.clinician
+      ) {
+        sessionStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({
+            accessToken:
+              current.accessToken,
+            refreshToken:
+              current.refreshToken,
+            user,
             clinician:
               current.clinician,
           }),

@@ -65,6 +65,92 @@ def check_password_policy(
         ) from exc
 
 
+class AccountEmailUpdateSerializer(serializers.Serializer):
+    email = serializers.EmailField(
+        allow_blank=False,
+    )
+
+    def update(self, instance, validated_data):
+        instance.email = validated_data["email"]
+        instance.save(
+            update_fields=[
+                "email",
+                "updated_at",
+            ],
+        )
+
+        return instance
+
+
+class PasswordChangeSerializer(serializers.Serializer):
+    current_password = serializers.CharField(
+        write_only=True,
+        trim_whitespace=False,
+    )
+    new_password = serializers.CharField(
+        write_only=True,
+        min_length=8,
+        trim_whitespace=False,
+    )
+    new_password_confirm = serializers.CharField(
+        write_only=True,
+        trim_whitespace=False,
+    )
+
+    def validate(self, attrs):
+        request = self.context["request"]
+        user = request.user
+
+        if not user.check_password(
+            attrs["current_password"]
+        ):
+            raise serializers.ValidationError({
+                "current_password": (
+                    "현재 비밀번호가 올바르지 않습니다."
+                ),
+            })
+
+        if (
+            attrs["new_password"]
+            != attrs["new_password_confirm"]
+        ):
+            raise serializers.ValidationError({
+                "new_password_confirm": (
+                    "새 비밀번호가 일치하지 않습니다."
+                ),
+            })
+
+        if user.check_password(
+            attrs["new_password"]
+        ):
+            raise serializers.ValidationError({
+                "new_password": (
+                    "현재 비밀번호와 다른 비밀번호를 사용해주세요."
+                ),
+            })
+
+        check_password_policy(
+            attrs["new_password"],
+            user=user,
+        )
+
+        return attrs
+
+    def save(self, **kwargs):
+        user = self.context["request"].user
+        user.set_password(
+            self.validated_data["new_password"]
+        )
+        user.save(
+            update_fields=[
+                "password",
+                "updated_at",
+            ],
+        )
+
+        return user
+
+
 class PatientSignupSerializer(serializers.Serializer):
     """
     환자 회원가입 Serializer

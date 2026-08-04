@@ -18,12 +18,29 @@ class TestResult(TimeStampedModel):
         "appointments.Encounter",
         on_delete=models.PROTECT,
         related_name="test_results",
+        null=True,
+        blank=True,
     )
     case = models.ForeignKey(
         "ct_analysis.CTCase",
         on_delete=models.PROTECT,
         related_name="test_results",
     )
+    inference_result = models.ForeignKey(
+        "ct_analysis.InferenceResult",
+        on_delete=models.PROTECT,
+        related_name="official_test_results",
+        null=True,
+        blank=True,
+    )
+    supersedes = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        related_name="corrections",
+        null=True,
+        blank=True,
+    )
+    revision_number = models.PositiveIntegerField(default=1)
 
     test_type = models.CharField(max_length=64)
     title = models.CharField(max_length=200)
@@ -58,6 +75,15 @@ class TestResult(TimeStampedModel):
         on_delete=models.PROTECT,
         related_name="created_test_results",
     )
+    finalized_at = models.DateTimeField(null=True, blank=True)
+    signed_at = models.DateTimeField(null=True, blank=True)
+    signed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="signed_test_results",
+        null=True,
+        blank=True,
+    )
 
     class Meta:
         ordering = ["-performed_at", "-created_at"]
@@ -76,6 +102,10 @@ class TestResult(TimeStampedModel):
             ),
         ]
         constraints = [
+            models.UniqueConstraint(
+                fields=["case", "revision_number"],
+                name="testresult_case_revision_uniq",
+            ),
             models.CheckConstraint(
                 condition=(
                     models.Q(is_released_to_patient=False)
@@ -112,6 +142,19 @@ class TestResult(TimeStampedModel):
                 }
             )
 
+        if (
+            self.inference_result_id
+            and self.inference_result.case_id != self.case_id
+        ):
+            raise ValidationError(
+                {"inference_result": "공식 결과와 AI 결과의 CT 분석 건이 일치해야 합니다."}
+            )
+
+        if self.supersedes_id and self.supersedes.case_id != self.case_id:
+            raise ValidationError(
+                {"supersedes": "정정 결과는 동일한 CT 분석 건의 결과를 대상으로 해야 합니다."}
+            )
+
         if self.is_released_to_patient:
             if self.status not in {
                 self.Status.FINAL,
@@ -145,8 +188,76 @@ class TestResult(TimeStampedModel):
                 )
 
     def save(self, *args, **kwargs) -> None:
+        if self._state.adding and self.case_id:
+            latest = (
+                type(self).objects
+                .filter(case_id=self.case_id)
+                .order_by("-revision_number", "-created_at")
+                .first()
+            )
+            if latest and self.revision_number <= latest.revision_number:
+                self.revision_number = latest.revision_number + 1
+            if (
+                latest
+                and self.status == self.Status.CORRECTED
+                and self.supersedes_id is None
+            ):
+                self.supersedes = latest
         self.full_clean()
         super().save(*args, **kwargs)
 
     def __str__(self) -> str:
         return f"{self.title} - {self.status}"
+
+
+class TestResultStatusHistory(TimeStampedModel):
+    """공식 검사결과의 상태 및 공개 변경 이력."""
+
+    result = models.ForeignKey(
+        TestResult,
+        on_delete=models.PROTECT,
+        related_name="status_history",
+    )
+    previous_status = models.CharField(max_length=16, blank=True)
+    new_status = models.CharField(max_length=16, choices=TestResult.Status.choices)
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="test_result_status_changes",
+    )
+    reason = models.TextField(blank=True)
+    is_released_to_patient = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["created_at"]
+        indexes = [
+            models.Index(
+                fields=["result", "created_at"],
+                name="testreshist_result_date_idx",
+            ),
+        ]
+
+
+class TestResultAsset(TimeStampedModel):
+    """CT 공식 결과에 첨부되는 보고서와 환자용 사본."""
+
+    class AssetType(models.TextChoices):
+        REPORT = "REPORT", "보고서"
+        PATIENT_COPY = "PATIENT_COPY", "환자용 사본"
+        OTHER = "OTHER", "기타"
+
+    result = models.ForeignKey(
+        TestResult,
+        on_delete=models.CASCADE,
+        related_name="assets",
+    )
+    stored_object = models.OneToOneField(
+        "assets.StoredObject",
+        on_delete=models.PROTECT,
+        related_name="test_result_asset",
+    )
+    asset_type = models.CharField(max_length=16, choices=AssetType.choices)
+    display_name = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ["asset_type", "created_at"]

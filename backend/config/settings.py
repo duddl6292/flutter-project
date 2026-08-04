@@ -42,11 +42,17 @@ INSTALLED_APPS = [
     "apps.clinical_records.apps.ClinicalRecordsConfig",
     "apps.prescriptions.apps.PrescriptionsConfig",
     "apps.medications.apps.MedicationsConfig",
+    "apps.assets.apps.AssetsConfig",
+    "apps.diagnostics.apps.DiagnosticsConfig",
+    "apps.imaging.apps.ImagingConfig",
     "apps.ct_analysis.apps.CtAnalysisConfig",
     "apps.test_results.apps.TestResultsConfig",
     "apps.consultations.apps.ConsultationsConfig",
     "apps.notifications.apps.NotificationsConfig",
     "apps.chatbot.apps.ChatbotConfig",
+    "apps.audit_logs.apps.AuditLogsConfig",
+    "apps.documentation.apps.DocumentationConfig",
+    "apps.reports.apps.ReportsConfig",
     "apps.core.apps.CoreConfig",
 ]
 

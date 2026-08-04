@@ -3,6 +3,8 @@ from django.urls import path
 from .views import (
     ClinicianLoginView,
     ClinicianSignupView,
+    CurrentAccountView,
+    PasswordChangeView,
     PatientClaimSignupView,
     PatientLoginView,
     PatientSignupView,
@@ -14,6 +16,16 @@ app_name = "accounts"
 
 
 urlpatterns = [
+    path(
+        "me/",
+        CurrentAccountView.as_view(),
+        name="current-account",
+    ),
+    path(
+        "password/change/",
+        PasswordChangeView.as_view(),
+        name="password-change",
+    ),
     path(
         "patient/signup/",
         PatientSignupView.as_view(),

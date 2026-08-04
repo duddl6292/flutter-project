@@ -401,6 +401,33 @@ export function PatientListPage() {
                         key={
                           patient.patient_id
                         }
+                        className="patient-row-clickable"
+                        tabIndex={0}
+                        role="link"
+                        onClick={() =>
+                          navigate(
+                            `/patients/${
+                              encodeURIComponent(
+                                patient.patient_id,
+                              )
+                            }`,
+                          )
+                        }
+                        onKeyDown={(event) => {
+                          if (
+                            event.key === 'Enter'
+                            || event.key === ' '
+                          ) {
+                            event.preventDefault()
+                            navigate(
+                              `/patients/${
+                                encodeURIComponent(
+                                  patient.patient_id,
+                                )
+                              }`,
+                            )
+                          }
+                        }}
                       >
                         <td className="patient-number">
                           {

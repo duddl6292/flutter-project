@@ -13,8 +13,36 @@ import {
 } from '../../features/patients/PatientListPage'
 
 import {
+  PatientDetailPage,
+} from '../../features/patients/PatientDetailPage'
+
+import {
   AppointmentPage,
 } from '../../features/appointments/AppointmentPage'
+
+import {
+  NotificationSettingsPage,
+} from '../../features/notifications/NotificationSettingsPage'
+
+import {
+  AccountSettingsPage,
+} from '../../features/account/AccountSettingsPage'
+
+import {
+  MyPage,
+} from '../../features/account/MyPage'
+
+import {
+  PrescriptionPage,
+} from '../../features/prescriptions/PrescriptionPage'
+
+import {
+  ReportPage,
+} from '../../features/reports/ReportPage'
+
+import {
+  EncounterPage,
+} from '../../features/encounters/EncounterPage'
 
 function NotFoundPage() {
   return (
@@ -58,9 +86,41 @@ export function AppRouter() {
           }
         />
         <Route
+          path="/patients/:patientId"
+          element={<PatientDetailPage />}
+        />
+        <Route
           path="/appointments"
           element={
             <AppointmentPage />
+          }
+        />
+        <Route
+          path="/reports"
+          element={<ReportPage />}
+        />
+        <Route
+          path="/encounters"
+          element={<EncounterPage />}
+        />
+        <Route
+          path="/prescriptions"
+          element={<PrescriptionPage />}
+        />
+        <Route
+          path="/my-page"
+          element={<MyPage />}
+        />
+        <Route
+          path="/settings/account"
+          element={
+            <AccountSettingsPage />
+          }
+        />
+        <Route
+          path="/settings/notifications"
+          element={
+            <NotificationSettingsPage />
           }
         />
       </Route>

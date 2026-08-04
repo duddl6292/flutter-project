@@ -6,6 +6,8 @@ from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
+from apps.core.models import TimeStampedModel
+
 
 class UserManager(BaseUserManager):
     """BrainOn 사용자 계정 생성 관리자."""
@@ -130,3 +132,59 @@ class User(AbstractUser):
 
     def __str__(self) -> str:
         return f"{self.username} ({self.role})"
+
+
+class UserConsent(TimeStampedModel):
+    """앱 약관·개인정보·의료 AI 안내의 버전별 동의 이력."""
+
+    class ConsentType(models.TextChoices):
+        TERMS_OF_SERVICE = "TERMS_OF_SERVICE", "서비스 이용약관"
+        PRIVACY = "PRIVACY", "개인정보 처리"
+        SENSITIVE_DATA = "SENSITIVE_DATA", "민감정보 처리"
+        AI_ASSISTANCE = "AI_ASSISTANCE", "의료 AI 안내"
+        MARKETING = "MARKETING", "마케팅"
+        RESEARCH = "RESEARCH", "연구 활용"
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="consents",
+    )
+    consent_type = models.CharField(
+        max_length=24,
+        choices=ConsentType.choices,
+        db_index=True,
+    )
+    document_version = models.CharField(max_length=50)
+    agreed = models.BooleanField(default=False)
+    agreed_at = models.DateTimeField(null=True, blank=True)
+    withdrawn_at = models.DateTimeField(null=True, blank=True)
+    source = models.CharField(max_length=24, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "consent_type", "document_version"],
+                name="userconsent_type_version_uniq",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(agreed=False)
+                    | models.Q(agreed=True, agreed_at__isnull=False)
+                ),
+                name="userconsent_agreed_at_req",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(withdrawn_at__isnull=True)
+                    | models.Q(agreed_at__isnull=False, withdrawn_at__gte=models.F("agreed_at"))
+                ),
+                name="userconsent_withdraw_valid",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user_id} - {self.consent_type} - {self.document_version}"

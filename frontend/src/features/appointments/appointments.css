@@ -97,6 +97,135 @@
   overflow-x: auto;
 }
 
+.appointment-time-grid {
+  display: grid;
+  min-width: 1120px;
+  grid-template-columns:
+    64px repeat(7, minmax(145px, 1fr));
+  grid-template-rows:
+    48px repeat(36, 30px);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #e3e6f1;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.appointment-time-corner,
+.appointment-time-label {
+  border-right: 1px solid #e8eaf3;
+  background: #f8f8fd;
+  color: #737d9e;
+  font-size: 11px;
+  text-align: center;
+}
+
+.appointment-time-corner {
+  display: grid;
+  place-items: center;
+  grid-column: 1;
+  grid-row: 1;
+  border-bottom: 1px solid #e8eaf3;
+  font-weight: 800;
+}
+
+.appointment-time-label {
+  padding-top: 3px;
+  transform: translateY(-8px);
+}
+
+.appointment-time-grid .appointment-day-header {
+  display: grid;
+  place-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  border-right: 1px solid #e8eaf3;
+}
+
+.appointment-slot-button {
+  position: relative;
+  border: 0;
+  border-right: 1px solid #eff0f6;
+  border-bottom: 1px solid #eff0f6;
+  background: #ffffff;
+  color: #665ee1;
+  cursor: pointer;
+}
+
+.appointment-slot-button:not(:disabled):hover {
+  background: #f2f0ff;
+}
+
+.appointment-slot-button span {
+  opacity: 0;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.appointment-slot-button:not(:disabled):hover span,
+.appointment-slot-button:not(:disabled):focus-visible span {
+  opacity: 1;
+}
+
+.appointment-slot-button:disabled {
+  cursor: default;
+}
+
+.appointment-time-grid .appointment-card {
+  z-index: 3;
+  min-width: 0;
+  overflow: hidden;
+  margin: 2px 3px;
+  padding: 5px 7px;
+  box-shadow: 0 2px 5px rgba(36, 43, 72, 0.08);
+}
+
+.appointment-time-grid .appointment-card strong,
+.appointment-time-grid .appointment-card small {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.appointment-time-grid .appointment-card strong {
+  font-size: 12px;
+}
+
+.appointment-time-grid .appointment-card small,
+.appointment-time-grid .appointment-card em {
+  font-size: 10px;
+}
+
+.appointment-outside-hours {
+  margin-top: 14px;
+  border: 1px solid #e3e6f1;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 14px;
+}
+
+.appointment-outside-hours h2 {
+  margin: 0 0 10px;
+  color: #29324f;
+  font-size: 14px;
+}
+
+.appointment-outside-hours > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.appointment-outside-hours button {
+  border: 1px solid #dfe2ed;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
 .appointment-calendar {
   display: grid;
   min-width: 1050px;
@@ -252,6 +381,10 @@
   gap: 14px;
 }
 
+.appointment-edit-form {
+  margin-top: 18px;
+}
+
 .appointment-modal label {
   gap: 7px;
   color: #4f5875;
@@ -363,7 +496,48 @@
   cursor: pointer;
 }
 
+.appointment-edit-button {
+  border: 0;
+  border-radius: 9px;
+  background: #f0efff;
+  padding: 10px 15px;
+  color: #5750ca;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.appointment-submit-button:disabled,
+.appointment-cancel-button:disabled,
+.appointment-edit-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 @media (max-width: 600px) {
+  .appointment-page {
+    padding: 20px 16px 32px;
+  }
+
+  .appointment-page-heading,
+  .appointment-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .appointment-date-controls {
+    flex-wrap: wrap;
+  }
+
+  .appointment-week-range {
+    min-width: 180px;
+  }
+
+  .appointment-modal footer {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
   .appointment-detail-list {
     grid-template-columns: 1fr;
   }

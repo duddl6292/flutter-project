@@ -37,3 +37,15 @@ export interface PatientListResponse {
   data: PatientSummary[]
   meta: PatientListMeta
 }
+
+export interface PatientDetail
+  extends PatientSummary {
+  user_id: string | null
+  username: string | null
+  email: string | null
+  emergency_contact: string
+  address: string
+  merged_into_id: string | null
+  created_at: string
+  updated_at: string
+}

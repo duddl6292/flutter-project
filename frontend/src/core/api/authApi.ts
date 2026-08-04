@@ -4,6 +4,9 @@ import type {
 } from '../auth/authStore'
 import { useAuthStore } from '../auth/authStore'
 import { apiRequest } from './apiClient'
+import {
+  unregisterWebNotificationDevice,
+} from '../../features/notifications/notification-device.api'
 
 interface ApiEnvelope<T> {
   data: T
@@ -93,6 +96,16 @@ export async function loginClinician(
 }
 
 export function logout(): void {
+  void unregisterWebNotificationDevice()
+    .catch((error: unknown) => {
+      if (import.meta.env.DEV) {
+        console.warn(
+          '웹 알림 기기 비활성화 실패:',
+          error,
+        )
+      }
+    })
+
   useAuthStore
     .getState()
     .clearSession()
