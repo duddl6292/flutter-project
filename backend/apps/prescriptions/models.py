@@ -150,6 +150,13 @@ class PrescriptionItem(TimeStampedModel):
         related_name="items",
         verbose_name="처방전",
     )
+    drug = models.ForeignKey(
+        "prescriptions.DrugMaster",
+        on_delete=models.PROTECT,
+        related_name="prescription_items",
+        null=True,
+        blank=True,
+    )
     medicine_name = models.CharField(
         max_length=200,
         db_index=True,
@@ -243,3 +250,24 @@ class PrescriptionItem(TimeStampedModel):
             f"{self.medicine_name} "
             f"{self.dosage}{self.dose_unit}"
         )
+
+class DrugMaster(TimeStampedModel):
+    """처방 항목이 참조하는 표준 약품 정보."""
+
+    drug_code = models.CharField(max_length=100, unique=True)
+    product_name = models.CharField(max_length=255)
+    ingredient = models.TextField()
+    strength = models.CharField(max_length=100, blank=True)
+    route = models.CharField(max_length=100, blank=True)
+    dose_example = models.TextField(blank=True)
+    frequency_example = models.CharField(max_length=100, blank=True)
+    timing_example = models.CharField(max_length=255, blank=True)
+    stroke_related_use_and_caution = models.TextField(blank=True)
+    source_url = models.URLField(max_length=500, blank=True)
+    clinical_disclaimer = models.TextField(blank=True)
+
+    class Meta:
+        db_table = "drug_master"
+
+    def __str__(self):
+        return f"{self.drug_code} - {self.product_name}"

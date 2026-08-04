@@ -829,3 +829,119 @@ class PatientIdentityResolutionLog(TimeStampedModel):
             f"{self.target_patient} "
             f"({self.resolution_type})"
         )
+
+class PatientHospitalIdentifier(TimeStampedModel):
+    """병원별로 부여되는 환자번호."""
+
+    patient = models.ForeignKey(
+        "patients.Patient",
+        on_delete=models.CASCADE,
+        related_name="hospital_identifiers",
+    )
+    hospital = models.ForeignKey(
+        "hospitals.Hospital",
+        on_delete=models.PROTECT,
+        related_name="patient_identifiers",
+    )
+    hospital_specific_mrn = models.CharField(max_length=100)
+    first_visit_date = models.DateField(null=True, blank=True)
+    is_primary = models.BooleanField(default=False)
+    status = models.CharField(max_length=30, default="active")
+    source_system = models.CharField(max_length=100, blank=True)
+
+    class Meta:
+        db_table = "patient_hospital_ids"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["patient", "hospital"],
+                name="uniq_patient_hospital_id",
+            ),
+            models.UniqueConstraint(
+                fields=["hospital", "hospital_specific_mrn"],
+                name="uniq_hospital_specific_mrn",
+            ),
+            models.UniqueConstraint(
+                fields=["patient"],
+                condition=models.Q(is_primary=True),
+                name="uniq_primary_hospital_per_patient",
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.patient_id} / "
+            f"{self.hospital_id} / "
+            f"{self.hospital_specific_mrn}"
+        )
+
+
+class Guardian(TimeStampedModel):
+    """보호자 기본 인적사항."""
+
+    name = models.CharField(max_length=100)
+    phone = models.CharField(max_length=30, blank=True, db_index=True)
+    email = models.EmailField(blank=True)
+
+    class Meta:
+        db_table = "guardians"
+
+    def __str__(self):
+        return self.name
+
+
+class PatientGuardian(TimeStampedModel):
+    """환자와 보호자의 관계·동의·위임 권한."""
+
+    patient = models.ForeignKey(
+        "patients.Patient",
+        on_delete=models.CASCADE,
+        related_name="guardian_links",
+    )
+    guardian = models.ForeignKey(
+        "patients.Guardian",
+        on_delete=models.CASCADE,
+        related_name="patient_links",
+    )
+    relationship = models.CharField(max_length=50)
+    can_view_records = models.BooleanField(default=False)
+    can_book_appointments = models.BooleanField(default=False)
+    can_receive_notifications = models.BooleanField(default=False)
+    consent_status = models.CharField(max_length=30, default="pending")
+
+    class Meta:
+        db_table = "patient_guardians"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["patient", "guardian"],
+                name="uniq_patient_guardian",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.patient_id} / {self.guardian_id}"
+
+
+class PatientPrivateIdentity(TimeStampedModel):
+    """환자의 암호화 민감정보."""
+
+    patient = models.OneToOneField(
+        "patients.Patient",
+        on_delete=models.CASCADE,
+        related_name="private_identity",
+    )
+    global_patient_number = models.CharField(
+        max_length=100,
+        unique=True,
+    )
+    resident_registration_number_encrypted = models.TextField()
+    resident_registration_number_masked = models.CharField(max_length=20)
+    rrn_checksum_valid = models.BooleanField(default=False)
+    phone_encrypted = models.TextField(blank=True)
+    email_encrypted = models.TextField(blank=True)
+    encryption_key_version = models.CharField(max_length=50, default="v1")
+
+    class Meta:
+        db_table = "patient_private"
+
+    def __str__(self):
+        return self.global_patient_number
