@@ -29,6 +29,12 @@ from .serializers import (
     )
 from .services import (resolve_to_existing_patient, resolve_to_new_patient, )
 from apps.appointments.models import Appointment, Encounter
+from apps.appointments.serializers import (
+    EncounterDetailSerializer,
+)
+from apps.clinicians.permissions import (
+    IsApprovedClinicianOrAdmin,
+)
 from apps.medications.models import (MedicationRecord, MedicationSchedule,)
 from apps.prescriptions.models import Prescription
 from apps.test_results.models import TestResult
@@ -996,6 +1002,70 @@ class PatientDetailView(APIView):
         return Response({
             "data": serializer.data,
         })
+
+
+class ClinicianPatientMedicalHistoryView(APIView):
+    """
+    의료진용 환자 과거 진료 결과 조회.
+
+    GET /api/v1/patients/{patient_id}/medical-history/
+    """
+
+    permission_classes = [
+        IsClinicianOrAdmin,
+        IsApprovedClinicianOrAdmin,
+    ]
+
+    def get(self, request, patient_id):
+        patient = get_object_or_404(
+            Patient.objects.select_related("merged_into"),
+            id=patient_id,
+        ).canonical_patient
+        encounters = (
+            Encounter.objects
+            .filter(
+                patient=patient,
+                status=Encounter.Status.COMPLETED,
+                clinical_records__isnull=False,
+            )
+            .select_related(
+                "patient",
+                "provisional_identity",
+                "appointment",
+                "department",
+                "hospital",
+                "attending_clinician",
+            )
+            .prefetch_related(
+                "clinical_records",
+                "prescriptions__items",
+                "ct_cases",
+            )
+            .distinct()
+        )
+
+        if request.user.role == "CLINICIAN":
+            encounters = encounters.filter(
+                hospital=request.user.clinician.hospital,
+            )
+
+        encounters = encounters.order_by(
+            "-completed_at",
+            "-created_at",
+        )
+        paginator = PatientPagination()
+        page = paginator.paginate_queryset(
+            encounters,
+            request,
+            view=self,
+        )
+
+        return paginator.get_paginated_response(
+            EncounterDetailSerializer(
+                page,
+                many=True,
+            ).data
+        )
 
 class PatientAccountClaimIssueView(APIView):
     """

@@ -13,12 +13,23 @@ class DeviceAdmin(admin.ModelAdmin):
     list_display = (
         "user",
         "platform",
+        "client_type",
         "device_name",
+        "app_version",
         "is_active",
         "last_used_at",
     )
-    list_filter = ("platform", "is_active")
-    search_fields = ("user__username", "device_name", "fcm_token")
+    list_filter = (
+        "platform",
+        "client_type",
+        "is_active",
+    )
+    search_fields = (
+        "user__username",
+        "device_identifier",
+        "device_name",
+        "fcm_token",
+    )
 
 
 @admin.register(Notification)

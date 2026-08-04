@@ -1,10 +1,122 @@
 from rest_framework import serializers
 
 from .models import (
+    Device,
     Notification,
     NotificationPreference,
     NotificationSetting,
 )
+
+
+class DeviceSerializer(serializers.ModelSerializer):
+    device_id = serializers.UUIDField(
+        source="id",
+        read_only=True,
+    )
+
+    class Meta:
+        model = Device
+        fields = [
+            "device_id",
+            "platform",
+            "client_type",
+            "device_identifier",
+            "device_name",
+            "app_version",
+            "is_active",
+            "registered_at",
+            "last_used_at",
+        ]
+        read_only_fields = fields
+
+
+class DeviceRegisterSerializer(serializers.Serializer):
+    platform = serializers.ChoiceField(
+        choices=Device.Platform.choices,
+    )
+    client_type = serializers.ChoiceField(
+        choices=Device.ClientType.choices,
+    )
+    device_identifier = serializers.CharField(
+        max_length=255,
+        trim_whitespace=True,
+    )
+    fcm_token = serializers.CharField(
+        max_length=512,
+        trim_whitespace=True,
+    )
+    device_name = serializers.CharField(
+        max_length=200,
+        required=False,
+        allow_blank=True,
+        trim_whitespace=True,
+    )
+    app_version = serializers.CharField(
+        max_length=50,
+        required=False,
+        allow_blank=True,
+        trim_whitespace=True,
+    )
+
+    def validate(self, attrs):
+        platform = attrs["platform"]
+        client_type = attrs["client_type"]
+
+        web_client = (
+            client_type
+            == Device.ClientType.CLINICIAN_WEB
+        )
+        web_platform = (
+            platform == Device.Platform.WEB
+        )
+
+        if web_client != web_platform:
+            raise serializers.ValidationError({
+                "platform": (
+                    "의료진 웹은 WEB 플랫폼만, 앱은 "
+                    "ANDROID 또는 IOS 플랫폼만 사용할 수 있습니다."
+                ),
+            })
+
+        request = self.context.get("request")
+        user_role = getattr(
+            getattr(request, "user", None),
+            "role",
+            "",
+        )
+
+        allowed_client_types = {
+            "PATIENT": {
+                Device.ClientType.PATIENT_APP,
+            },
+            "CLINICIAN": {
+                Device.ClientType.CLINICIAN_APP,
+                Device.ClientType.CLINICIAN_WEB,
+            },
+        }
+
+        if client_type not in allowed_client_types.get(
+            user_role,
+            set(),
+        ):
+            raise serializers.ValidationError({
+                "client_type": (
+                    "현재 사용자 역할에서 사용할 수 없는 "
+                    "클라이언트 유형입니다."
+                ),
+            })
+
+        return attrs
+
+
+class DeviceUnregisterSerializer(serializers.Serializer):
+    client_type = serializers.ChoiceField(
+        choices=Device.ClientType.choices,
+    )
+    device_identifier = serializers.CharField(
+        max_length=255,
+        trim_whitespace=True,
+    )
 
 
 class NotificationSerializer(

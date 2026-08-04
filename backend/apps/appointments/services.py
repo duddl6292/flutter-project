@@ -10,7 +10,11 @@ from apps.clinicians.models import (
     ClinicianTimeOff,
 )
 
-from .models import Appointment, AppointmentStatusHistory
+from .models import (
+    Appointment,
+    AppointmentStatusHistory,
+    Encounter,
+)
 
 
 class AppointmentSchedulingError(Exception):
@@ -24,6 +28,10 @@ class AppointmentSchedulingError(Exception):
 
 class AppointmentStatusTransitionError(Exception):
     """허용되지 않은 예약 상태 전환."""
+
+
+class EncounterWorkflowError(Exception):
+    """진료 접수 또는 상태 전환 실패."""
 
 
 ALLOWED_STATUS_TRANSITIONS = {
@@ -222,3 +230,85 @@ def change_appointment_status(
     )
 
     return appointment
+
+
+ENCOUNTER_STATUS_TRANSITIONS = {
+    Encounter.Status.REGISTERED: set(),
+    Encounter.Status.ARRIVED: {
+        Encounter.Status.IN_PROGRESS,
+    },
+    Encounter.Status.IN_PROGRESS: {
+        Encounter.Status.COMPLETED,
+    },
+    Encounter.Status.COMPLETED: set(),
+    Encounter.Status.CANCELLED: set(),
+}
+
+
+@transaction.atomic
+def change_encounter_status(
+    *,
+    encounter_id,
+    new_status: str,
+    changed_by,
+) -> Encounter:
+    encounter = (
+        Encounter.objects
+        .select_related("appointment")
+        .select_for_update(of=("self",))
+        .get(id=encounter_id)
+)
+
+    if (
+        encounter.attending_clinician.user_id
+        != changed_by.id
+    ):
+        raise EncounterWorkflowError(
+            "본인 진료 건만 변경할 수 있습니다."
+        )
+
+    allowed = ENCOUNTER_STATUS_TRANSITIONS.get(
+        encounter.status,
+        set(),
+    )
+
+    if new_status not in allowed:
+        raise EncounterWorkflowError(
+            f"{encounter.status}에서 {new_status}(으)로 "
+            "변경할 수 없습니다."
+        )
+
+    now = timezone.now()
+
+    if new_status == Encounter.Status.ARRIVED:
+        encounter.arrived_at = encounter.arrived_at or now
+
+    if new_status == Encounter.Status.IN_PROGRESS:
+        encounter.arrived_at = encounter.arrived_at or now
+        encounter.started_at = encounter.started_at or now
+
+    if new_status == Encounter.Status.COMPLETED:
+        if not encounter.clinical_records.exists():
+            raise EncounterWorkflowError(
+                "진료기록을 저장한 후 진료를 완료해주세요."
+            )
+
+        encounter.started_at = encounter.started_at or now
+        encounter.completed_at = now
+
+        if (
+            encounter.appointment_id
+            and encounter.appointment.status
+            == Appointment.Status.CHECKED_IN
+        ):
+            change_appointment_status(
+                appointment_id=encounter.appointment_id,
+                new_status=Appointment.Status.COMPLETED,
+                changed_by=changed_by,
+                reason="진료 완료",
+            )
+
+    encounter.status = new_status
+    encounter.save()
+
+    return encounter

@@ -5,19 +5,41 @@ from datetime import (
 )
 
 from django.db import transaction
+from django.db.models import Q
+from django.db.models.functions import Coalesce
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.clinical_records.models import ClinicalRecord
+from apps.clinical_records.serializers import (
+    ClinicalRecordSerializer,
+    ClinicalRecordUpsertSerializer,
+)
+from apps.clinicians.permissions import (
+    IsApprovedClinicianOrAdmin,
+)
+from apps.core.pagination import CommonPageNumberPagination
 from apps.patients.permissions import (
+    IsClinician,
     IsClinicianOrAdmin,
 )
 
-from .models import Appointment
+from .models import Appointment, Encounter
 from .serializers import (
     AppointmentCreateSerializer,
     AppointmentSummarySerializer,
+    EncounterDetailSerializer,
+    EncounterListQuerySerializer,
+    EncounterStatusSerializer,
+    EncounterSummarySerializer,
+)
+from .services import (
+    EncounterWorkflowError,
+    change_encounter_status,
 )
 
 
@@ -155,4 +177,243 @@ class AppointmentListCreateView(APIView):
                     response_serializer.data,
             },
             status=status.HTTP_201_CREATED,
+        )
+
+
+def _clinician_encounters(request):
+    return (
+        Encounter.objects
+        .filter(
+            attending_clinician=request.user.clinician,
+        )
+        .select_related(
+            "patient",
+            "provisional_identity",
+            "appointment",
+            "department",
+            "hospital",
+            "attending_clinician",
+        )
+    )
+
+
+def _clinician_encounter_details(request):
+    return (
+        _clinician_encounters(request)
+        .prefetch_related(
+            "clinical_records",
+            "prescriptions__items",
+            "ct_cases",
+        )
+    )
+
+
+class ClinicianEncounterListView(APIView):
+    permission_classes = [
+        IsClinician,
+        IsApprovedClinicianOrAdmin,
+    ]
+
+    def get(self, request):
+        query_serializer = EncounterListQuerySerializer(
+            data=request.query_params,
+        )
+        query_serializer.is_valid(raise_exception=True)
+        query = query_serializer.validated_data
+        encounters = _clinician_encounters(request)
+        requested_status = query.get("status")
+        search = query.get("search", "").strip()
+        current_timezone = timezone.get_current_timezone()
+
+        encounters = encounters.annotate(
+            activity_at=Coalesce(
+                "arrived_at",
+                "created_at",
+            )
+        )
+
+        if requested_status:
+            encounters = encounters.filter(
+                status=requested_status,
+            )
+
+        if search:
+            encounters = encounters.filter(
+                Q(patient__name__icontains=search)
+                | Q(
+                    patient__medical_record_number__icontains=(
+                        search
+                    )
+                )
+                | Q(
+                    provisional_identity__temporary_name__icontains=(
+                        search
+                    )
+                )
+                | Q(encounter_number__icontains=search)
+            )
+
+        if query.get("date_from"):
+            start_at = timezone.make_aware(
+                datetime.combine(
+                    query["date_from"],
+                    time.min,
+                ),
+                current_timezone,
+            )
+            encounters = encounters.filter(
+                activity_at__gte=start_at,
+            )
+
+        if query.get("date_to"):
+            end_at = timezone.make_aware(
+                datetime.combine(
+                    query["date_to"] + timedelta(days=1),
+                    time.min,
+                ),
+                current_timezone,
+            )
+            encounters = encounters.filter(
+                activity_at__lt=end_at,
+            )
+
+        encounters = encounters.order_by("-activity_at")
+        paginator = CommonPageNumberPagination()
+        page = paginator.paginate_queryset(
+            encounters,
+            request,
+            view=self,
+        )
+
+        return paginator.get_paginated_response(
+            EncounterSummarySerializer(
+                page,
+                many=True,
+            ).data
+        )
+
+class ClinicianEncounterDetailView(APIView):
+    permission_classes = [
+        IsClinician,
+        IsApprovedClinicianOrAdmin,
+    ]
+
+    def get(self, request, encounter_id):
+        encounter = get_object_or_404(
+            _clinician_encounter_details(request),
+            id=encounter_id,
+        )
+
+        return Response({
+            "data": EncounterDetailSerializer(
+                encounter,
+            ).data,
+        })
+
+
+class ClinicianEncounterStatusView(APIView):
+    permission_classes = [
+        IsClinician,
+        IsApprovedClinicianOrAdmin,
+    ]
+
+    @transaction.atomic
+    def patch(self, request, encounter_id):
+        get_object_or_404(
+            _clinician_encounters(request),
+            id=encounter_id,
+        )
+        input_serializer = EncounterStatusSerializer(
+            data=request.data,
+        )
+        input_serializer.is_valid(raise_exception=True)
+
+        try:
+            change_encounter_status(
+                encounter_id=encounter_id,
+                new_status=(
+                    input_serializer.validated_data[
+                        "status"
+                    ]
+                ),
+                changed_by=request.user,
+            )
+        except EncounterWorkflowError as exc:
+            raise ValidationError({
+                "status": str(exc),
+            }) from exc
+
+        encounter = _clinician_encounter_details(
+            request,
+        ).get(id=encounter_id)
+
+        return Response({
+            "data": EncounterDetailSerializer(
+                encounter,
+            ).data,
+        })
+
+
+class ClinicianEncounterClinicalRecordView(APIView):
+    permission_classes = [
+        IsClinician,
+        IsApprovedClinicianOrAdmin,
+    ]
+
+    def get(self, request, encounter_id):
+        encounter = get_object_or_404(
+            _clinician_encounters(request),
+            id=encounter_id,
+        )
+        record = encounter.clinical_records.first()
+
+        return Response({
+            "data": (
+                ClinicalRecordSerializer(record).data
+                if record
+                else None
+            ),
+        })
+
+    @transaction.atomic
+    def put(self, request, encounter_id):
+        encounter = get_object_or_404(
+            _clinician_encounters(request)
+            .select_for_update(of=("self",)),
+            id=encounter_id,
+        )
+        input_serializer = (
+            ClinicalRecordUpsertSerializer(
+                data=request.data,
+            )
+        )
+        input_serializer.is_valid(raise_exception=True)
+        record = encounter.clinical_records.first()
+        created = record is None
+
+        if record is None:
+            record = ClinicalRecord(
+                encounter=encounter,
+                clinician=request.user.clinician,
+            )
+
+        for field, value in (
+            input_serializer.validated_data.items()
+        ):
+            setattr(record, field, value)
+
+        record.recorded_at = timezone.now()
+        record.save()
+
+        return Response(
+            {
+                "data": ClinicalRecordSerializer(
+                    record,
+                ).data,
+            },
+            status=(
+                status.HTTP_201_CREATED
+                if created
+                else status.HTTP_200_OK
+            ),
         )
