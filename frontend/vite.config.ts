@@ -627,10 +627,13 @@ function mockApiPlugin(): Plugin {
 
       data: {
         path:
-          '/patients?search=P-2026-003',
+          '/consultations/41000000-0000-0000-0000-000000000002',
 
         patient_id:
           '10000000-0000-0000-0000-000000000003',
+
+        consultation_id:
+          '41000000-0000-0000-0000-000000000002',
       },
 
       is_read:
@@ -694,40 +697,414 @@ function mockApiPlugin(): Plugin {
     last_used_at: string
   }> = []
 
-  const mockConsultations = [
+  const mockClinicianDirectory = [
     {
-      consultation_id: 1,
-      status: 'requested',
-      department: '신경외과',
-      title: '뇌출혈 수술 여부 협진 요청',
-      patient_id: 'P-2026-001',
-      patient_display:
-        '홍길동 (P-2026-001)',
-      requested_at:
-        '2026-08-03T09:20:00+09:00',
-      responded_at: null,
+      clinician_id:
+        'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+      user_id:
+        'dddddddd-dddd-dddd-dddd-dddddddddddd',
+      name: '김브레인',
+      license_number: '123456',
+      approval_status: 'APPROVED',
+      hospital: hospitals[0],
+      department: departments[0],
+      created_at: '2026-08-01T09:00:00+09:00',
+      updated_at: '2026-08-01T09:00:00+09:00',
     },
     {
-      consultation_id: 2,
-      status: 'answered',
-      department: '재활의학과',
-      title: '수술 후 재활 계획 문의',
-      patient_id: 'P-2026-003',
-      patient_display:
-        '이민수 (P-2026-003)',
-      requested_at:
-        '2026-08-03T08:30:00+09:00',
-      responded_at:
-        '2026-08-03T10:00:00+09:00',
+      clinician_id:
+        'f1111111-1111-1111-1111-111111111111',
+      user_id:
+        'f2111111-1111-1111-1111-111111111111',
+      name: '박신경',
+      license_number: '234567',
+      approval_status: 'APPROVED',
+      hospital: hospitals[0],
+      department: departments[1],
+      created_at: '2026-07-01T09:00:00+09:00',
+      updated_at: '2026-07-01T09:00:00+09:00',
+    },
+    {
+      clinician_id:
+        'f3333333-3333-3333-3333-333333333333',
+      user_id:
+        'f4333333-3333-3333-3333-333333333333',
+      name: '이재활',
+      license_number: '345678',
+      approval_status: 'APPROVED',
+      hospital: hospitals[1],
+      department: departments[2],
+      created_at: '2026-07-02T09:00:00+09:00',
+      updated_at: '2026-07-02T09:00:00+09:00',
     },
   ]
 
-  const mockTests = [
-    { id: 1, status: 'processing' },
-    { id: 2, status: 'result_waiting' },
-    { id: 3, status: 'result_waiting' },
-    { id: 4, status: 'result_waiting' },
+  type MockConsultationClinician = {
+    clinician_id: string
+    name: string
+    department_name: string
+    hospital_name: string
+  }
+
+  type MockConsultationMessage = {
+    message_id: string
+    sequence: number
+    sender: MockConsultationClinician | null
+    content: string
+    is_system: boolean
+    edited_at: string | null
+    attachments: Array<{
+      attachment_id: string
+      attachment_type: string
+      source_id: string | null
+      display_name: string
+      created_at: string
+    }>
+    created_at: string
+  }
+
+  type MockConsultationRecord = {
+    consultation_id: string
+    encounter_id: string
+    encounter_number: string
+    patient_id: string
+    patient_number: string | null
+    patient_name: string
+    patient_birth_date: string | null
+    patient_sex: string | null
+    department_name: string
+    requester: MockConsultationClinician
+    consultant: MockConsultationClinician
+    participants: Array<{
+      participant_id: string
+      clinician: MockConsultationClinician
+      role: 'REQUESTER' | 'CONSULTANT' | 'OBSERVER'
+      role_label: string
+      joined_at: string
+      left_at: string | null
+      last_read_at: string | null
+    }>
+    subject: string
+    priority: 'ROUTINE' | 'URGENT' | 'EMERGENCY'
+    priority_label: string
+    question: string
+    response: string
+    status: 'REQUESTED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
+    status_label: string
+    my_role: 'REQUESTER' | 'CONSULTANT' | 'OBSERVER'
+    unread_count: number
+    messages: MockConsultationMessage[]
+    status_history: Array<{
+      history_id: string
+      previous_status: string
+      new_status: 'REQUESTED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
+      new_status_label: string
+      changed_by_name: string
+      reason: string
+      created_at: string
+    }>
+    due_at: string | null
+    accepted_at: string | null
+    completed_at: string | null
+    cancelled_at: string | null
+    created_at: string
+    updated_at: string
+  }
+
+  const compactClinician = (
+    clinician: (typeof mockClinicianDirectory)[number],
+  ): MockConsultationClinician => ({
+    clinician_id: clinician.clinician_id,
+    name: clinician.name,
+    department_name: clinician.department.name,
+    hospital_name: clinician.hospital.hospital_name,
+  })
+
+  const currentMockClinician = compactClinician(
+    mockClinicianDirectory[0],
+  )
+  const neurosurgeon = compactClinician(
+    mockClinicianDirectory[1],
+  )
+  const rehabilitationDoctor = compactClinician(
+    mockClinicianDirectory[2],
+  )
+
+  const statusLabels = {
+    REQUESTED: '협진 요청',
+    IN_PROGRESS: '협진 진행 중',
+    COMPLETED: '협진 완료',
+    CANCELLED: '협진 취소',
+  } as const
+  const priorityLabels = {
+    ROUTINE: '일반',
+    URGENT: '긴급',
+    EMERGENCY: '응급',
+  } as const
+
+  let mockConsultationSequence = 10
+  let mockConsultationRecords: MockConsultationRecord[] = [
+    {
+      consultation_id:
+        '41000000-0000-0000-0000-000000000001',
+      encounter_id:
+        '30000000-0000-0000-0000-000000000001',
+      encounter_number: 'E-2026-0001',
+      patient_id: mockPatientDirectory[0].patient_id,
+      patient_number:
+        mockPatientDirectory[0].medical_record_number,
+      patient_name: mockPatientDirectory[0].name,
+      patient_birth_date: mockPatientDirectory[0].birth_date,
+      patient_sex: mockPatientDirectory[0].sex,
+      department_name: '영상의학과',
+      requester: neurosurgeon,
+      consultant: currentMockClinician,
+      participants: [
+        {
+          participant_id:
+            '42000000-0000-0000-0000-000000000001',
+          clinician: neurosurgeon,
+          role: 'REQUESTER',
+          role_label: '요청자',
+          joined_at: '2026-08-04T08:30:00+09:00',
+          left_at: null,
+          last_read_at: '2026-08-04T08:30:00+09:00',
+        },
+        {
+          participant_id:
+            '42000000-0000-0000-0000-000000000002',
+          clinician: currentMockClinician,
+          role: 'CONSULTANT',
+          role_label: '협진자',
+          joined_at: '2026-08-04T08:30:00+09:00',
+          left_at: null,
+          last_read_at: null,
+        },
+      ],
+      subject: '뇌출혈 의심 CT 긴급 판독 요청',
+      priority: 'EMERGENCY',
+      priority_label: '응급',
+      question:
+        '우측 기저핵 부위 고음영이 확인됩니다. 급성 출혈 여부와 수술 필요성 판단을 위한 판독 의견 부탁드립니다.',
+      response: '',
+      status: 'REQUESTED',
+      status_label: '협진 요청',
+      my_role: 'CONSULTANT',
+      unread_count: 1,
+      messages: [
+        {
+          message_id:
+            '43000000-0000-0000-0000-000000000001',
+          sequence: 1,
+          sender: neurosurgeon,
+          content:
+            '우측 기저핵 부위 고음영이 확인됩니다. 급성 출혈 여부와 수술 필요성 판단을 위한 판독 의견 부탁드립니다.',
+          is_system: false,
+          edited_at: null,
+          attachments: [],
+          created_at: '2026-08-04T08:30:00+09:00',
+        },
+      ],
+      status_history: [
+        {
+          history_id:
+            '44000000-0000-0000-0000-000000000001',
+          previous_status: '',
+          new_status: 'REQUESTED',
+          new_status_label: '협진 요청',
+          changed_by_name: '박신경',
+          reason: '',
+          created_at: '2026-08-04T08:30:00+09:00',
+        },
+      ],
+      due_at: '2026-08-04T11:00:00+09:00',
+      accepted_at: null,
+      completed_at: null,
+      cancelled_at: null,
+      created_at: '2026-08-04T08:30:00+09:00',
+      updated_at: '2026-08-04T08:30:00+09:00',
+    },
+    {
+      consultation_id:
+        '41000000-0000-0000-0000-000000000002',
+      encounter_id:
+        '30000000-0000-0000-0000-000000000003',
+      encounter_number: 'E-2026-0003',
+      patient_id: mockPatientDirectory[2].patient_id,
+      patient_number:
+        mockPatientDirectory[2].medical_record_number,
+      patient_name: mockPatientDirectory[2].name,
+      patient_birth_date: mockPatientDirectory[2].birth_date,
+      patient_sex: mockPatientDirectory[2].sex,
+      department_name: '영상의학과',
+      requester: currentMockClinician,
+      consultant: rehabilitationDoctor,
+      participants: [
+        {
+          participant_id:
+            '42000000-0000-0000-0000-000000000003',
+          clinician: currentMockClinician,
+          role: 'REQUESTER',
+          role_label: '요청자',
+          joined_at: '2026-08-03T13:20:00+09:00',
+          left_at: null,
+          last_read_at: '2026-08-03T14:10:00+09:00',
+        },
+        {
+          participant_id:
+            '42000000-0000-0000-0000-000000000004',
+          clinician: rehabilitationDoctor,
+          role: 'CONSULTANT',
+          role_label: '협진자',
+          joined_at: '2026-08-03T13:20:00+09:00',
+          left_at: null,
+          last_read_at: '2026-08-03T13:40:00+09:00',
+        },
+      ],
+      subject: '뇌졸중 후 초기 재활 계획 문의',
+      priority: 'ROUTINE',
+      priority_label: '일반',
+      question:
+        '좌측 편마비가 남아 있어 퇴원 전 초기 재활 계획과 권장 평가 항목을 문의드립니다.',
+      response: '',
+      status: 'IN_PROGRESS',
+      status_label: '협진 진행 중',
+      my_role: 'REQUESTER',
+      unread_count: 1,
+      messages: [
+        {
+          message_id:
+            '43000000-0000-0000-0000-000000000002',
+          sequence: 1,
+          sender: currentMockClinician,
+          content:
+            '좌측 편마비가 남아 있어 퇴원 전 초기 재활 계획과 권장 평가 항목을 문의드립니다.',
+          is_system: false,
+          edited_at: null,
+          attachments: [],
+          created_at: '2026-08-03T13:20:00+09:00',
+        },
+        {
+          message_id:
+            '43000000-0000-0000-0000-000000000003',
+          sequence: 2,
+          sender: null,
+          content: '이재활 의료진이 협진 요청을 수락했습니다.',
+          is_system: true,
+          edited_at: null,
+          attachments: [],
+          created_at: '2026-08-03T13:40:00+09:00',
+        },
+        {
+          message_id:
+            '43000000-0000-0000-0000-000000000004',
+          sequence: 3,
+          sender: rehabilitationDoctor,
+          content: '현재 보행 가능 여부와 연하 평가 결과도 확인 부탁드립니다.',
+          is_system: false,
+          edited_at: null,
+          attachments: [],
+          created_at: '2026-08-03T14:00:00+09:00',
+        },
+      ],
+      status_history: [
+        {
+          history_id:
+            '44000000-0000-0000-0000-000000000002',
+          previous_status: '',
+          new_status: 'REQUESTED',
+          new_status_label: '협진 요청',
+          changed_by_name: '김브레인',
+          reason: '',
+          created_at: '2026-08-03T13:20:00+09:00',
+        },
+        {
+          history_id:
+            '44000000-0000-0000-0000-000000000003',
+          previous_status: 'REQUESTED',
+          new_status: 'IN_PROGRESS',
+          new_status_label: '협진 진행 중',
+          changed_by_name: '이재활',
+          reason: '',
+          created_at: '2026-08-03T13:40:00+09:00',
+        },
+      ],
+      due_at: '2026-08-06T17:00:00+09:00',
+      accepted_at: '2026-08-03T13:40:00+09:00',
+      completed_at: null,
+      cancelled_at: null,
+      created_at: '2026-08-03T13:20:00+09:00',
+      updated_at: '2026-08-03T14:00:00+09:00',
+    },
+    {
+      consultation_id:
+        '41000000-0000-0000-0000-000000000003',
+      encounter_id:
+        '30000000-0000-0000-0000-000000000002',
+      encounter_number: 'E-2026-0002',
+      patient_id: mockPatientDirectory[1].patient_id,
+      patient_number:
+        mockPatientDirectory[1].medical_record_number,
+      patient_name: mockPatientDirectory[1].name,
+      patient_birth_date: mockPatientDirectory[1].birth_date,
+      patient_sex: mockPatientDirectory[1].sex,
+      department_name: '영상의학과',
+      requester: neurosurgeon,
+      consultant: currentMockClinician,
+      participants: [],
+      subject: 'MRI 추적검사 판독 의견 요청',
+      priority: 'URGENT',
+      priority_label: '긴급',
+      question: '이전 MRI 대비 병변 크기 변화와 추가 검사 필요 여부를 문의드립니다.',
+      response: '',
+      status: 'IN_PROGRESS',
+      status_label: '협진 진행 중',
+      my_role: 'CONSULTANT',
+      unread_count: 0,
+      messages: [
+        {
+          message_id:
+            '43000000-0000-0000-0000-000000000005',
+          sequence: 1,
+          sender: neurosurgeon,
+          content: '이전 MRI 대비 병변 크기 변화와 추가 검사 필요 여부를 문의드립니다.',
+          is_system: false,
+          edited_at: null,
+          attachments: [],
+          created_at: '2026-08-02T10:00:00+09:00',
+        },
+      ],
+      status_history: [],
+      due_at: '2026-08-05T17:00:00+09:00',
+      accepted_at: '2026-08-02T10:20:00+09:00',
+      completed_at: null,
+      cancelled_at: null,
+      created_at: '2026-08-02T10:00:00+09:00',
+      updated_at: '2026-08-02T10:20:00+09:00',
+    },
   ]
+
+  const getDashboardConsultations = () =>
+    mockConsultationRecords.map((consultation) => ({
+      consultation_id: consultation.consultation_id,
+      status: ({
+        REQUESTED: 'requested',
+        IN_PROGRESS: 'waiting',
+        COMPLETED: 'completed',
+        CANCELLED: 'cancelled',
+      } as const)[consultation.status],
+      department: (
+        consultation.my_role === 'REQUESTER'
+          ? consultation.consultant.department_name
+          : consultation.requester.department_name
+      ),
+      title: consultation.subject,
+      patient_id: consultation.patient_id,
+      patient_display:
+        `${consultation.patient_name} (${consultation.patient_number ?? '-'})`,
+      requested_at: consultation.created_at,
+      responded_at: consultation.completed_at,
+    }))
 
   const mockCtAnalyses = [
     {
@@ -915,6 +1292,134 @@ function mockApiPlugin(): Plugin {
         '2026-07-15T10:35:00+09:00' as string | null,
       created_at:
         '2026-07-15T09:50:00+09:00',
+    },
+  ]
+
+  type MockExaminationObservation = {
+    observation_id: string
+    code: string
+    name: string
+    sequence: number
+    value_type: 'NUMERIC' | 'TEXT'
+    numeric_value: string | null
+    text_value: string
+    coded_value: string
+    boolean_value: boolean | null
+    formatted_value: string
+    unit: string
+    reference_low: string | null
+    reference_high: string | null
+    reference_text: string
+    interpretation: 'NORMAL' | 'LOW' | 'HIGH' | 'ABNORMAL' | 'CRITICAL' | 'UNKNOWN'
+    interpretation_label: string
+  }
+
+  type MockExaminationRecord = {
+    examination_id: string
+    patient_id: string
+    patient_number: string | null
+    patient_name: string
+    patient_birth_date: string | null
+    patient_sex: string
+    encounter_id: string
+    encounter_number: string
+    hospital_name: string
+    ordered_by_name: string
+    test_code: string
+    test_name: string
+    category: 'LABORATORY' | 'IMAGING' | 'PHYSIOLOGY' | 'PATHOLOGY' | 'NEURO_ASSESSMENT' | 'OTHER'
+    category_label: string
+    accession_number: string
+    status: 'REGISTERED' | 'IN_PROGRESS' | 'PRELIMINARY' | 'FINAL' | 'CORRECTED' | 'CANCELLED'
+    status_label: string
+    source: 'INTERNAL' | 'EXTERNAL' | 'PATIENT_UPLOAD'
+    source_label: string
+    performed_at: string
+    result_available_at: string
+    overall_interpretation: MockExaminationObservation['interpretation']
+    overall_interpretation_label: string
+    abnormal_count: number
+    observations: MockExaminationObservation[]
+    report: {
+      report_id: string
+      revision_number: number
+      author_name: string
+      status: 'DRAFT' | 'FINAL' | 'CORRECTED' | 'CANCELLED'
+      status_label: string
+      title: string
+      summary: string
+      conclusion: string
+      issued_at: string | null
+      signed_at: string | null
+      is_released_to_patient: boolean
+      released_at: string | null
+      assets: Array<Record<string, unknown>>
+      created_at: string
+      updated_at: string
+    }
+    created_at: string
+    updated_at: string
+  }
+
+  const examinationCategoryLabels: Record<MockExaminationRecord['category'], string> = {
+    LABORATORY: '진단검사', IMAGING: '영상검사', PHYSIOLOGY: '생리기능검사',
+    PATHOLOGY: '병리검사', NEURO_ASSESSMENT: '신경계 평가', OTHER: '기타',
+  }
+  const examinationStatusLabels: Record<MockExaminationRecord['status'], string> = {
+    REGISTERED: '등록', IN_PROGRESS: '검사 중', PRELIMINARY: '예비 결과',
+    FINAL: '최종 결과', CORRECTED: '정정', CANCELLED: '취소',
+  }
+  const examinationInterpretationLabels: Record<MockExaminationObservation['interpretation'], string> = {
+    NORMAL: '정상', LOW: '낮음', HIGH: '높음', ABNORMAL: '이상', CRITICAL: '위험', UNKNOWN: '미판정',
+  }
+  const examinationSourceLabels: Record<MockExaminationRecord['source'], string> = {
+    INTERNAL: '원내', EXTERNAL: '외부 기관', PATIENT_UPLOAD: '환자 업로드',
+  }
+
+  let mockExaminationSequence = 20
+  let mockExaminationRecords: MockExaminationRecord[] = [
+    {
+      examination_id: '51000000-0000-0000-0000-000000000001', patient_id: mockPatientDirectory[0].patient_id,
+      patient_number: mockPatientDirectory[0].medical_record_number, patient_name: mockPatientDirectory[0].name,
+      patient_birth_date: mockPatientDirectory[0].birth_date, patient_sex: mockPatientDirectory[0].sex,
+      encounter_id: '30000000-0000-0000-0000-000000000001', encounter_number: 'E-2026-0001',
+      hospital_name: hospitals[0].hospital_name, ordered_by_name: currentMockClinician.name,
+      test_code: 'CBC', test_name: '일반혈액검사', category: 'LABORATORY', category_label: '진단검사',
+      accession_number: 'LAB-20260804-001', status: 'PRELIMINARY', status_label: '예비 결과', source: 'INTERNAL', source_label: '원내',
+      performed_at: '2026-08-04T09:10:00+09:00', result_available_at: '2026-08-04T09:35:00+09:00',
+      overall_interpretation: 'CRITICAL', overall_interpretation_label: '위험', abnormal_count: 1,
+      observations: [
+        { observation_id: '52000000-0000-0000-0000-000000000001', code: 'WBC', name: '백혈구', sequence: 1, value_type: 'NUMERIC', numeric_value: '6.2', text_value: '', coded_value: '', boolean_value: null, formatted_value: '6.2', unit: '10³/μL', reference_low: '4.0', reference_high: '10.0', reference_text: '', interpretation: 'NORMAL', interpretation_label: '정상' },
+        { observation_id: '52000000-0000-0000-0000-000000000002', code: 'PLT', name: '혈소판', sequence: 2, value_type: 'NUMERIC', numeric_value: '42', text_value: '', coded_value: '', boolean_value: null, formatted_value: '42', unit: '10³/μL', reference_low: '150', reference_high: '400', reference_text: '', interpretation: 'CRITICAL', interpretation_label: '위험' },
+      ],
+      report: { report_id: '53000000-0000-0000-0000-000000000001', revision_number: 1, author_name: currentMockClinician.name, status: 'DRAFT', status_label: '작성 중', title: '일반혈액검사 결과', summary: '중증 혈소판 감소가 확인됩니다.', conclusion: '재검 및 출혈 위험에 대한 임상 확인이 필요합니다.', issued_at: null, signed_at: null, is_released_to_patient: false, released_at: null, assets: [], created_at: '2026-08-04T09:35:00+09:00', updated_at: '2026-08-04T09:35:00+09:00' },
+      created_at: '2026-08-04T09:35:00+09:00', updated_at: '2026-08-04T09:35:00+09:00',
+    },
+    {
+      examination_id: '51000000-0000-0000-0000-000000000002', patient_id: mockPatientDirectory[2].patient_id,
+      patient_number: mockPatientDirectory[2].medical_record_number, patient_name: mockPatientDirectory[2].name,
+      patient_birth_date: mockPatientDirectory[2].birth_date, patient_sex: mockPatientDirectory[2].sex,
+      encounter_id: '30000000-0000-0000-0000-000000000003', encounter_number: 'E-2026-0003',
+      hospital_name: hospitals[0].hospital_name, ordered_by_name: currentMockClinician.name,
+      test_code: 'BRAIN-MRI', test_name: '뇌 MRI', category: 'IMAGING', category_label: '영상검사', accession_number: 'IMG-20260802-014',
+      status: 'FINAL', status_label: '최종 결과', source: 'INTERNAL', source_label: '원내', performed_at: '2026-08-02T12:20:00+09:00', result_available_at: '2026-08-02T14:00:00+09:00',
+      overall_interpretation: 'ABNORMAL', overall_interpretation_label: '이상', abnormal_count: 1,
+      observations: [{ observation_id: '52000000-0000-0000-0000-000000000003', code: 'IMPRESSION', name: '영상 소견', sequence: 1, value_type: 'TEXT', numeric_value: null, text_value: '우측 전두엽에 작은 허혈성 병변이 관찰됩니다.', coded_value: '', boolean_value: null, formatted_value: '우측 전두엽에 작은 허혈성 병변이 관찰됩니다.', unit: '', reference_low: null, reference_high: null, reference_text: '급성 병변 없음', interpretation: 'ABNORMAL', interpretation_label: '이상' }],
+      report: { report_id: '53000000-0000-0000-0000-000000000002', revision_number: 1, author_name: currentMockClinician.name, status: 'FINAL', status_label: '최종', title: '뇌 MRI 판독 보고서', summary: '우측 전두엽의 소혈관성 허혈 변화', conclusion: '임상 증상과 비교하고 추적 관찰을 권고합니다.', issued_at: '2026-08-02T14:00:00+09:00', signed_at: '2026-08-02T14:00:00+09:00', is_released_to_patient: false, released_at: null, assets: [], created_at: '2026-08-02T13:40:00+09:00', updated_at: '2026-08-02T14:00:00+09:00' },
+      created_at: '2026-08-02T13:40:00+09:00', updated_at: '2026-08-02T14:00:00+09:00',
+    },
+    {
+      examination_id: '51000000-0000-0000-0000-000000000003', patient_id: mockPatientDirectory[1].patient_id,
+      patient_number: mockPatientDirectory[1].medical_record_number, patient_name: mockPatientDirectory[1].name,
+      patient_birth_date: mockPatientDirectory[1].birth_date, patient_sex: mockPatientDirectory[1].sex,
+      encounter_id: '30000000-0000-0000-0000-000000000002', encounter_number: 'E-2026-0002',
+      hospital_name: hospitals[0].hospital_name, ordered_by_name: currentMockClinician.name,
+      test_code: 'ECG-12', test_name: '12유도 심전도', category: 'PHYSIOLOGY', category_label: '생리기능검사', accession_number: 'PHY-20260801-008',
+      status: 'FINAL', status_label: '최종 결과', source: 'INTERNAL', source_label: '원내', performed_at: '2026-08-01T11:00:00+09:00', result_available_at: '2026-08-01T11:20:00+09:00',
+      overall_interpretation: 'NORMAL', overall_interpretation_label: '정상', abnormal_count: 0,
+      observations: [{ observation_id: '52000000-0000-0000-0000-000000000004', code: 'RHYTHM', name: '심전도 리듬', sequence: 1, value_type: 'TEXT', numeric_value: null, text_value: '정상 동율동', coded_value: '', boolean_value: null, formatted_value: '정상 동율동', unit: '', reference_low: null, reference_high: null, reference_text: '정상 동율동', interpretation: 'NORMAL', interpretation_label: '정상' }],
+      report: { report_id: '53000000-0000-0000-0000-000000000003', revision_number: 1, author_name: currentMockClinician.name, status: 'FINAL', status_label: '최종', title: '심전도 결과', summary: '정상 동율동', conclusion: '특이 심전도 이상 소견이 없습니다.', issued_at: '2026-08-01T11:20:00+09:00', signed_at: '2026-08-01T11:20:00+09:00', is_released_to_patient: true, released_at: '2026-08-01T11:25:00+09:00', assets: [], created_at: '2026-08-01T11:15:00+09:00', updated_at: '2026-08-01T11:25:00+09:00' },
+      created_at: '2026-08-01T11:15:00+09:00', updated_at: '2026-08-01T11:25:00+09:00',
     },
   ]
 
@@ -2956,6 +3461,504 @@ function mockApiPlugin(): Plugin {
 
         if (
           request.method === 'GET'
+          && url.pathname === '/api/v1/clinicians/clinicians'
+        ) {
+          const keyword = (
+            url.searchParams.get('keyword') ?? ''
+          ).trim().toLowerCase()
+          const filtered = keyword
+            ? mockClinicianDirectory.filter((clinician) =>
+              clinician.name.toLowerCase().includes(keyword)
+              || clinician.department.name.toLowerCase().includes(keyword)
+              || clinician.hospital.hospital_name.toLowerCase().includes(keyword)
+            )
+            : mockClinicianDirectory
+          sendJson(response, 200, {
+            data: filtered,
+            meta: {
+              page: 1,
+              page_size: 100,
+              total_count: filtered.length,
+              total_pages: 1,
+            },
+          })
+          return
+        }
+
+        if (
+          request.method === 'GET'
+          && url.pathname === '/api/v1/consultations/contexts/'
+        ) {
+          sendJson(response, 200, {
+            data: mockEncounters
+              .filter((encounter) => Boolean(encounter.patient_id))
+              .map((encounter) => ({
+                encounter_id: encounter.encounter_id,
+                encounter_number: encounter.encounter_number,
+                patient_id: encounter.patient_id,
+                patient_number: encounter.patient_number,
+                patient_name: encounter.patient_name,
+                department_name: encounter.department_name,
+                created_at: encounter.created_at,
+              })),
+          })
+          return
+        }
+
+        if (
+          request.method === 'GET'
+          && url.pathname === '/api/v1/consultations/'
+        ) {
+          const box = url.searchParams.get('box') ?? 'all'
+          const requestedStatus = url.searchParams.get('status') ?? ''
+          const requestedPriority = url.searchParams.get('priority') ?? ''
+          const search = (url.searchParams.get('search') ?? '').toLowerCase()
+          const page = Math.max(1, Number(url.searchParams.get('page') ?? 1))
+          const pageSize = Math.min(100, Math.max(1, Number(url.searchParams.get('page_size') ?? 20)))
+          const filtered = mockConsultationRecords.filter((consultation) => {
+            if (box === 'received' && consultation.my_role !== 'CONSULTANT') return false
+            if (box === 'sent' && consultation.my_role !== 'REQUESTER') return false
+            if (requestedStatus && consultation.status !== requestedStatus) return false
+            if (requestedPriority && consultation.priority !== requestedPriority) return false
+            if (search) {
+              const haystack = [
+                consultation.subject,
+                consultation.question,
+                consultation.patient_name,
+                consultation.patient_number ?? '',
+                consultation.requester.name,
+                consultation.consultant.name,
+              ].join(' ').toLowerCase()
+              if (!haystack.includes(search)) return false
+            }
+            return true
+          })
+          const startIndex = (page - 1) * pageSize
+          sendJson(response, 200, {
+            data: filtered.slice(startIndex, startIndex + pageSize),
+            meta: {
+              page,
+              page_size: pageSize,
+              total_count: filtered.length,
+              total_pages: Math.max(1, Math.ceil(filtered.length / pageSize)),
+            },
+          })
+          return
+        }
+
+        if (
+          request.method === 'POST'
+          && url.pathname === '/api/v1/consultations/'
+        ) {
+          const body = await readJson(request)
+          const encounter = mockEncounters.find((item) =>
+            item.encounter_id === body.encounter_id
+          )
+          const consultantSource = mockClinicianDirectory.find((item) =>
+            item.clinician_id === body.consultant_clinician_id
+          )
+          const subject = String(body.subject ?? '').trim()
+          const question = String(body.question ?? '').trim()
+          const priority = String(body.priority ?? 'ROUTINE') as keyof typeof priorityLabels
+          if (!encounter || !consultantSource || !subject || !question || !(priority in priorityLabels)) {
+            sendJson(response, 400, {
+              error: {
+                code: 'VALIDATION_ERROR',
+                message: '협진 요청 정보를 확인해주세요.',
+                details: {},
+              },
+            })
+            return
+          }
+          if (consultantSource.clinician_id === currentMockClinician.clinician_id) {
+            sendJson(response, 400, {
+              error: {
+                code: 'VALIDATION_ERROR',
+                message: '본인에게 협진을 요청할 수 없습니다.',
+                details: {},
+              },
+            })
+            return
+          }
+
+          mockConsultationSequence += 1
+          const suffix = String(mockConsultationSequence).padStart(12, '0')
+          const now = new Date().toISOString()
+          const consultant = compactClinician(consultantSource)
+          const created: MockConsultationRecord = {
+            consultation_id: `41000000-0000-0000-0000-${suffix}`,
+            encounter_id: encounter.encounter_id,
+            encounter_number: encounter.encounter_number,
+            patient_id: encounter.patient_id,
+            patient_number: encounter.patient_number,
+            patient_name: encounter.patient_name,
+            patient_birth_date: encounter.patient_birth_date,
+            patient_sex: encounter.patient_sex,
+            department_name: encounter.department_name,
+            requester: currentMockClinician,
+            consultant,
+            participants: [
+              {
+                participant_id: `42000000-0000-0000-0001-${suffix}`,
+                clinician: currentMockClinician,
+                role: 'REQUESTER',
+                role_label: '요청자',
+                joined_at: now,
+                left_at: null,
+                last_read_at: now,
+              },
+              {
+                participant_id: `42000000-0000-0000-0002-${suffix}`,
+                clinician: consultant,
+                role: 'CONSULTANT',
+                role_label: '협진자',
+                joined_at: now,
+                left_at: null,
+                last_read_at: null,
+              },
+            ],
+            subject,
+            priority,
+            priority_label: priorityLabels[priority],
+            question,
+            response: '',
+            status: 'REQUESTED',
+            status_label: statusLabels.REQUESTED,
+            my_role: 'REQUESTER',
+            unread_count: 0,
+            messages: [
+              {
+                message_id: `43000000-0000-0000-0000-${suffix}`,
+                sequence: 1,
+                sender: currentMockClinician,
+                content: question,
+                is_system: false,
+                edited_at: null,
+                attachments: [],
+                created_at: now,
+              },
+            ],
+            status_history: [
+              {
+                history_id: `44000000-0000-0000-0000-${suffix}`,
+                previous_status: '',
+                new_status: 'REQUESTED',
+                new_status_label: statusLabels.REQUESTED,
+                changed_by_name: currentMockClinician.name,
+                reason: '',
+                created_at: now,
+              },
+            ],
+            due_at: body.due_at ? String(body.due_at) : null,
+            accepted_at: null,
+            completed_at: null,
+            cancelled_at: null,
+            created_at: now,
+            updated_at: now,
+          }
+          mockConsultationRecords = [created, ...mockConsultationRecords]
+          sendJson(response, 201, { data: created })
+          return
+        }
+
+        const consultationActionMatch = url.pathname.match(
+          /^\/api\/v1\/consultations\/([0-9a-f-]+)\/(accept|complete|cancel)\/$/,
+        )
+        if (request.method === 'POST' && consultationActionMatch) {
+          const [, consultationId, action] = consultationActionMatch
+          const consultation = mockConsultationRecords.find((item) =>
+            item.consultation_id === consultationId
+          )
+          if (!consultation) {
+            sendJson(response, 404, {
+              error: { code: 'NOT_FOUND', message: '협진을 찾을 수 없습니다.', details: {} },
+            })
+            return
+          }
+          const body = await readJson(request)
+          const now = new Date().toISOString()
+          const previousStatus = consultation.status
+          if (action === 'accept') {
+            if (consultation.my_role !== 'CONSULTANT' || consultation.status !== 'REQUESTED') {
+              sendJson(response, 400, { error: { code: 'VALIDATION_ERROR', message: '요청 상태의 받은 협진만 수락할 수 있습니다.', details: {} } })
+              return
+            }
+            consultation.status = 'IN_PROGRESS'
+            consultation.status_label = statusLabels.IN_PROGRESS
+            consultation.accepted_at = now
+            consultation.messages.push({
+              message_id: `43000000-0000-0000-0000-${String(++mockConsultationSequence).padStart(12, '0')}`,
+              sequence: consultation.messages.length + 1,
+              sender: null,
+              content: `${currentMockClinician.name} 의료진이 협진 요청을 수락했습니다.`,
+              is_system: true,
+              edited_at: null,
+              attachments: [],
+              created_at: now,
+            })
+          } else if (action === 'complete') {
+            const finalResponse = String(body.response ?? '').trim()
+            if (consultation.my_role !== 'CONSULTANT' || consultation.status !== 'IN_PROGRESS' || !finalResponse) {
+              sendJson(response, 400, { error: { code: 'VALIDATION_ERROR', message: '진행 중인 받은 협진에 최종 답변을 입력해주세요.', details: {} } })
+              return
+            }
+            consultation.status = 'COMPLETED'
+            consultation.status_label = statusLabels.COMPLETED
+            consultation.response = finalResponse
+            consultation.completed_at = now
+            consultation.messages.push({
+              message_id: `43000000-0000-0000-0000-${String(++mockConsultationSequence).padStart(12, '0')}`,
+              sequence: consultation.messages.length + 1,
+              sender: currentMockClinician,
+              content: finalResponse,
+              is_system: false,
+              edited_at: null,
+              attachments: [],
+              created_at: now,
+            })
+          } else {
+            if (consultation.my_role !== 'REQUESTER' || !['REQUESTED', 'IN_PROGRESS'].includes(consultation.status)) {
+              sendJson(response, 400, { error: { code: 'VALIDATION_ERROR', message: '요청하거나 진행 중인 보낸 협진만 취소할 수 있습니다.', details: {} } })
+              return
+            }
+            consultation.status = 'CANCELLED'
+            consultation.status_label = statusLabels.CANCELLED
+            consultation.cancelled_at = now
+            const reason = String(body.reason ?? '').trim()
+            consultation.messages.push({
+              message_id: `43000000-0000-0000-0000-${String(++mockConsultationSequence).padStart(12, '0')}`,
+              sequence: consultation.messages.length + 1,
+              sender: null,
+              content: `협진 요청이 취소되었습니다.${reason ? ` 사유: ${reason}` : ''}`,
+              is_system: true,
+              edited_at: null,
+              attachments: [],
+              created_at: now,
+            })
+          }
+          consultation.updated_at = now
+          consultation.status_history.push({
+            history_id: `44000000-0000-0000-0000-${String(++mockConsultationSequence).padStart(12, '0')}`,
+            previous_status: previousStatus,
+            new_status: consultation.status,
+            new_status_label: consultation.status_label,
+            changed_by_name: currentMockClinician.name,
+            reason: action === 'cancel' ? String(body.reason ?? '') : '',
+            created_at: now,
+          })
+          sendJson(response, 200, { data: consultation })
+          return
+        }
+
+        const consultationMessageMatch = url.pathname.match(
+          /^\/api\/v1\/consultations\/([0-9a-f-]+)\/messages\/$/,
+        )
+        if (request.method === 'POST' && consultationMessageMatch) {
+          const consultation = mockConsultationRecords.find((item) =>
+            item.consultation_id === consultationMessageMatch[1]
+          )
+          const body = await readJson(request)
+          const content = String(body.content ?? '').trim()
+          if (!consultation || !content || ['COMPLETED', 'CANCELLED'].includes(consultation.status)) {
+            sendJson(response, 400, { error: { code: 'VALIDATION_ERROR', message: '메시지를 작성할 수 없습니다.', details: {} } })
+            return
+          }
+          const now = new Date().toISOString()
+          const message: MockConsultationMessage = {
+            message_id: `43000000-0000-0000-0000-${String(++mockConsultationSequence).padStart(12, '0')}`,
+            sequence: consultation.messages.length + 1,
+            sender: currentMockClinician,
+            content,
+            is_system: false,
+            edited_at: null,
+            attachments: [],
+            created_at: now,
+          }
+          consultation.messages.push(message)
+          consultation.updated_at = now
+          sendJson(response, 201, { data: message })
+          return
+        }
+
+        const consultationDetailMatch = url.pathname.match(
+          /^\/api\/v1\/consultations\/([0-9a-f-]+)\/$/,
+        )
+        if (request.method === 'GET' && consultationDetailMatch) {
+          const consultation = mockConsultationRecords.find((item) =>
+            item.consultation_id === consultationDetailMatch[1]
+          )
+          if (!consultation) {
+            sendJson(response, 404, {
+              error: { code: 'NOT_FOUND', message: '협진을 찾을 수 없습니다.', details: {} },
+            })
+            return
+          }
+          consultation.unread_count = 0
+          sendJson(response, 200, { data: consultation })
+          return
+        }
+
+        if (
+          request.method === 'GET'
+          && url.pathname === '/api/v1/examinations/contexts/'
+        ) {
+          sendJson(response, 200, {
+            data: mockEncounters
+              .filter((encounter) => Boolean(encounter.patient_id))
+              .map((encounter) => ({
+                encounter_id: encounter.encounter_id,
+                encounter_number: encounter.encounter_number,
+                patient_id: encounter.patient_id,
+                patient_number: encounter.patient_number,
+                patient_name: encounter.patient_name,
+                department_name: encounter.department_name,
+                created_at: encounter.created_at,
+              })),
+          })
+          return
+        }
+
+        if (
+          request.method === 'GET'
+          && url.pathname === '/api/v1/examinations/'
+        ) {
+          const requestedStatus = url.searchParams.get('status') ?? ''
+          const requestedCategory = url.searchParams.get('category') ?? ''
+          const requestedInterpretation = url.searchParams.get('interpretation') ?? ''
+          const released = url.searchParams.get('released') ?? ''
+          const search = (url.searchParams.get('search') ?? '').trim().toLowerCase()
+          const page = Math.max(1, Number(url.searchParams.get('page') ?? 1))
+          const pageSize = Math.min(100, Math.max(1, Number(url.searchParams.get('page_size') ?? 20)))
+          const filtered = mockExaminationRecords.filter((examination) => {
+            if (requestedStatus && examination.status !== requestedStatus) return false
+            if (requestedCategory && examination.category !== requestedCategory) return false
+            if (requestedInterpretation && !examination.observations.some((item) => item.interpretation === requestedInterpretation)) return false
+            if (released && String(examination.report.is_released_to_patient) !== released) return false
+            if (search) {
+              const haystack = [examination.patient_name, examination.patient_number ?? '', examination.test_name, examination.test_code].join(' ').toLowerCase()
+              if (!haystack.includes(search)) return false
+            }
+            return true
+          })
+          const startIndex = (page - 1) * pageSize
+          sendJson(response, 200, {
+            data: filtered.slice(startIndex, startIndex + pageSize),
+            meta: { page, page_size: pageSize, total_count: filtered.length, total_pages: Math.max(1, Math.ceil(filtered.length / pageSize)) },
+          })
+          return
+        }
+
+        if (
+          request.method === 'POST'
+          && url.pathname === '/api/v1/examinations/'
+        ) {
+          const body = await readJson(request)
+          const encounter = mockEncounters.find((item) => item.encounter_id === body.encounter_id)
+          const category = String(body.category ?? '') as MockExaminationRecord['category']
+          const source = String(body.source ?? 'INTERNAL') as MockExaminationRecord['source']
+          const observationInputs = Array.isArray(body.observations)
+            ? body.observations as Array<Record<string, unknown>>
+            : []
+          const testCode = String(body.test_code ?? '').trim()
+          const testName = String(body.test_name ?? '').trim()
+          const reportTitle = String(body.report_title ?? '').trim()
+          if (!encounter || !testCode || !testName || !reportTitle || !observationInputs.length || !(category in examinationCategoryLabels) || !(source in examinationSourceLabels)) {
+            sendJson(response, 400, { error: { code: 'VALIDATION_ERROR', message: '검사결과 입력값을 확인해주세요.', details: {} } })
+            return
+          }
+          const now = new Date().toISOString()
+          const observations: MockExaminationObservation[] = observationInputs.map((item, index) => {
+            const valueType = String(item.value_type ?? 'NUMERIC') === 'TEXT' ? 'TEXT' : 'NUMERIC'
+            const numericValue = valueType === 'NUMERIC' ? String(item.numeric_value ?? '') : null
+            const textValue = valueType === 'TEXT' ? String(item.text_value ?? '') : ''
+            const interpretation = String(item.interpretation ?? 'UNKNOWN') as MockExaminationObservation['interpretation']
+            return {
+              observation_id: `52000000-0000-0000-0000-${String(++mockExaminationSequence).padStart(12, '0')}`,
+              code: String(item.code ?? ''), name: String(item.name ?? ''), sequence: index + 1, value_type: valueType,
+              numeric_value: numericValue, text_value: textValue, coded_value: '', boolean_value: null,
+              formatted_value: valueType === 'NUMERIC' ? (numericValue || '-') : (textValue || '-'),
+              unit: String(item.unit ?? ''), reference_low: item.reference_low == null || item.reference_low === '' ? null : String(item.reference_low),
+              reference_high: item.reference_high == null || item.reference_high === '' ? null : String(item.reference_high),
+              reference_text: String(item.reference_text ?? ''), interpretation,
+              interpretation_label: examinationInterpretationLabels[interpretation] ?? '미판정',
+            }
+          })
+          const priority: MockExaminationObservation['interpretation'][] = ['CRITICAL', 'ABNORMAL', 'HIGH', 'LOW', 'NORMAL', 'UNKNOWN']
+          const overall = priority.find((value) => observations.some((item) => item.interpretation === value)) ?? 'UNKNOWN'
+          const created: MockExaminationRecord = {
+            examination_id: `51000000-0000-0000-0000-${String(++mockExaminationSequence).padStart(12, '0')}`,
+            patient_id: encounter.patient_id, patient_number: encounter.patient_number, patient_name: encounter.patient_name,
+            patient_birth_date: encounter.patient_birth_date, patient_sex: encounter.patient_sex,
+            encounter_id: encounter.encounter_id, encounter_number: encounter.encounter_number,
+            hospital_name: hospitals[0].hospital_name, ordered_by_name: currentMockClinician.name,
+            test_code: testCode, test_name: testName, category, category_label: examinationCategoryLabels[category], accession_number: '',
+            status: 'PRELIMINARY', status_label: examinationStatusLabels.PRELIMINARY, source, source_label: examinationSourceLabels[source],
+            performed_at: String(body.performed_at ?? now), result_available_at: now,
+            overall_interpretation: overall, overall_interpretation_label: examinationInterpretationLabels[overall],
+            abnormal_count: observations.filter((item) => ['LOW', 'HIGH', 'ABNORMAL', 'CRITICAL'].includes(item.interpretation)).length,
+            observations,
+            report: {
+              report_id: `53000000-0000-0000-0000-${String(++mockExaminationSequence).padStart(12, '0')}`,
+              revision_number: 1, author_name: currentMockClinician.name, status: 'DRAFT', status_label: '작성 중',
+              title: reportTitle, summary: String(body.report_summary ?? ''), conclusion: String(body.report_conclusion ?? ''),
+              issued_at: null, signed_at: null, is_released_to_patient: false, released_at: null, assets: [], created_at: now, updated_at: now,
+            },
+            created_at: now, updated_at: now,
+          }
+          mockExaminationRecords = [created, ...mockExaminationRecords]
+          sendJson(response, 201, { data: created })
+          return
+        }
+
+        const examinationActionMatch = url.pathname.match(
+          /^\/api\/v1\/examinations\/([0-9a-f-]+)\/(finalize|release)\/$/,
+        )
+        if (request.method === 'POST' && examinationActionMatch) {
+          const examination = mockExaminationRecords.find((item) => item.examination_id === examinationActionMatch[1])
+          const action = examinationActionMatch[2]
+          if (!examination) {
+            sendJson(response, 404, { error: { code: 'NOT_FOUND', message: '검사결과를 찾을 수 없습니다.', details: {} } })
+            return
+          }
+          const now = new Date().toISOString()
+          if (action === 'finalize') {
+            const body = await readJson(request)
+            const conclusion = String(body.conclusion ?? '').trim()
+            if (examination.status !== 'PRELIMINARY' || !conclusion) {
+              sendJson(response, 400, { error: { code: 'VALIDATION_ERROR', message: '예비 결과와 최종 결론을 확인해주세요.', details: {} } })
+              return
+            }
+            examination.status = 'FINAL'; examination.status_label = examinationStatusLabels.FINAL
+            examination.report.status = 'FINAL'; examination.report.status_label = '최종'
+            examination.report.summary = String(body.summary ?? ''); examination.report.conclusion = conclusion
+            examination.report.issued_at = now; examination.report.signed_at = now; examination.report.updated_at = now
+          } else {
+            if (!['FINAL', 'CORRECTED'].includes(examination.status)) {
+              sendJson(response, 400, { error: { code: 'VALIDATION_ERROR', message: '최종 또는 정정 결과만 환자에게 공개할 수 있습니다.', details: {} } })
+              return
+            }
+            examination.report.is_released_to_patient = true; examination.report.released_at = now; examination.report.updated_at = now
+          }
+          examination.updated_at = now
+          sendJson(response, 200, { data: examination })
+          return
+        }
+
+        const examinationDetailMatch = url.pathname.match(
+          /^\/api\/v1\/examinations\/([0-9a-f-]+)\/$/,
+        )
+        if (request.method === 'GET' && examinationDetailMatch) {
+          const examination = mockExaminationRecords.find((item) => item.examination_id === examinationDetailMatch[1])
+          if (!examination) {
+            sendJson(response, 404, { error: { code: 'NOT_FOUND', message: '검사결과를 찾을 수 없습니다.', details: {} } })
+            return
+          }
+          sendJson(response, 200, { data: examination })
+          return
+        }
+
+        if (
+          request.method === 'GET'
           && url.pathname
             === '/api/v1/reports/clinician-summary/'
         ) {
@@ -3812,37 +4815,37 @@ function mockApiPlugin(): Plugin {
 
                   consultations: {
                     total:
-                      mockConsultations.length,
+                      mockConsultationRecords.length,
 
                     waiting:
-                      mockConsultations.filter(
+                      mockConsultationRecords.filter(
                         (item) =>
-                          item.status === 'requested'
-                          || item.status === 'waiting',
+                          item.status === 'REQUESTED'
+                          || item.status === 'IN_PROGRESS',
                       ).length,
 
                     answered:
-                      mockConsultations.filter(
+                      mockConsultationRecords.filter(
                         (item) =>
-                          item.status === 'answered'
-                          || item.status === 'completed',
+                          item.status === 'COMPLETED',
                       ).length,
                   },
 
                   tests: {
                     total:
-                      mockTests.length,
+                      mockExaminationRecords.length,
 
                     processing:
-                      mockTests.filter(
+                      mockExaminationRecords.filter(
                         (item) =>
-                          item.status === 'processing',
+                          item.status === 'REGISTERED'
+                          || item.status === 'IN_PROGRESS',
                       ).length,
 
                     result_waiting:
-                      mockTests.filter(
+                      mockExaminationRecords.filter(
                         (item) =>
-                          item.status === 'result_waiting',
+                          item.status === 'PRELIMINARY',
                       ).length,
                   },
 
@@ -3868,7 +4871,7 @@ function mockApiPlugin(): Plugin {
                   mockPatients,
 
                 consultations:
-                  mockConsultations,
+                  getDashboardConsultations(),
 
                 activities:
                   mockActivities,

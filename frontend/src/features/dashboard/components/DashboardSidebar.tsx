@@ -58,10 +58,12 @@ NavigationItem[] = [
   {
     label: '검사 결과',
     icon: ClipboardCheck,
+    path: '/examinations',
   },
   {
     label: '협진 관리',
     icon: Handshake,
+    path: '/consultations',
   },
   {
     label: 'CT 분석',

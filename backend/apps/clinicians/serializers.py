@@ -28,7 +28,6 @@ class ClinicianSerializer(serializers.ModelSerializer):
     )
 
     user_id = serializers.UUIDField(
-        source="user_id",
         read_only=True,
     )
 

@@ -1366,3 +1366,56 @@ button {
     gap: 4px;
   }
 }
+
+/* 업무 중심 대시보드 */
+.dashboard-redesign { max-width: 1680px; margin: 0 auto; }
+.dashboard-welcome { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin: 2px 0 20px; }
+.dashboard-welcome span { color: #6b63d7; font-size: 12px; font-weight: 800; }
+.dashboard-welcome h1 { margin: 6px 0 0; color: #222944; font-size: 24px; line-height: 1.35; }
+.dashboard-welcome > button { display: inline-flex; align-items: center; gap: 7px; border: 0; border-radius: 10px; background: #655dde; padding: 11px 16px; color: #fff; cursor: pointer; font-weight: 700; }
+.dashboard-welcome > button:hover { background: #554dcd; }
+.dashboard-error { margin: 0 0 12px; border-radius: 9px; background: #ffebed; padding: 11px 14px; color: #ae3039; font-size: 13px; }
+.dashboard-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 14px; align-items: start; }
+.dashboard-primary-column,.dashboard-side-column { display: grid; min-width: 0; gap: 14px; }
+.dashboard-top-grid { display: grid; grid-template-columns: minmax(330px, .82fr) minmax(440px, 1.18fr); gap: 14px; }
+.dashboard-bottom-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.dashboard-top-grid > .dashboard-panel { min-height: 285px; }
+.dashboard-empty { margin: 0; padding: 24px 10px; color: #858ba1; text-align: center; font-size: 12px; }
+.patient-table tbody tr { cursor: pointer; }
+
+.work-queue-panel .panel-title-row { align-items: flex-start; }
+.work-queue-panel .panel-title-row h2 { margin-bottom: 5px; }
+.work-queue-panel .panel-title-row p { margin: 0; color: #8a8fa3; font-size: 11px; }
+.work-queue-panel .panel-title-row > span { display: grid; width: 27px; height: 27px; place-items: center; border-radius: 50%; background: #eeeaff; color: #6258ca; font-size: 12px; font-weight: 800; }
+.work-queue-list { display: grid; gap: 7px; }
+.work-queue-list button { display: grid; grid-template-columns: 37px minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; border: 0; border-radius: 9px; background: #f9f9fc; padding: 9px 10px; cursor: pointer; text-align: left; }
+.work-queue-list button:hover { background: #f3f1ff; }
+.work-queue-list button > span:nth-child(2) { display: grid; gap: 4px; min-width: 0; }
+.work-queue-list button strong,.work-queue-list button small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.work-queue-list button strong { color: #343b58; font-size: 11px; }.work-queue-list button small { color: #7c8299; font-size: 10px; }
+.work-queue-icon { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 9px; }.work-queue-icon.danger { color: #c8424c; background: #ffe8ea; }.work-queue-icon.warning { color: #ad720f; background: #fff2d8; }.work-queue-icon.consultation { color: #6457c8; background: #edeaff; }
+.work-queue-complete { display: grid; place-items: center; gap: 9px; min-height: 160px; color: #4a9b73; font-size: 12px; }
+
+.dashboard-examination-list { display: grid; }
+.dashboard-examination-list > button { display: grid; grid-template-columns: 9px minmax(0, 1fr) auto auto; align-items: center; gap: 11px; width: 100%; border: 0; border-bottom: 1px solid #eceef5; background: transparent; padding: 11px 5px; cursor: pointer; text-align: left; }
+.dashboard-examination-list > button:last-child { border-bottom: 0; }.dashboard-examination-list > button:hover { background: #faf9ff; }
+.dashboard-result-dot { width: 8px; height: 8px; border-radius: 50%; background: #9096a8; }.result-critical { background: #d1434e; box-shadow: 0 0 0 4px #ffe9eb; }.result-abnormal,.result-high,.result-low { background: #d08a21; }.result-normal { background: #43a176; }
+.dashboard-result-main,.dashboard-result-meta { display: grid; gap: 4px; min-width: 0; }.dashboard-result-main strong,.dashboard-result-main small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.dashboard-result-main strong { color: #343b58; font-size: 11px; }.dashboard-result-main small,.dashboard-result-meta small { color: #81879d; font-size: 9px; }.dashboard-result-meta { text-align: right; }.dashboard-result-meta strong { color: #665ccf; font-size: 10px; }
+
+.consultation-dashboard-panel .consult-item { display: block; width: 100%; border: 0; border-bottom: 1px solid #eceef5; background: transparent; cursor: pointer; text-align: left; }.consultation-dashboard-panel .consult-item:hover { background: #faf9ff; }
+.dashboard-side-column .activity-panel { min-height: 0; }.dashboard-side-column .activity-item { grid-template-columns: 38px 16px 1fr; }.dashboard-side-column .activity-item > .status-badge { display: none; }
+.dashboard-side-column .quick-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+@media (max-width: 1280px) {
+  .dashboard-workspace { grid-template-columns: 1fr; }
+  .dashboard-side-column { grid-template-columns: minmax(280px, .7fr) minmax(420px, 1.3fr); }
+}
+@media (max-width: 980px) {
+  .dashboard-top-grid,.dashboard-bottom-grid,.dashboard-side-column { grid-template-columns: 1fr; }
+}
+@media (max-width: 620px) {
+  .dashboard-welcome { align-items: flex-start; flex-direction: column; }
+  .dashboard-welcome h1 { font-size: 20px; }
+  .dashboard-welcome > button { width: 100%; justify-content: center; }
+  .dashboard-top-grid > .dashboard-panel { min-height: 0; }
+}
