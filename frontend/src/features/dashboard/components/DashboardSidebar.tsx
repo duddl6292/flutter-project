@@ -1,12 +1,15 @@
 import {
   BrainCircuit,
+  BarChart3,
   CalendarDays,
   ChevronLeft,
   ClipboardCheck,
   FlaskConical,
   Handshake,
   LayoutDashboard,
+  Pill,
   ScanLine,
+  Stethoscope,
   Users,
 } from 'lucide-react'
 import type {
@@ -43,6 +46,16 @@ NavigationItem[] = [
     path: '/appointments',
   },
   {
+    label: '진료 관리',
+    icon: Stethoscope,
+    path: '/encounters',
+  },
+  {
+    label: '처방 관리',
+    icon: Pill,
+    path: '/prescriptions',
+  },
+  {
     label: '검사 결과',
     icon: ClipboardCheck,
   },
@@ -53,6 +66,11 @@ NavigationItem[] = [
   {
     label: 'CT 분석',
     icon: ScanLine,
+  },
+  {
+    label: '통계·리포트',
+    icon: BarChart3,
+    path: '/reports',
   },
 ]
 
@@ -80,8 +98,15 @@ export function DashboardSidebar() {
             const Icon = item.icon
 
             const active =
-              item.path
-              === location.pathname
+              Boolean(
+                item.path
+                && (
+                  item.path === location.pathname
+                  || location.pathname.startsWith(
+                    `${item.path}/`,
+                  )
+                )
+              )
 
             return (
               <button

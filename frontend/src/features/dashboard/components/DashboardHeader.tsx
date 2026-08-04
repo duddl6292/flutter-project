@@ -11,12 +11,11 @@ import type {
 
 import {
   Bell,
-  CalendarDays,
   ChevronDown,
-  LayoutDashboard,
   LogOut,
   Search,
-  Users,
+  Settings,
+  UserRound,
 } from 'lucide-react'
 
 import {
@@ -554,31 +553,33 @@ export function DashboardHeader({
                 <button
                   type="button"
                   onClick={() =>
-                    moveTo('/dashboard')
+                    moveTo('/my-page')
                   }
                 >
-                  <LayoutDashboard size={17} />
-                  대시보드
+                  <UserRound size={17} />
+                  마이페이지
                 </button>
 
                 <button
                   type="button"
                   onClick={() =>
-                    moveTo('/patients')
+                    moveTo('/settings/account')
                   }
                 >
-                  <Users size={17} />
-                  환자 관리
+                  <Settings size={17} />
+                  계정 설정
                 </button>
 
                 <button
                   type="button"
                   onClick={() =>
-                    moveTo('/appointments')
+                    moveTo(
+                      '/settings/notifications',
+                    )
                   }
                 >
-                  <CalendarDays size={17} />
-                  예약 관리
+                  <Bell size={17} />
+                  알림 설정
                 </button>
               </nav>
 

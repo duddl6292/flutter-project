@@ -1,21 +1,30 @@
 import {
   useEffect,
+  useState,
 } from 'react'
+
+import {
+  APPOINTMENT_DURATION_OPTIONS,
+} from './appointment.constants'
 
 import type {
   Appointment,
   AppointmentStatus,
+  AppointmentUpdateInput,
 } from './appointment.types'
 
 interface AppointmentDetailModalProps {
   appointment: Appointment
-
+  saving: boolean
   cancelling: boolean
   error: string
 
   onClose: () => void
   onOpenPatient: () => void
   onCancel: () => void
+  onUpdate: (
+    input: AppointmentUpdateInput,
+  ) => Promise<boolean>
 }
 
 const statusLabels: Record<
@@ -44,25 +53,82 @@ function formatDateTime(
       minute: '2-digit',
       hour12: false,
     },
-  ).format(
-    new Date(value),
+  ).format(new Date(value))
+}
+
+function toLocalDateTimeInput(
+  value: string,
+): string {
+  const date = new Date(value)
+  const offset =
+    date.getTimezoneOffset() * 60_000
+
+  return new Date(
+    date.getTime() - offset,
   )
+    .toISOString()
+    .slice(0, 16)
 }
 
 export function AppointmentDetailModal({
   appointment,
+  saving,
   cancelling,
   error,
   onClose,
   onOpenPatient,
   onCancel,
+  onUpdate,
 }: AppointmentDetailModalProps) {
+  const [editing, setEditing] =
+    useState(false)
+
+  const [scheduledAt, setScheduledAt] =
+    useState(
+      toLocalDateTimeInput(
+        appointment.scheduled_at,
+      ),
+    )
+
+  const [durationMinutes, setDurationMinutes] =
+    useState(
+      appointment.duration_minutes,
+    )
+
+  const [location, setLocation] =
+    useState(appointment.location)
+
+  const [reason, setReason] =
+    useState(appointment.reason)
+
+  const editable = ![
+    'CANCELLED',
+    'COMPLETED',
+  ].includes(appointment.status)
+
+  useEffect(() => {
+    setScheduledAt(
+      toLocalDateTimeInput(
+        appointment.scheduled_at,
+      ),
+    )
+    setDurationMinutes(
+      appointment.duration_minutes,
+    )
+    setLocation(appointment.location)
+    setReason(appointment.reason)
+  }, [appointment])
+
   useEffect(() => {
     const handleKeyDown = (
       event: KeyboardEvent,
     ) => {
       if (event.key === 'Escape') {
-        onClose()
+        if (editing) {
+          setEditing(false)
+        } else {
+          onClose()
+        }
       }
     }
 
@@ -77,7 +143,21 @@ export function AppointmentDetailModal({
         handleKeyDown,
       )
     }
-  }, [onClose])
+  }, [editing, onClose])
+
+  const resetEditForm = () => {
+    setScheduledAt(
+      toLocalDateTimeInput(
+        appointment.scheduled_at,
+      ),
+    )
+    setDurationMinutes(
+      appointment.duration_minutes,
+    )
+    setLocation(appointment.location)
+    setReason(appointment.reason)
+    setEditing(false)
+  }
 
   return (
     <div
@@ -100,7 +180,7 @@ export function AppointmentDetailModal({
       >
         <header>
           <h2 id="appointment-detail-title">
-            예약 상세
+            {editing ? '예약 변경' : '예약 상세'}
           </h2>
 
           <button
@@ -129,137 +209,247 @@ export function AppointmentDetailModal({
           <span
             className={`appointment-detail-status appointment-${appointment.status.toLowerCase()}`}
           >
-            {
-              statusLabels[
-                appointment.status
-              ]
-            }
+            {statusLabels[appointment.status]}
           </span>
         </div>
 
-        <dl className="appointment-detail-list">
-          <div>
-            <dt>예약 일시</dt>
+        {editing ? (
+          <form
+            className="appointment-edit-form"
+            onSubmit={(event) => {
+              event.preventDefault()
 
-            <dd>
-              {formatDateTime(
-                appointment.scheduled_at,
-              )}
-            </dd>
-          </div>
+              void (async () => {
+                const updated =
+                  await onUpdate({
+                    scheduled_at:
+                      new Date(
+                        scheduledAt,
+                      ).toISOString(),
+                    duration_minutes:
+                      durationMinutes,
+                    location:
+                      location.trim(),
+                    reason:
+                      reason.trim(),
+                  })
 
-          <div>
-            <dt>소요시간</dt>
-
-            <dd>
-              {
-                appointment
-                  .duration_minutes
-              }
-              분
-            </dd>
-          </div>
-
-          <div>
-            <dt>진료과</dt>
-
-            <dd>
-              {
-                appointment
-                  .department_name
-              }
-            </dd>
-          </div>
-
-          <div>
-            <dt>담당 의료진</dt>
-
-            <dd>
-              {
-                appointment
-                  .clinician_name
-              }
-            </dd>
-          </div>
-
-          <div>
-            <dt>병원</dt>
-
-            <dd>
-              {
-                appointment
-                  .hospital_name
-              }
-            </dd>
-          </div>
-
-          <div>
-            <dt>진료실</dt>
-
-            <dd>
-              {
-                appointment.location
-                || '미정'
-              }
-            </dd>
-          </div>
-
-          <div className="appointment-detail-full-row">
-            <dt>예약 사유</dt>
-
-            <dd>
-              {
-                appointment.reason
-                || '등록된 예약 사유가 없습니다.'
-              }
-            </dd>
-          </div>
-        </dl>
-          {error && (
-        <p
-            role="alert"
-            className="appointment-form-error"
-        >
-            {error}
-        </p>
-        )}
-        <footer>
-          <button
-            type="button"
-            className="appointment-cancel-button"
-            onClick={onClose}
+                if (updated) {
+                  setEditing(false)
+                }
+              })()
+            }}
           >
-            닫기
-          </button>
+            <label>
+              예약 일시
 
-          <button
-            type="button"
-            className="appointment-patient-button"
-            onClick={onOpenPatient}
-          >
-            환자 관리에서 보기
-          </button>
-              {
-                appointment.status
-                !== 'CANCELLED'
-                && appointment.status
-                !== 'COMPLETED'
-                && (
+              <input
+                type="datetime-local"
+                required
+                value={scheduledAt}
+                onChange={(event) =>
+                  setScheduledAt(
+                    event.target.value,
+                  )
+                }
+              />
+            </label>
+
+            <label>
+              예상 진료시간
+
+              <select
+                value={durationMinutes}
+                onChange={(event) =>
+                  setDurationMinutes(
+                    Number(
+                      event.target.value,
+                    ),
+                  )
+                }
+              >
+                {APPOINTMENT_DURATION_OPTIONS.map(
+                  (minutes) => (
+                    <option
+                      key={minutes}
+                      value={minutes}
+                    >
+                      {minutes}분
+                    </option>
+                  ),
+                )}
+              </select>
+            </label>
+
+            <label>
+              진료실
+
+              <input
+                value={location}
+                placeholder="예: 제1진료실"
+                onChange={(event) =>
+                  setLocation(
+                    event.target.value,
+                  )
+                }
+              />
+            </label>
+
+            <label>
+              예약 사유
+
+              <textarea
+                value={reason}
+                onChange={(event) =>
+                  setReason(
+                    event.target.value,
+                  )
+                }
+              />
+            </label>
+
+            {error && (
+              <p
+                role="alert"
+                className="appointment-form-error"
+              >
+                {error}
+              </p>
+            )}
+
+            <footer>
+              <button
+                type="button"
+                className="appointment-cancel-button"
+                disabled={saving}
+                onClick={resetEditForm}
+              >
+                변경 취소
+              </button>
+
+              <button
+                type="submit"
+                className="appointment-submit-button"
+                disabled={
+                  saving
+                  || !scheduledAt
+                }
+              >
+                {
+                  saving
+                    ? '저장 중'
+                    : '변경 저장'
+                }
+              </button>
+            </footer>
+          </form>
+        ) : (
+          <>
+            <dl className="appointment-detail-list">
+              <div>
+                <dt>예약 일시</dt>
+                <dd>
+                  {formatDateTime(
+                    appointment.scheduled_at,
+                  )}
+                </dd>
+              </div>
+
+              <div>
+                <dt>소요시간</dt>
+                <dd>
+                  {appointment.duration_minutes}분
+                </dd>
+              </div>
+
+              <div>
+                <dt>진료과</dt>
+                <dd>{appointment.department_name}</dd>
+              </div>
+
+              <div>
+                <dt>담당 의료진</dt>
+                <dd>{appointment.clinician_name}</dd>
+              </div>
+
+              <div>
+                <dt>병원</dt>
+                <dd>{appointment.hospital_name}</dd>
+              </div>
+
+              <div>
+                <dt>진료실</dt>
+                <dd>
+                  {appointment.location || '미정'}
+                </dd>
+              </div>
+
+              <div className="appointment-detail-full-row">
+                <dt>예약 사유</dt>
+                <dd>
+                  {
+                    appointment.reason
+                    || '등록된 예약 사유가 없습니다.'
+                  }
+                </dd>
+              </div>
+            </dl>
+
+            {error && (
+              <p
+                role="alert"
+                className="appointment-form-error"
+              >
+                {error}
+              </p>
+            )}
+
+            <footer>
+              <button
+                type="button"
+                className="appointment-cancel-button"
+                onClick={onClose}
+              >
+                닫기
+              </button>
+
+              <button
+                type="button"
+                className="appointment-patient-button"
+                onClick={onOpenPatient}
+              >
+                환자 관리에서 보기
+              </button>
+
+              {editable && (
                 <button
-                    type="button"
-                    className="appointment-danger-button"
-                    disabled={cancelling}
-                    onClick={onCancel}
+                  type="button"
+                  className="appointment-edit-button"
+                  onClick={() =>
+                    setEditing(true)
+                  }
                 >
-                    {
-                    cancelling
-                        ? '취소 처리 중'
-                        : '예약 취소'
-                    }
+                  일정 변경
                 </button>
-                )
-            }
-        </footer>
+              )}
+
+              {editable && (
+                <button
+                  type="button"
+                  className="appointment-danger-button"
+                  disabled={cancelling}
+                  onClick={onCancel}
+                >
+                  {
+                    cancelling
+                      ? '취소 처리 중'
+                      : '예약 취소'
+                  }
+                </button>
+              )}
+            </footer>
+          </>
+        )}
       </section>
     </div>
   )

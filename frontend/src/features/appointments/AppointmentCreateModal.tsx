@@ -16,7 +16,7 @@ import {
 } from './appointment.constants'
 
 interface AppointmentCreateModalProps {
-  selectedDate: string
+  initialDateTime: string
   patients: PatientSummary[]
   clinicianName: string
   saving: boolean
@@ -30,7 +30,7 @@ interface AppointmentCreateModalProps {
 }
 
 export function AppointmentCreateModal({
-  selectedDate,
+  initialDateTime,
   patients,
   clinicianName,
   saving,
@@ -45,7 +45,7 @@ export function AppointmentCreateModal({
     scheduledAt,
     setScheduledAt,
   ] = useState(
-    `${selectedDate}T09:00`,
+    initialDateTime,
   )
 
   const [
