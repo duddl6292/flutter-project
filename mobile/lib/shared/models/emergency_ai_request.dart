@@ -1,8 +1,5 @@
 class EmergencyAiRequest {
-  const EmergencyAiRequest({
-    required this.symptomText,
-    this.patientId,
-  });
+  const EmergencyAiRequest({required this.symptomText, this.patientId});
 
   final String symptomText;
   final int? patientId;

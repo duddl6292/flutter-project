@@ -9,16 +9,11 @@ class Department {
     required this.hospitalId,
   });
 
-  factory Department.fromJson(
-    Map<String, dynamic> json,
-  ) {
+  factory Department.fromJson(Map<String, dynamic> json) {
     return Department(
-      departmentId:
-          json['department_id']?.toString() ?? '',
-      departmentName:
-          json['department_name']?.toString() ?? '',
-      hospitalId:
-          json['hospital_id']?.toString() ?? '',
+      departmentId: json['department_id']?.toString() ?? '',
+      departmentName: json['department_name']?.toString() ?? '',
+      hospitalId: json['hospital_id']?.toString() ?? '',
     );
   }
 }

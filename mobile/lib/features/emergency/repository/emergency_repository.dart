@@ -12,10 +12,8 @@ abstract interface class EmergencyRepository {
 }
 
 class HttpEmergencyRepository implements EmergencyRepository {
-  HttpEmergencyRepository({
-    required this.baseUrl,
-    http.Client? client,
-  }) : _client = client ?? http.Client();
+  HttpEmergencyRepository({required this.baseUrl, http.Client? client})
+    : _client = client ?? http.Client();
 
   final String baseUrl;
   final http.Client _client;
@@ -48,8 +46,7 @@ class HttpEmergencyRepository implements EmergencyRepository {
       }
 
       final serverMessage =
-          decodedBody['message'] as String? ??
-          decodedBody['detail'] as String?;
+          decodedBody['message'] as String? ?? decodedBody['detail'] as String?;
 
       throw EmergencyApiException(
         message: serverMessage ?? '서버 요청에 실패했습니다.',
@@ -58,13 +55,9 @@ class HttpEmergencyRepository implements EmergencyRepository {
     } on EmergencyApiException {
       rethrow;
     } on FormatException {
-      throw const EmergencyApiException(
-        message: '서버 응답 형식이 올바르지 않습니다.',
-      );
+      throw const EmergencyApiException(message: '서버 응답 형식이 올바르지 않습니다.');
     } catch (_) {
-      throw const EmergencyApiException(
-        message: '서버에 연결할 수 없습니다.',
-      );
+      throw const EmergencyApiException(message: '서버에 연결할 수 없습니다.');
     }
   }
 
@@ -88,10 +81,7 @@ class HttpEmergencyRepository implements EmergencyRepository {
 }
 
 class EmergencyApiException implements Exception {
-  const EmergencyApiException({
-    required this.message,
-    this.statusCode,
-  });
+  const EmergencyApiException({required this.message, this.statusCode});
 
   final String message;
   final int? statusCode;

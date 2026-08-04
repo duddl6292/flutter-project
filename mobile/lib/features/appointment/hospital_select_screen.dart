@@ -1,16 +1,19 @@
 import 'package:brainon_mobile/features/appointment/repositories/hospital_repository.dart';
+import 'package:brainon_mobile/features/patient/providers/favorite_hospitals_provider.dart';
 import 'package:brainon_mobile/shared/mock/recent_hospital_mock.dart';
 import 'package:brainon_mobile/shared/models/hospital.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class HospitalSelectScreen extends StatefulWidget {
+class HospitalSelectScreen extends ConsumerStatefulWidget {
   const HospitalSelectScreen({super.key});
 
   @override
-  State<HospitalSelectScreen> createState() => _HospitalSelectScreenState();
+  ConsumerState<HospitalSelectScreen> createState() =>
+      _HospitalSelectScreenState();
 }
 
-class _HospitalSelectScreenState extends State<HospitalSelectScreen> {
+class _HospitalSelectScreenState extends ConsumerState<HospitalSelectScreen> {
   final HospitalRepository _repository = HospitalRepository();
   final TextEditingController _searchController = TextEditingController();
 
@@ -72,40 +75,20 @@ class _HospitalSelectScreenState extends State<HospitalSelectScreen> {
         .toList();
   }
 
-  List<Hospital> get _favoriteHospitals {
-    return _hospitals.where((hospital) => hospital.isFavorite).toList();
-  }
-
-  List<Hospital> get _searchResults {
-    final keyword = _keyword.trim().toLowerCase();
-
-    if (keyword.isEmpty) {
-      return [];
-    }
-
-    return _hospitals.where((hospital) {
-      return hospital.hospitalName.toLowerCase().contains(keyword);
-    }).toList();
-  }
-
   void _selectHospital(Hospital hospital) {
     setState(() {
       _selectedHospitalId = hospital.hospitalId;
     });
   }
 
-  void _toggleFavorite(Hospital selectedHospital) {
-    setState(() {
-      _hospitals = _hospitals.map((hospital) {
-        if (hospital.hospitalId == selectedHospital.hospitalId) {
-          return hospital.copyWith(isFavorite: !hospital.isFavorite);
-        }
-
-        return hospital;
-      }).toList();
-    });
-
-    // TODO: Django 찜 추가·해제 API 연결
+  Future<void> _toggleFavorite(Hospital selectedHospital) async {
+    try {
+      await ref
+          .read(favoriteHospitalsProvider.notifier)
+          .toggleFavorite(selectedHospital);
+    } on Object {
+      if (mounted) _showMessage('즐겨찾기를 변경하지 못했습니다.');
+    }
   }
 
   void _completeSelection() {
@@ -131,6 +114,18 @@ class _HospitalSelectScreenState extends State<HospitalSelectScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final favoriteIds = ref
+        .watch(favoriteHospitalsProvider)
+        .valueOrNull
+        ?.map((hospital) => hospital.hospitalId)
+        .toSet();
+    final displayHospitals = _hospitals.map((hospital) {
+      return hospital.copyWith(
+        isFavorite:
+            favoriteIds?.contains(hospital.hospitalId) ?? hospital.isFavorite,
+      );
+    }).toList();
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
       appBar: AppBar(
@@ -232,28 +227,32 @@ class _HospitalSelectScreenState extends State<HospitalSelectScreen> {
 
                           const SizedBox(height: 12),
 
-                          if (_favoriteHospitals.isEmpty)
+                          if (displayHospitals
+                              .where((hospital) => hospital.isFavorite)
+                              .isEmpty)
                             const _EmptySection(
                               message: '찜한 병원이 없습니다.\n검색 결과의 별을 눌러 추가해 보세요.',
                             )
                           else
-                            ..._favoriteHospitals.map((hospital) {
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: _HospitalCard(
-                                  hospital: hospital,
-                                  isSelected:
-                                      _selectedHospitalId ==
-                                      hospital.hospitalId,
-                                  onSelect: () {
-                                    _selectHospital(hospital);
-                                  },
-                                  onFavorite: () {
-                                    _toggleFavorite(hospital);
-                                  },
-                                ),
-                              );
-                            }),
+                            ...displayHospitals
+                                .where((hospital) => hospital.isFavorite)
+                                .map((hospital) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: _HospitalCard(
+                                      hospital: hospital,
+                                      isSelected:
+                                          _selectedHospitalId ==
+                                          hospital.hospitalId,
+                                      onSelect: () {
+                                        _selectHospital(hospital);
+                                      },
+                                      onFavorite: () {
+                                        _toggleFavorite(hospital);
+                                      },
+                                    ),
+                                  );
+                                }),
 
                           const SizedBox(height: 18),
 
@@ -270,52 +269,76 @@ class _HospitalSelectScreenState extends State<HospitalSelectScreen> {
                           if (_recentHospitals.isEmpty)
                             const _EmptySection(message: '최근 방문한 병원이 없습니다.')
                           else
-                            ..._recentHospitals.take(3).map((hospital) {
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: _HospitalCard(
-                                  hospital: hospital,
-                                  isSelected:
-                                      _selectedHospitalId ==
-                                      hospital.hospitalId,
-                                  onSelect: () {
-                                    _selectHospital(hospital);
-                                  },
-                                  onFavorite: () {
-                                    _toggleFavorite(hospital);
-                                  },
-                                  badgeText: '최근 방문',
-                                ),
-                              );
-                            }),
+                            ...recentHospitalIdMock
+                                .map(
+                                  (hospitalId) => displayHospitals
+                                      .where(
+                                        (hospital) =>
+                                            hospital.hospitalId == hospitalId,
+                                      )
+                                      .firstOrNull,
+                                )
+                                .whereType<Hospital>()
+                                .take(3)
+                                .map((hospital) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: _HospitalCard(
+                                      hospital: hospital,
+                                      isSelected:
+                                          _selectedHospitalId ==
+                                          hospital.hospitalId,
+                                      onSelect: () {
+                                        _selectHospital(hospital);
+                                      },
+                                      onFavorite: () {
+                                        _toggleFavorite(hospital);
+                                      },
+                                      badgeText: '최근 방문',
+                                    ),
+                                  );
+                                }),
                         ] else ...[
                           // 검색 결과
                           _SectionTitle(
                             title: '검색 결과',
-                            trailingText: '${_searchResults.length}개',
+                            trailingText:
+                                '${displayHospitals.where((hospital) => hospital.hospitalName.toLowerCase().contains(_keyword.trim().toLowerCase())).length}개',
                           ),
                           const SizedBox(height: 12),
 
-                          if (_searchResults.isEmpty)
+                          if (displayHospitals
+                              .where(
+                                (hospital) => hospital.hospitalName
+                                    .toLowerCase()
+                                    .contains(_keyword.trim().toLowerCase()),
+                              )
+                              .isEmpty)
                             const _EmptySection(message: '검색 결과가 없습니다.')
                           else
-                            ..._searchResults.map((hospital) {
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: _HospitalCard(
-                                  hospital: hospital,
-                                  isSelected:
-                                      _selectedHospitalId ==
-                                      hospital.hospitalId,
-                                  onSelect: () {
-                                    _selectHospital(hospital);
-                                  },
-                                  onFavorite: () {
-                                    _toggleFavorite(hospital);
-                                  },
-                                ),
-                              );
-                            }),
+                            ...displayHospitals
+                                .where(
+                                  (hospital) => hospital.hospitalName
+                                      .toLowerCase()
+                                      .contains(_keyword.trim().toLowerCase()),
+                                )
+                                .map((hospital) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: _HospitalCard(
+                                      hospital: hospital,
+                                      isSelected:
+                                          _selectedHospitalId ==
+                                          hospital.hospitalId,
+                                      onSelect: () {
+                                        _selectHospital(hospital);
+                                      },
+                                      onFavorite: () {
+                                        _toggleFavorite(hospital);
+                                      },
+                                    ),
+                                  );
+                                }),
                         ],
                       ],
                     ),

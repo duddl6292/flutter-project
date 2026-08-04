@@ -12,11 +12,8 @@ class EmergencyAiResponse {
   factory EmergencyAiResponse.fromJson(Map<String, dynamic> json) {
     return EmergencyAiResponse(
       riskLevel: json['risk_level'] as String? ?? 'UNKNOWN',
-      message:
-          json['message'] as String? ??
-          '응급 안내 결과를 확인할 수 없습니다.',
-      recommendedAction:
-          json['recommended_action'] as String? ?? 'NONE',
+      message: json['message'] as String? ?? '응급 안내 결과를 확인할 수 없습니다.',
+      recommendedAction: json['recommended_action'] as String? ?? 'NONE',
     );
   }
 }

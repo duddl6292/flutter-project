@@ -11,4 +11,9 @@ abstract final class RouteNames {
   static const String hospitalSelect = 'hospitalSelect'; //
   static const String appointmentCreate = 'appointmentCreate'; //진료예약하기
   static const String patientMain = 'patientMain';
+  static const String notificationSettings = 'notification-settings';
+  static const String personalInfo = 'personal-info';
+  static const String guardianManagement = 'guardian-management';
+  static const String appInfo = 'app-info';
+  static const String favoriteHospitals = 'favorite-hospitals';
 }

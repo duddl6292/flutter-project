@@ -17,19 +17,14 @@ class Medication {
     required this.completed,
   });
 
-  factory Medication.fromJson(
-    Map<String, dynamic> json,
-  ) {
+  factory Medication.fromJson(Map<String, dynamic> json) {
     return Medication(
       id: json['id'].toString(),
       name: json['name']?.toString() ?? '',
       dose: json['dose']?.toString() ?? '',
-      scheduledAt: DateTime.parse(
-        json['scheduled_at'].toString(),
-      ),
+      scheduledAt: DateTime.parse(json['scheduled_at'].toString()),
       period: json['period']?.toString() ?? '',
-      instruction:
-          json['instruction']?.toString() ?? '',
+      instruction: json['instruction']?.toString() ?? '',
       completed: json['completed'] == true,
     );
   }

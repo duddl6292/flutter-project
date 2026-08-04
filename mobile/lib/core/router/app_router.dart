@@ -1,5 +1,4 @@
 import 'package:brainon_mobile/core/router/route_names.dart';
-import 'package:brainon_mobile/features/appointment/appointment_create_screen.dart';
 import 'package:brainon_mobile/features/appointment/appointment_detail_screen.dart';
 import 'package:brainon_mobile/features/appointment/appointment_list_screen.dart';
 import 'package:brainon_mobile/features/appointment/hospital_select_screen.dart';
@@ -12,6 +11,16 @@ import 'package:brainon_mobile/features/patient/patient_main_screen.dart';
 import 'package:brainon_mobile/shared/models/appointment.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:brainon_mobile/features/patient/notification_settings_screen.dart'
+    as notification_settings;
+import 'package:brainon_mobile/features/patient/profile/personal_info_screen.dart'
+    as personal_info;
+import 'package:brainon_mobile/features/patient/profile/guardian_management_screen.dart'
+    as guardian_management;
+import 'package:brainon_mobile/features/patient/support/app_info_screen.dart'
+    as app_info;
+import 'package:brainon_mobile/features/patient/profile/favorite_hospitals_screen.dart'
+    as favorite_hospitals;
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(
@@ -128,13 +137,45 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
 
       // ============================================================
-      // 예약 생성
+      // 알림 설정
       // ============================================================
       GoRoute(
-        path: '/appointments/create',
-        name: RouteNames.appointmentCreate,
+        path: '/notification-settings',
+        name: RouteNames.notificationSettings,
         builder: (context, state) {
-          return const AppointmentCreateScreen();
+          return const notification_settings.NotificationSettingsScreen();
+        },
+      ),
+
+      // ============================================================
+      // 개인정보 관리
+      // ============================================================
+      GoRoute(
+        path: '/personal-info',
+        name: RouteNames.personalInfo,
+        builder: (context, state) {
+          return const personal_info.PersonalInfoScreen();
+        },
+      ),
+      GoRoute(
+        path: '/guardian-management',
+        name: RouteNames.guardianManagement,
+        builder: (context, state) {
+          return const guardian_management.GuardianManagementScreen();
+        },
+      ),
+      GoRoute(
+        path: '/app-info',
+        name: RouteNames.appInfo,
+        builder: (context, state) {
+          return const app_info.AppInfoScreen();
+        },
+      ),
+      GoRoute(
+        path: '/favorite-hospitals',
+        name: RouteNames.favoriteHospitals,
+        builder: (context, state) {
+          return const favorite_hospitals.FavoriteHospitalsScreen();
         },
       ),
     ],
