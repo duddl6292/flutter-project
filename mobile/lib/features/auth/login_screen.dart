@@ -107,33 +107,12 @@ class _LoginScreenState extends State<LoginScreen> {
       _isSubmitting = false;
     });
 
-    if (_isClinician) {
-      context.goNamed(RouteNames.patientMain); //로그인되는지 임시 확인
-      // ----------------------------------------------------------
-      // 의료진 로그인 임시 확인
-      //
-      // 실제 API 연결 후에는 이 SnackBar 대신
-      // authProvider 또는 AuthRepository의 login을 호출한다.
-      // ----------------------------------------------------------
-      // ScaffoldMessenger.of(context).showSnackBar(
-      //   SnackBar(
-      //     content: Text(
-      //       '의료진 로그인 입력 확인 완료\n'
-      //       '직군 코드: $_selectedDepartmentCode\n'
-      //       '병원: $_selectedHospitalName\n'
-      //       '병원 ID: $_selectedHospitalId\n'
-      //       '면허번호: ${_licenseNumberController.text.trim()}',
-      //     ),
-      //   ),
-      // );
-      // return;
-    }
+    final destination = switch (widget.role) {
+      UserRole.patient => RouteNames.patientMain,
+      UserRole.clinician => RouteNames.clinicianHome,
+    };
 
-    // 환자 로그인 임시 확인
-    context.goNamed(RouteNames.home); //로그인되는지 확인하기 위한 임시!
-    // ScaffoldMessenger.of(
-    //   context,
-    // ).showSnackBar(const SnackBar(content: Text('환자 로그인 입력 확인이 완료되었습니다.')));
+    context.goNamed(destination);
   }
 
   @override
