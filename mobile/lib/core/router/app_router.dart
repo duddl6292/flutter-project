@@ -7,6 +7,7 @@ import 'package:brainon_mobile/features/auth/login_screen.dart';
 import 'package:brainon_mobile/features/auth/patient_signup_screen.dart';
 import 'package:brainon_mobile/features/auth/role_selection_screen.dart';
 import 'package:brainon_mobile/features/auth/user_role.dart';
+import 'package:brainon_mobile/features/clinician/home/clinician_home_screen.dart';
 import 'package:brainon_mobile/features/patient/patient_main_screen.dart';
 import 'package:brainon_mobile/shared/models/appointment.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -62,6 +63,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: RouteNames.patientMain,
         builder: (context, state) {
           return const PatientMainScreen();
+        },
+      ),
+
+      // ============================================================
+      // 의료진 홈
+      // ============================================================
+      GoRoute(
+        path: '/clinician',
+        name: RouteNames.clinicianHome,
+        builder: (context, state) {
+          return const ClinicianHomeScreen();
         },
       ),
 
