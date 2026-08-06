@@ -16,11 +16,7 @@ class AuthRepository {
   Future<List<AuthHospital>> getHospitals() async {
     try {
       final hospitals = await runApiRequest(() async {
-        final response = await _dio.get<Map<String, dynamic>>(
-          '/api/v1/hospitals/',
-          queryParameters: {'page_size': 100},
-        );
-        final data = response.data!['data'] as List<dynamic>;
+        final data = await _fetchAllPages('/api/v1/hospitals/');
         return data
             .map((item) => AuthHospital.fromJson(item as Map<String, dynamic>))
             .toList();
@@ -39,11 +35,7 @@ class AuthRepository {
   Future<List<AuthDepartment>> getDepartments() async {
     try {
       final departments = await runApiRequest(() async {
-        final response = await _dio.get<Map<String, dynamic>>(
-          '/api/v1/clinicians/departments',
-          queryParameters: {'page_size': 100},
-        );
-        final data = response.data!['data'] as List<dynamic>;
+        final data = await _fetchAllPages('/api/v1/clinicians/departments');
         return data
             .map(
               (item) => AuthDepartment.fromJson(item as Map<String, dynamic>),
@@ -59,6 +51,23 @@ class AuthRepository {
       }
     }
     return authDepartmentMockData.map(AuthDepartment.fromJson).toList();
+  }
+
+  Future<List<dynamic>> _fetchAllPages(String path) async {
+    final rows = <dynamic>[];
+    var page = 1;
+    while (true) {
+      final response = await _dio.get<Map<String, dynamic>>(
+        path,
+        queryParameters: {'page': page, 'page_size': 100},
+      );
+      final body = response.data ?? const {};
+      rows.addAll(body['data'] as List<dynamic>? ?? const []);
+      final meta = Map<String, dynamic>.from(body['meta'] as Map? ?? const {});
+      final totalPages = int.tryParse(meta['total_pages']?.toString() ?? '') ?? 1;
+      if (page >= totalPages) return rows;
+      page++;
+    }
   }
 
   Future<void> signupPatient(PatientSignupRequest request) {

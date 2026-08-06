@@ -1,8 +1,8 @@
-import 'dart:convert';
-
+import 'package:brainon_mobile/core/api/api_client.dart';
+import 'package:brainon_mobile/core/api/api_exception.dart';
 import 'package:brainon_mobile/shared/models/emergency_ai_request.dart';
 import 'package:brainon_mobile/shared/models/emergency_ai_response.dart';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
 
 abstract interface class EmergencyRepository {
   Future<EmergencyAiResponse> askAiSymptom({
@@ -12,72 +12,47 @@ abstract interface class EmergencyRepository {
 }
 
 class HttpEmergencyRepository implements EmergencyRepository {
-  HttpEmergencyRepository({required this.baseUrl, http.Client? client})
-    : _client = client ?? http.Client();
+  const HttpEmergencyRepository(this._dio);
 
-  final String baseUrl;
-  final http.Client _client;
+  final Dio _dio;
 
   @override
   Future<EmergencyAiResponse> askAiSymptom({
     required EmergencyAiRequest request,
     String? accessToken,
   }) async {
-    final uri = Uri.parse('$baseUrl/api/emergency/ai-guide');
-
     try {
-      final response = await _client
-          .post(
-            uri,
-            headers: {
-              'Content-Type': 'application/json; charset=UTF-8',
-              'Accept': 'application/json',
-              if (accessToken != null && accessToken.isNotEmpty)
-                'Authorization': 'Bearer $accessToken',
-            },
-            body: jsonEncode(request.toJson()),
-          )
-          .timeout(const Duration(seconds: 15));
-
-      final decodedBody = _decodeBody(response.body);
-
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        return EmergencyAiResponse.fromJson(decodedBody);
-      }
-
-      final serverMessage =
-          decodedBody['message'] as String? ?? decodedBody['detail'] as String?;
-
+      return await runApiRequest(() async {
+        final response = await _dio.post<Map<String, dynamic>>(
+      '/api/v1/chatbot/messages/',
+      data: {
+        'message':
+            '응급 증상 안내 요청입니다. 사용자가 입력한 증상: '
+            '${request.symptomText}\n'
+            '즉시 119가 필요한 위험 신호인지 안전을 최우선으로 짧고 명확하게 안내해 주세요. '
+            '진단을 확정하지 말고 응급 상황이면 바로 119 또는 응급실 이용을 권고해 주세요.',
+        'idempotency_key': 'emergency-${DateTime.now().microsecondsSinceEpoch}',
+      },
+    );
+    final data = Map<String, dynamic>.from(response.data?['data'] as Map);
+    final assistant = Map<String, dynamic>.from(
+      data['assistant_message'] as Map,
+    );
+        return EmergencyAiResponse(
+          riskLevel: 'AI_GUIDANCE',
+          message: assistant['content'] as String? ?? '응급 안내 결과를 확인할 수 없습니다.',
+          recommendedAction: 'FOLLOW_GUIDANCE',
+        );
+      });
+    } on ApiException catch (error) {
       throw EmergencyApiException(
-        message: serverMessage ?? '서버 요청에 실패했습니다.',
-        statusCode: response.statusCode,
+        message: error.message,
+        statusCode: error.statusCode,
       );
-    } on EmergencyApiException {
-      rethrow;
-    } on FormatException {
-      throw const EmergencyApiException(message: '서버 응답 형식이 올바르지 않습니다.');
-    } catch (_) {
-      throw const EmergencyApiException(message: '서버에 연결할 수 없습니다.');
     }
   }
 
-  Map<String, dynamic> _decodeBody(String body) {
-    if (body.trim().isEmpty) {
-      return <String, dynamic>{};
-    }
-
-    final decoded = jsonDecode(body);
-
-    if (decoded is! Map<String, dynamic>) {
-      throw const FormatException('JSON object expected.');
-    }
-
-    return decoded;
-  }
-
-  void dispose() {
-    _client.close();
-  }
+  void dispose() {}
 }
 
 class EmergencyApiException implements Exception {
@@ -85,7 +60,4 @@ class EmergencyApiException implements Exception {
 
   final String message;
   final int? statusCode;
-
-  @override
-  String toString() => message;
 }

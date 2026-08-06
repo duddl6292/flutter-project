@@ -48,6 +48,7 @@ function emptyItem(): PrescriptionItemInput {
     instructions: '',
     start_date: todayValue(),
     end_date: null,
+    meal_times: ['BREAKFAST'],
   }
 }
 
@@ -136,7 +137,7 @@ export function PrescriptionCreateModal({
   const updateItem = (
     index: number,
     field: keyof PrescriptionItemInput,
-    value: string | null,
+    value: PrescriptionItemInput[keyof PrescriptionItemInput],
   ) => {
     setItems((current) =>
       current.map(
@@ -170,7 +171,8 @@ export function PrescriptionCreateModal({
           || !item.dosage
           || Number(item.dosage) <= 0
           || !item.dose_unit.trim()
-          || !item.frequency.trim(),
+          || !item.frequency.trim()
+          || item.meal_times.length === 0,
       )
     ) {
       setError(
@@ -407,6 +409,30 @@ export function PrescriptionCreateModal({
                           }
                         />
                       </label>
+
+                      <fieldset className="prescription-wide-field">
+                        <legend>복약 알림 시간</legend>
+                        {([
+                          ['BREAKFAST', '아침 07:00'],
+                          ['LUNCH', '점심 12:00'],
+                          ['DINNER', '저녁 18:00'],
+                        ] as const).map(([value, label]) => (
+                          <label key={value}>
+                            <input
+                              type="checkbox"
+                              checked={item.meal_times.includes(value)}
+                              onChange={(event) => updateItem(
+                                index,
+                                'meal_times',
+                                event.target.checked
+                                  ? [...item.meal_times, value]
+                                  : item.meal_times.filter((meal) => meal !== value),
+                              )}
+                            />
+                            <span>{label}</span>
+                          </label>
+                        ))}
+                      </fieldset>
 
                       <label>
                         <span>투여 경로</span>

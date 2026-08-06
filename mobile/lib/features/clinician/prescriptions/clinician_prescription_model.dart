@@ -9,6 +9,7 @@ class ClinicianPrescriptionItem {
     required this.instructions,
     required this.startDate,
     required this.endDate,
+    required this.mealTimes,
   });
 
   final String id;
@@ -20,6 +21,7 @@ class ClinicianPrescriptionItem {
   final String instructions;
   final DateTime? startDate;
   final DateTime? endDate;
+  final List<String> mealTimes;
 
   factory ClinicianPrescriptionItem.fromJson(Map<String, dynamic> json) =>
       ClinicianPrescriptionItem(
@@ -32,6 +34,9 @@ class ClinicianPrescriptionItem {
         instructions: json['instructions']?.toString() ?? '',
         startDate: DateTime.tryParse(json['start_date']?.toString() ?? ''),
         endDate: DateTime.tryParse(json['end_date']?.toString() ?? ''),
+        mealTimes: (json['meal_times'] as List<dynamic>? ?? const [])
+            .map((value) => value.toString())
+            .toList(),
       );
 }
 
@@ -115,10 +120,12 @@ class PrescriptionItemInput {
     required this.instructions,
     required this.startDate,
     required this.endDate,
+    required this.mealTimes,
   });
   final String medicineName, dosage, doseUnit, frequency, route, instructions;
   final DateTime startDate;
   final DateTime? endDate;
+  final List<String> mealTimes;
 
   Map<String, dynamic> toJson() => {
     'medicine_name': medicineName,
@@ -129,6 +136,7 @@ class PrescriptionItemInput {
     'instructions': instructions,
     'start_date': _date(startDate),
     'end_date': endDate == null ? null : _date(endDate!),
+    'meal_times': mealTimes,
   };
 }
 

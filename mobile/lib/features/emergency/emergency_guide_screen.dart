@@ -1,7 +1,9 @@
 import 'package:brainon_mobile/features/emergency/repository/emergency_repository.dart';
+import 'package:brainon_mobile/core/router/route_names.dart';
 import 'package:brainon_mobile/shared/models/emergency_ai_request.dart';
 import 'package:brainon_mobile/shared/models/emergency_ai_response.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class EmergencyGuideScreen extends StatefulWidget {
   const EmergencyGuideScreen({
@@ -113,7 +115,7 @@ class _EmergencyGuideScreenState extends State<EmergencyGuideScreen> {
             child: IconButton(
               tooltip: '알림',
               onPressed: () {
-                _showMessage('알림 목록 화면은 추후 연결할 예정입니다.');
+                context.pushNamed(RouteNames.notifications);
               },
               icon: const Icon(
                 Icons.notifications_none_rounded,

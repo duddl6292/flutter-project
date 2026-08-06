@@ -24,6 +24,7 @@ from .serializers import (
     PatientMedicationScheduleSerializer,
     PatientNotificationSerializer,
     PatientPrescriptionSerializer,
+    PatientReleasedDiagnosticReportSerializer,
     PatientReleasedTestResultSerializer,
     PatientSummarySerializer,
     PatientUpdateSerializer,
@@ -42,6 +43,7 @@ from apps.clinicians.permissions import (
 from apps.medications.models import (MedicationRecord, MedicationSchedule,)
 from apps.prescriptions.models import Prescription
 from apps.test_results.models import TestResult
+from apps.diagnostics.models import DiagnosticReport
 from apps.hospitals.models import PatientFavoriteHospital
 from django.db import IntegrityError, transaction
 from django.utils import timezone
@@ -368,13 +370,37 @@ class PatientTestResultListView(
             "-created_at",
         )
 
-        return self.get_paginated_response(
-            request=request,
-            queryset=results,
-            serializer_class=(
-                PatientReleasedTestResultSerializer
-            ),
+        reports = (
+            DiagnosticReport.objects
+            .filter(
+                examination__patient=patient,
+                is_released_to_patient=True,
+                status__in=[
+                    DiagnosticReport.Status.FINAL,
+                    DiagnosticReport.Status.CORRECTED,
+                ],
+            )
+            .select_related(
+                "examination",
+                "examination__encounter",
+                "examination__hospital",
+            )
+            .prefetch_related("assets")
         )
+        if test_type:
+            reports = reports.filter(examination__category__iexact=test_type)
+
+        serialized = [
+            *PatientReleasedTestResultSerializer(results, many=True).data,
+            *PatientReleasedDiagnosticReportSerializer(reports, many=True).data,
+        ]
+        serialized.sort(
+            key=lambda item: item.get("performed_at") or "",
+            reverse=True,
+        )
+        paginator = PatientPagination()
+        page = paginator.paginate_queryset(serialized, request, view=self)
+        return paginator.get_paginated_response(page)
 
 
 class PatientPrescriptionListView(
@@ -424,7 +450,7 @@ class PatientPrescriptionListView(
                 "encounter__hospital",
                 "clinician",
             )
-            .prefetch_related("items")
+            .prefetch_related("items__medication_schedules")
         )
 
         if requested_status:

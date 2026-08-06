@@ -1,9 +1,11 @@
 import 'package:brainon_mobile/core/router/route_names.dart';
+import 'package:brainon_mobile/features/appointment/providers/appointment_provider.dart';
 import 'package:brainon_mobile/features/medication/providers/medication_provider.dart';
 import 'package:brainon_mobile/features/medication/medication_list_screen.dart';
+import 'package:brainon_mobile/features/notifications/notification_provider.dart';
 import 'package:brainon_mobile/features/patient/providers/patient_profile_provider.dart';
 import 'package:brainon_mobile/shared/models/medication.dart';
-import 'package:brainon_mobile/shared/mock/patient_home_mock.dart';
+import 'package:brainon_mobile/shared/models/appointment.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -32,7 +34,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final patient = patientHomeMock['patient'] as Map<String, dynamic>;
     final profileAsync = ref.watch(patientProfileProvider);
     final patientName = profileAsync.when<String?>(
       data: (profile) => profile.displayName,
@@ -40,12 +41,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       error: (error, stackTrace) => null,
     );
 
-    final nextAppointment =
-        patientHomeMock['next_appointment'] as Map<String, dynamic>;
-
-    final upcomingDates = patientHomeMock['upcoming_dates'] as List<dynamic>;
+    final appointments = ref.watch(patientAppointmentsProvider);
+    final appointmentItems = appointments.valueOrNull ?? const <Appointment>[];
+    final nextAppointment = _nextAppointment(appointmentItems);
+    final upcomingDates = _upcomingDates(appointmentItems);
 
     final medications = ref.watch(todayMedicationsProvider);
+    final notificationCount =
+        ref.watch(unreadNotificationCountProvider).valueOrNull ?? 0;
 
     return Scaffold(
       // 챗봇 버튼
@@ -56,9 +59,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            _buildTopBar(
-              notificationCount: patient['notification_count'] as int,
-            ),
+            _buildTopBar(notificationCount: notificationCount),
 
             Expanded(
               child: SingleChildScrollView(
@@ -79,6 +80,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         _buildScheduleCard(
                           appointment: nextAppointment,
                           upcomingDates: upcomingDates,
+                          loading: appointments.isLoading,
+                          failed: appointments.hasError,
                         ),
 
                         const SizedBox(height: 18),
@@ -143,7 +146,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 IconButton(
                   tooltip: '알림',
                   onPressed: () {
-                    _showMessage('알림 목록 화면은 추후 연결할 예정입니다.');
+                    context.pushNamed(RouteNames.notifications);
                   },
                   icon: const Icon(
                     Icons.notifications_none_rounded,
@@ -217,8 +220,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // 진료 일정 카드
   // ============================================================
   Widget _buildScheduleCard({
-    required Map<String, dynamic> appointment,
+    required Map<String, dynamic>? appointment,
     required List<dynamic> upcomingDates,
+    required bool loading,
+    required bool failed,
   }) {
     return Container(
       padding: const EdgeInsets.all(18),
@@ -285,179 +290,257 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
           const SizedBox(height: 18),
 
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                SizedBox(
-                  width: 66,
-                  child: Column(
-                    children: [
-                      Text(
-                        appointment['date'] as String,
-                        style: const TextStyle(
-                          color: primaryColor,
-                          fontSize: 23,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        appointment['day'] as String,
-                        style: const TextStyle(
-                          color: subTextColor,
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEAF2FF),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          appointment['d_day'] as String,
+          if (loading)
+            const Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (failed)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Center(
+                child: TextButton.icon(
+                  onPressed: () => ref.invalidate(patientAppointmentsProvider),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('진료 일정 다시 불러오기'),
+                ),
+              ),
+            )
+          else if (appointment == null)
+            const Padding(
+              padding: EdgeInsets.all(20),
+              child: Center(child: Text('예정된 진료 일정이 없습니다.')),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 66,
+                    child: Column(
+                      children: [
+                        Text(
+                          appointment['date'] as String,
                           style: const TextStyle(
                             color: primaryColor,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
+                            fontSize: 23,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(width: 12),
-
-                Container(
-                  width: 1,
-                  height: 112,
-                  color: const Color(0xFFE5E7EB),
-                ),
-
-                const SizedBox(width: 16),
-
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 6,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          Text(
-                            appointment['time'] as String,
+                        const SizedBox(height: 4),
+                        Text(
+                          appointment['day'] as String,
+                          style: const TextStyle(
+                            color: subTextColor,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEAF2FF),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            appointment['d_day'] as String,
                             style: const TextStyle(
-                              color: textColor,
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
+                              color: primaryColor,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
-                          _buildTypeChip(appointment['type'] as String),
-                        ],
-                      ),
-
-                      const SizedBox(height: 10),
-
-                      Text(
-                        '${appointment['hospital_name']} '
-                        '${appointment['department']}',
-                        style: const TextStyle(
-                          color: textColor,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
                         ),
-                      ),
+                      ],
+                    ),
+                  ),
 
-                      const SizedBox(height: 6),
+                  const SizedBox(width: 12),
 
-                      Text(
-                        appointment['doctor_name'] as String,
-                        style: const TextStyle(
-                          color: subTextColor,
-                          fontSize: 15,
-                        ),
-                      ),
+                  Container(
+                    width: 1,
+                    height: 112,
+                    color: const Color(0xFFE5E7EB),
+                  ),
 
-                      const SizedBox(height: 8),
+                  const SizedBox(width: 16),
 
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.location_on_outlined,
-                            size: 18,
-                            color: Color(0xFF9CA3AF),
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              appointment['location'] as String,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 6,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              appointment['time'] as String,
                               style: const TextStyle(
-                                color: subTextColor,
-                                fontSize: 13,
+                                color: textColor,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
                               ),
                             ),
+                            _buildTypeChip(appointment['type'] as String),
+                          ],
+                        ),
+
+                        const SizedBox(height: 10),
+
+                        Text(
+                          '${appointment['hospital_name']} '
+                          '${appointment['department']}',
+                          style: const TextStyle(
+                            color: textColor,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
                           ),
-                        ],
-                      ),
-                    ],
+                        ),
+
+                        const SizedBox(height: 6),
+
+                        Text(
+                          appointment['doctor_name'] as String,
+                          style: const TextStyle(
+                            color: subTextColor,
+                            fontSize: 15,
+                          ),
+                        ),
+
+                        const SizedBox(height: 8),
+
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.location_on_outlined,
+                              size: 18,
+                              color: Color(0xFF9CA3AF),
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                appointment['location'] as String,
+                                style: const TextStyle(
+                                  color: subTextColor,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
 
-                const SizedBox(width: 8),
+                  const SizedBox(width: 8),
 
-                const Icon(
-                  Icons.calendar_month_outlined,
-                  color: primaryColor,
-                  size: 28,
-                ),
-              ],
+                  const Icon(
+                    Icons.calendar_month_outlined,
+                    color: primaryColor,
+                    size: 28,
+                  ),
+                ],
+              ),
             ),
-          ),
 
-          const SizedBox(height: 18),
-
-          const Text(
-            '다가오는 예약',
-            style: TextStyle(
-              color: textColor,
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
+          if (upcomingDates.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            const Text(
+              '다가오는 예약',
+              style: TextStyle(
+                color: textColor,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+              ),
             ),
-          ),
 
-          const SizedBox(height: 10),
+            const SizedBox(height: 10),
 
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFAFBFD),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFAFBFD),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+              ),
+              child: Row(
+                children: upcomingDates.map((dateData) {
+                  final date = dateData as Map<String, dynamic>;
+
+                  return Expanded(child: _buildUpcomingDate(date));
+                }).toList(),
+              ),
             ),
-            child: Row(
-              children: upcomingDates.map((dateData) {
-                final date = dateData as Map<String, dynamic>;
-
-                return Expanded(child: _buildUpcomingDate(date));
-              }).toList(),
-            ),
-          ),
+          ],
         ],
       ),
     );
+  }
+
+  Map<String, dynamic>? _nextAppointment(List<Appointment> appointments) {
+    final now = DateTime.now();
+    final upcoming =
+        appointments
+            .where(
+              (item) =>
+                  !item.scheduledAt.isBefore(now) &&
+                  !item.status.toLowerCase().contains('취소'),
+            )
+            .toList()
+          ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+    if (upcoming.isEmpty) return null;
+    final item = upcoming.first;
+    const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+    return {
+      'date': item.scheduledAt.day.toString().padLeft(2, '0'),
+      'day': weekdays[item.scheduledAt.weekday - 1],
+      'd_day': item.dDay,
+      'time':
+          '${item.scheduledAt.hour.toString().padLeft(2, '0')}:${item.scheduledAt.minute.toString().padLeft(2, '0')}',
+      'type': item.type.isEmpty ? item.status : item.type,
+      'hospital_name': item.hospitalName,
+      'department': item.department,
+      'doctor_name': item.doctorName,
+      'location': item.location,
+    };
+  }
+
+  List<Map<String, dynamic>> _upcomingDates(List<Appointment> appointments) {
+    final scheduledDays =
+        appointments
+            .where((item) => !item.scheduledAt.isBefore(DateTime.now()))
+            .map(
+              (item) => DateTime(
+                item.scheduledAt.year,
+                item.scheduledAt.month,
+                item.scheduledAt.day,
+              ),
+            )
+            .toSet();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final monday = today.subtract(Duration(days: today.weekday - 1));
+    const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+    return List.generate(7, (offset) {
+      final date = monday.add(Duration(days: offset));
+      return <String, dynamic>{
+        'day': weekdays[date.weekday - 1],
+        'date': date.day.toString(),
+        'is_selected': false,
+        'has_schedule': scheduledDays.contains(date),
+      };
+    });
   }
 
   Widget _buildTypeChip(String type) {
@@ -696,7 +779,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget _buildChatbotButton() {
     return FloatingActionButton(
       onPressed: () {
-        _showMessage('AI 건강 챗봇은 추후 Gemini와 연결할 예정입니다.');
+        context.pushNamed(RouteNames.chatbot);
       },
       backgroundColor: primaryColor,
       foregroundColor: Colors.white,
@@ -722,17 +805,5 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
       ],
     );
-  }
-
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
   }
 }

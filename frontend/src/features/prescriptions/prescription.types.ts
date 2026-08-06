@@ -15,6 +15,7 @@ export interface PrescriptionItem {
   instructions: string
   start_date: string
   end_date: string | null
+  meal_times: Array<'BREAKFAST' | 'LUNCH' | 'DINNER'>
 }
 
 export interface Prescription {
@@ -62,6 +63,7 @@ export interface PrescriptionItemInput {
   instructions: string
   start_date: string
   end_date: string | null
+  meal_times: Array<'BREAKFAST' | 'LUNCH' | 'DINNER'>
 }
 
 export interface PrescriptionCreateInput {

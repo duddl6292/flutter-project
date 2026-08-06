@@ -1,8 +1,10 @@
 import 'package:brainon_mobile/features/home/home_screen.dart';
+import 'package:brainon_mobile/features/appointment/providers/appointment_provider.dart';
 import 'package:brainon_mobile/features/medication/providers/medication_provider.dart';
 import 'package:brainon_mobile/features/patient/my_page_screen.dart';
 import 'package:brainon_mobile/features/patient/providers/patient_profile_provider.dart';
 import 'package:brainon_mobile/shared/models/medication.dart';
+import 'package:brainon_mobile/shared/models/appointment.dart';
 import 'package:brainon_mobile/shared/models/patient_profile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -24,8 +26,12 @@ void main() {
   ) async {
     await tester.pumpWidget(
       ProviderScope(
+        key: UniqueKey(),
         overrides: [
           patientProfileProvider.overrideWith((ref) async => profile),
+          patientAppointmentsProvider.overrideWith(
+            (ref) async => const <Appointment>[],
+          ),
           todayMedicationsProvider.overrideWith(
             (ref) async => const <Medication>[],
           ),
@@ -41,6 +47,7 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
+        key: UniqueKey(),
         overrides: [
           patientProfileProvider.overrideWith((ref) async => profile),
         ],

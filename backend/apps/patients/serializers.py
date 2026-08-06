@@ -19,6 +19,7 @@ from apps.prescriptions.models import (
     PrescriptionItem,
 )
 from apps.test_results.models import TestResult
+from apps.diagnostics.models import DiagnosticReport
 
 from .access import patient_access_scope
 
@@ -386,6 +387,34 @@ class PatientReleasedTestResultSerializer(
         return bool(obj.result_file_uri)
 
 
+class PatientReleasedDiagnosticReportSerializer(serializers.ModelSerializer):
+    """환자에게 공개된 통합 검사 판독 보고서."""
+
+    test_result_id = serializers.UUIDField(source="examination.id", read_only=True)
+    encounter_id = serializers.UUIDField(source="examination.encounter.id", read_only=True, allow_null=True)
+    hospital_id = serializers.UUIDField(source="examination.hospital.id", read_only=True)
+    hospital_name = serializers.CharField(source="examination.hospital.name", read_only=True)
+    test_type = serializers.CharField(source="examination.category", read_only=True)
+    performed_at = serializers.SerializerMethodField()
+    status_label = serializers.CharField(source="get_status_display", read_only=True)
+    clinician_comment = serializers.CharField(source="conclusion", read_only=True)
+    has_result_file = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DiagnosticReport
+        fields = [
+            "test_result_id", "encounter_id", "hospital_id", "hospital_name",
+            "test_type", "title", "performed_at", "status", "status_label",
+            "summary", "clinician_comment", "released_at", "has_result_file",
+        ]
+
+    def get_has_result_file(self, obj: DiagnosticReport) -> bool:
+        return obj.assets.exists()
+
+    def get_performed_at(self, obj: DiagnosticReport):
+        return obj.examination.performed_at or obj.issued_at or obj.created_at
+
+
 class PatientPrescriptionItemSerializer(
     serializers.ModelSerializer
 ):
@@ -397,6 +426,7 @@ class PatientPrescriptionItemSerializer(
         source="id",
         read_only=True,
     )
+    meal_times = serializers.SerializerMethodField()
 
     class Meta:
         model = PrescriptionItem
@@ -410,6 +440,19 @@ class PatientPrescriptionItemSerializer(
             "instructions",
             "start_date",
             "end_date",
+            "meal_times",
+        ]
+
+    def get_meal_times(self, obj):
+        labels = {
+            "07:00:00": "BREAKFAST",
+            "12:00:00": "LUNCH",
+            "18:00:00": "DINNER",
+        }
+        return [
+            labels[str(schedule.dose_time)]
+            for schedule in obj.medication_schedules.all()
+            if str(schedule.dose_time) in labels
         ]
 
 

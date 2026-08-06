@@ -1,4 +1,5 @@
 import 'package:brainon_mobile/core/auth/auth_provider.dart';
+import 'package:brainon_mobile/core/router/route_names.dart';
 import 'package:brainon_mobile/features/auth/user_role.dart';
 import 'package:brainon_mobile/features/clinician/appointments/clinician_schedule_screen.dart';
 import 'package:brainon_mobile/features/clinician/consultations/clinician_consultation_provider.dart';
@@ -9,6 +10,7 @@ import 'package:brainon_mobile/features/clinician/patients/clinician_patient_scr
 import 'package:brainon_mobile/features/clinician/profile/clinician_my_page_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 class ClinicianMainScreen extends ConsumerStatefulWidget {
   const ClinicianMainScreen({super.key});
@@ -98,6 +100,12 @@ class _ClinicianMainScreenState extends ConsumerState<ClinicianMainScreen> {
 
       // 하단 탭 화면의 상태를 유지하기 위해 IndexedStack 사용
       body: IndexedStack(index: _selectedIndex, children: screens),
+
+      floatingActionButton: FloatingActionButton(
+        tooltip: 'AI 어시스턴트',
+        onPressed: () => context.pushNamed(RouteNames.chatbot),
+        child: const Icon(Icons.smart_toy_outlined),
+      ),
 
       bottomNavigationBar: DecoratedBox(
         decoration: const BoxDecoration(

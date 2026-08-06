@@ -194,6 +194,10 @@ class CTCaseSerializer(serializers.BaseSerializer):
                 ),
                 "source_url": f"/api/v1/ct-analysis/cases/{case.id}/source/",
                 "mask_url": f"/api/v1/ct-analysis/cases/{case.id}/mask/",
+                "preview_url": (
+                    f"/api/v1/ct-analysis/cases/{case.id}/preview/"
+                    if result.preview_uri else None
+                ),
             }
 
         return {

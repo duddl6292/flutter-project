@@ -1,4 +1,5 @@
 import 'package:brainon_mobile/features/appointment/hospital_select_screen.dart';
+import 'package:brainon_mobile/core/router/route_names.dart';
 import 'package:brainon_mobile/features/appointment/repositories/department_repository.dart';
 import 'package:brainon_mobile/features/appointment/repositories/doctor_repository.dart';
 import 'package:brainon_mobile/shared/models/department.dart';
@@ -6,6 +7,7 @@ import 'package:brainon_mobile/shared/models/doctor.dart';
 import 'package:brainon_mobile/shared/models/hospital.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 class AppointmentCreateScreen extends ConsumerStatefulWidget {
   const AppointmentCreateScreen({required this.onOpenDrawer, super.key});
@@ -411,7 +413,7 @@ class _AppointmentCreateScreenState
           IconButton(
             tooltip: '알림',
             onPressed: () {
-              _showMessage('알림함 기능은 준비 중입니다.');
+              context.pushNamed(RouteNames.notifications);
             },
             icon: const Icon(
               Icons.notifications_none_rounded,

@@ -17,10 +17,7 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -53,10 +50,20 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBgZY4GugHw8PkacCK0EkZ15-lLgmvidfI',
-    appId: '1:654500556535:android:31071061963e2200aaadf2',
-    messagingSenderId: '654500556535',
-    projectId: 'brainon-4',
-    storageBucket: 'brainon-4.firebasestorage.app',
+    apiKey: 'AIzaSyDOJEsV4PxQVgXKh5NSfbhue-NdAFuLIIg',
+    appId: '1:662117625246:android:983e7f7bcd38f7c0e53a8f',
+    messagingSenderId: '662117625246',
+    projectId: 'brainon-cdss',
+    storageBucket: 'brainon-cdss.firebasestorage.app',
+  );
+
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyDKSDRTSVpDtRMoHQQeuC4yuqiNQYbvKXs',
+    appId: '1:662117625246:web:da806c66654beb05e53a8f',
+    messagingSenderId: '662117625246',
+    projectId: 'brainon-cdss',
+    authDomain: 'brainon-cdss.firebaseapp.com',
+    storageBucket: 'brainon-cdss.firebasestorage.app',
+    measurementId: 'G-71T0N2HFMH',
   );
 }

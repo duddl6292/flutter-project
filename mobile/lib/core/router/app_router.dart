@@ -9,6 +9,8 @@ import 'package:brainon_mobile/features/auth/login_screen.dart';
 import 'package:brainon_mobile/features/auth/patient_signup_screen.dart';
 import 'package:brainon_mobile/features/auth/role_selection_screen.dart';
 import 'package:brainon_mobile/features/auth/user_role.dart';
+import 'package:brainon_mobile/features/chatbot/chatbot_screen.dart';
+import 'package:brainon_mobile/features/notifications/notification_screen.dart';
 import 'package:brainon_mobile/features/clinician/clinician_main_screen.dart';
 import 'package:brainon_mobile/features/clinician/patients/clinician_patient_detail_model.dart';
 import 'package:brainon_mobile/features/clinician/patients/clinician_patient_detail_screen.dart';
@@ -19,6 +21,7 @@ import 'package:brainon_mobile/features/clinician/prescriptions/clinician_prescr
 import 'package:brainon_mobile/features/patient/patient_main_screen.dart';
 import 'package:brainon_mobile/features/patient/medical_history/patient_medical_history_detail_screen.dart';
 import 'package:brainon_mobile/features/patient/medical_history/patient_medical_history_screen.dart';
+import 'package:brainon_mobile/features/patient/prescriptions/patient_prescription_screen.dart';
 import 'package:brainon_mobile/features/patient/test_results/patient_test_result_detail_screen.dart';
 import 'package:brainon_mobile/shared/models/appointment.dart';
 import 'package:flutter/foundation.dart';
@@ -144,6 +147,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           consultationId: state.pathParameters['consultationId']!,
         ),
       ),
+      GoRoute(
+        path: '/consultations/:consultationId',
+        builder: (context, state) => ClinicianConsultationDetailScreen(
+          consultationId: state.pathParameters['consultationId']!,
+        ),
+      ),
 
       // ============================================================
       // 기존 환자 홈
@@ -226,6 +235,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return const notification_settings.NotificationSettingsScreen();
         },
       ),
+      GoRoute(
+        path: '/notifications',
+        name: RouteNames.notifications,
+        builder: (context, state) => const NotificationScreen(),
+      ),
+      GoRoute(
+        path: '/chatbot',
+        name: RouteNames.chatbot,
+        builder: (context, state) => const ChatbotScreen(),
+      ),
 
       // ============================================================
       // 개인정보 관리
@@ -269,6 +288,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => PatientMedicalHistoryDetailScreen(
           encounterId: state.pathParameters['encounterId']!,
         ),
+      ),
+      GoRoute(
+        path: '/patient/prescriptions',
+        name: RouteNames.patientPrescriptions,
+        builder: (context, state) => const PatientPrescriptionScreen(),
       ),
     ],
     redirect: (context, state) {
@@ -332,12 +356,13 @@ String? authRedirect(AuthState authState, String location) {
       location == '/patient/signup' ||
       location == '/home' ||
       location.startsWith('/appointments') ||
-      location == '/notification-settings' ||
+      location == '/notifications' ||
       location == '/personal-info' ||
       location == '/app-info' ||
       location == '/favorite-hospitals' ||
       location.startsWith('/patient/test-results/') ||
-      location.startsWith('/patient/medical-history');
+      location.startsWith('/patient/medical-history') ||
+      location.startsWith('/patient/prescriptions');
 
   // 의료진이 환자 전용 화면으로 접근한 경우
   if (role == UserRole.clinician && isPatientRoute) {

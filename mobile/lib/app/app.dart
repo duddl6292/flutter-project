@@ -1,4 +1,5 @@
 import 'package:brainon_mobile/app/app_theme.dart';
+import 'package:brainon_mobile/core/notifications/fcm_service.dart';
 import 'package:brainon_mobile/core/router/app_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -10,6 +11,8 @@ class BrainOnApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
+    ref.watch(fcmRegistrationProvider);
+    notificationPathHandler = router.go;
 
     return MaterialApp.router(
       title: '호닥',

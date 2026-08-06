@@ -24,6 +24,8 @@ abstract final class RouteNames {
   static const String clinicianConsultationDetail =
       'clinicianConsultationDetail';
   static const String notificationSettings = 'notification-settings';
+  static const String notifications = 'notifications';
+  static const String chatbot = 'chatbot';
   static const String personalInfo = 'personal-info';
   static const String appInfo = 'app-info';
   static const String favoriteHospitals = 'favorite-hospitals';
@@ -31,5 +33,6 @@ abstract final class RouteNames {
   static const String patientMedicalHistory = 'patient-medical-history';
   static const String patientMedicalHistoryDetail =
       'patient-medical-history-detail';
+  static const String patientPrescriptions = 'patient-prescriptions';
   static const String loading = 'loading';
 }

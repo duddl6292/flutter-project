@@ -187,6 +187,45 @@ class _MedicationCard extends StatelessWidget {
             ],
           ),
           _required(fields.frequency, '복용 빈도'),
+          const SizedBox(height: 8),
+          StatefulBuilder(
+            builder: (context, setMealState) => FormField<Set<String>>(
+              initialValue: fields.mealTimes,
+              validator: (_) => fields.mealTimes.isEmpty
+                  ? '복약 알림 시간을 하나 이상 선택해 주세요.'
+                  : null,
+              builder: (form) => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('복약 알림 시간', style: TextStyle(fontWeight: FontWeight.w700)),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      for (final option in const [
+                        ('BREAKFAST', '아침 07:00'),
+                        ('LUNCH', '점심 12:00'),
+                        ('DINNER', '저녁 18:00'),
+                      ])
+                        FilterChip(
+                          label: Text(option.$2),
+                          selected: fields.mealTimes.contains(option.$1),
+                          onSelected: (selected) {
+                            setMealState(() {
+                              selected
+                                  ? fields.mealTimes.add(option.$1)
+                                  : fields.mealTimes.remove(option.$1);
+                              form.didChange(fields.mealTimes);
+                            });
+                          },
+                        ),
+                    ],
+                  ),
+                  if (form.hasError)
+                    Text(form.errorText!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+                ],
+              ),
+            ),
+          ),
           TextFormField(
             controller: fields.route,
             decoration: const InputDecoration(labelText: '투여 경로'),
@@ -288,6 +327,7 @@ class _MedicationFields {
   final instructions = TextEditingController();
   DateTime startDate = DateTime.now();
   DateTime? endDate;
+  final Set<String> mealTimes = {'BREAKFAST'};
 
   PrescriptionItemInput toInput() => PrescriptionItemInput(
     medicineName: name.text.trim(),
@@ -298,6 +338,7 @@ class _MedicationFields {
     instructions: instructions.text.trim(),
     startDate: startDate,
     endDate: endDate,
+    mealTimes: mealTimes.toList(),
   );
   void dispose() {
     name.dispose();

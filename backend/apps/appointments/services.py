@@ -148,7 +148,7 @@ def notify_appointment(
     body: str,
     event: str,
 ) -> Notification:
-    return Notification.objects.create(
+    clinician_notification = Notification.objects.create(
         recipient=appointment.clinician.user,
         type=Notification.Type.APPOINTMENT,
         title=title,
@@ -159,6 +159,20 @@ def notify_appointment(
             "event": event,
         },
     )
+    patient_user = appointment.patient.user
+    if patient_user is not None:
+        Notification.objects.create(
+            recipient=patient_user,
+            type=Notification.Type.APPOINTMENT,
+            title=title,
+            body=body,
+            data={
+                "appointment_id": str(appointment.id),
+                "path": "/appointments",
+                "event": event,
+            },
+        )
+    return clinician_notification
 
 
 @transaction.atomic

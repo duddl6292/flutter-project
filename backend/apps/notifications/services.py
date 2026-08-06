@@ -239,6 +239,7 @@ def send_web_push(
     token: str,
     data: dict[str, str],
     urgency: str,
+    platform: str = Device.Platform.WEB,
 ) -> str:
     """Firebase Admin SDK로 웹 데이터 메시지를 한 건 전송한다."""
 
@@ -247,6 +248,25 @@ def send_web_push(
     message = messaging.Message(
         data=data,
         token=token,
+        notification=(
+            messaging.Notification(
+                title=data.get("title", "BrainOn"),
+                body=data.get("body", ""),
+            )
+            if platform != Device.Platform.WEB
+            else None
+        ),
+        android=(
+            messaging.AndroidConfig(
+                priority="high" if urgency == "high" else "normal",
+                notification=messaging.AndroidNotification(
+                    channel_id="brainon_high_v2",
+                    sound="default",
+                ),
+            )
+            if platform == Device.Platform.ANDROID
+            else None
+        ),
         webpush=messaging.WebpushConfig(
             headers={
                 "TTL": "3600",
@@ -363,14 +383,10 @@ def dispatch_web_push(notification_id) -> int:
     except Notification.DoesNotExist:
         return 0
 
-    devices = list(
-        Device.objects.filter(
-            user=notification.recipient,
-            platform=Device.Platform.WEB,
-            client_type=Device.ClientType.CLINICIAN_WEB,
-            is_active=True,
-        )
-    )
+    devices = list(Device.objects.filter(
+        user=notification.recipient,
+        is_active=True,
+    ))
     if not devices:
         return 0
 
@@ -418,6 +434,7 @@ def dispatch_web_push(notification_id) -> int:
                 token=device.fcm_token,
                 data=push_data,
                 urgency=urgency,
+                platform=device.platform,
             )
         except Exception as exc:  # Firebase 오류는 업무 요청을 실패시키지 않는다.
             failed_at = timezone.now()

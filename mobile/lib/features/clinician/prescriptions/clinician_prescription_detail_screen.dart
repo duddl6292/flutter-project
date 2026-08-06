@@ -59,6 +59,7 @@ class ClinicianPrescriptionDetailScreen extends ConsumerWidget {
                       Text(
                         '${medicine.dosage}${medicine.doseUnit} · ${medicine.frequency}',
                       ),
+                      Text('복약 알림: ${medicine.mealTimes.map(_mealLabel).join(', ')}'),
                       if (medicine.route.isNotEmpty)
                         Text('투여 경로: ${medicine.route}'),
                       if (medicine.instructions.isNotEmpty)
@@ -91,3 +92,10 @@ class ClinicianPrescriptionDetailScreen extends ConsumerWidget {
           ),
         );
 }
+
+String _mealLabel(String value) => switch (value) {
+  'BREAKFAST' => '아침 07:00',
+  'LUNCH' => '점심 12:00',
+  'DINNER' => '저녁 18:00',
+  _ => value,
+};

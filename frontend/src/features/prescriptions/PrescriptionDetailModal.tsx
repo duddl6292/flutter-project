@@ -242,6 +242,12 @@ export function PrescriptionDetailModal({
                     <div>
                       <dt>복용 빈도</dt>
                       <dd>{item.frequency}</dd>
+                      <dt>복약 알림</dt>
+                      <dd>{item.meal_times.map((meal) => ({
+                        BREAKFAST: '아침 07:00',
+                        LUNCH: '점심 12:00',
+                        DINNER: '저녁 18:00',
+                      }[meal])).join(', ') || '-'}</dd>
                     </div>
                     <div>
                       <dt>투여 경로</dt>

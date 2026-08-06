@@ -18,4 +18,5 @@ urlpatterns = [
     path("cases/<uuid:case_id>/run/", CTCaseRunView.as_view(), name="case-run"),
     path("cases/<uuid:case_id>/source/", CTCaseAssetView.as_view(), {"asset": "source"}, name="case-source"),
     path("cases/<uuid:case_id>/mask/", CTCaseAssetView.as_view(), {"asset": "mask"}, name="case-mask"),
+    path("cases/<uuid:case_id>/preview/", CTCaseAssetView.as_view(), {"asset": "preview"}, name="case-preview"),
 ]

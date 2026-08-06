@@ -18,6 +18,7 @@ class _State extends ConsumerState<ClinicianConsultationCreateScreen> {
   final formKey = GlobalKey<FormState>();
   final subject = TextEditingController();
   final question = TextEditingController();
+  final clinicianSearch = TextEditingController();
   ConsultationContext? selectedContext;
   ConsultationClinician? consultant;
   String priority = 'ROUTINE';
@@ -28,6 +29,7 @@ class _State extends ConsumerState<ClinicianConsultationCreateScreen> {
   void dispose() {
     subject.dispose();
     question.dispose();
+    clinicianSearch.dispose();
     super.dispose();
   }
 
@@ -146,6 +148,16 @@ class _State extends ConsumerState<ClinicianConsultationCreateScreen> {
                     const SizedBox(height: 18),
                     const _RequiredLabel('요청 의료진'),
                     const SizedBox(height: 8),
+                    TextField(
+                      controller: clinicianSearch,
+                      enabled: !saving,
+                      decoration: _inputDecoration(
+                        hintText: '이름, 진료과 또는 병원으로 검색',
+                        prefixIcon: Icons.search_rounded,
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                    const SizedBox(height: 8),
                     clinicians.when(
                       loading: () => const LinearProgressIndicator(
                         color: ClinicianUiColors.primary,
@@ -156,9 +168,14 @@ class _State extends ConsumerState<ClinicianConsultationCreateScreen> {
                             ref.invalidate(consultationCliniciansProvider),
                       ),
                       data: (items) {
-                        final available = items
-                            .where((item) => item.id != myId)
-                            .toList();
+                        final keyword = clinicianSearch.text.trim().toLowerCase();
+                        final available = items.where((item) {
+                          if (item.id == myId) return false;
+                          return keyword.isEmpty ||
+                              item.name.toLowerCase().contains(keyword) ||
+                              item.departmentName.toLowerCase().contains(keyword) ||
+                              item.hospitalName.toLowerCase().contains(keyword);
+                        }).toList();
                         return DropdownButtonFormField<ConsultationClinician>(
                           initialValue: consultant,
                           isExpanded: true,
@@ -367,15 +384,29 @@ class _State extends ConsumerState<ClinicianConsultationCreateScreen> {
       value == null || value.trim().isEmpty ? '필수 항목입니다.' : null;
 
   Future<void> pickDueAt() async {
+    final now = DateTime.now();
     final date = await showDatePicker(
       context: context,
-      firstDate: DateTime.now().add(const Duration(days: 1)),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-      initialDate: DateTime.now().add(const Duration(days: 1)),
+      firstDate: DateTime(now.year, now.month, now.day),
+      lastDate: now.add(const Duration(days: 365)),
+      initialDate: dueAt ?? now.add(const Duration(days: 1)),
     );
-    if (date != null) {
-      setState(() => dueAt = DateTime(date.year, date.month, date.day, 18));
+    if (date == null || !mounted) return;
+    final initial = dueAt == null
+        ? const TimeOfDay(hour: 18, minute: 0)
+        : TimeOfDay.fromDateTime(dueAt!);
+    final time = await showTimePicker(context: context, initialTime: initial);
+    if (time == null) return;
+    final selected = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    if (!selected.isAfter(DateTime.now())) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('답변 희망 일시는 현재보다 이후로 선택해 주세요.')),
+        );
+      }
+      return;
     }
+    setState(() => dueAt = selected);
   }
 }
 

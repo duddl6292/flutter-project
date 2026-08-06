@@ -293,11 +293,22 @@ class CTCaseAssetView(APIView):
             if job is None:
                 raise Http404
             try:
-                uri = job.result.mask_uri
+                result = job.result
+                uri = (
+                    result.preview_uri
+                    if asset == "preview"
+                    else result.mask_uri
+                )
             except Exception as exc:
                 raise Http404 from exc
-            filename = "mask.nii.gz"
-            content_type = "application/gzip"
+            if asset == "preview":
+                if not uri:
+                    raise Http404
+                filename = uri.rsplit("/", 1)[-1] or "preview.png"
+                content_type = "image/png"
+            else:
+                filename = "mask.nii.gz"
+                content_type = "application/gzip"
 
         try:
             stream, blob = open_gcs_uri(uri)

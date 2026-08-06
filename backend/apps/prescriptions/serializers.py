@@ -1,9 +1,18 @@
 from django.db import transaction
+from datetime import time
 from rest_framework import serializers
 
 from apps.clinical_records.models import ClinicalRecord
 
 from .models import Prescription, PrescriptionItem
+from apps.medications.models import MedicationSchedule
+
+
+MEAL_TIMES = {
+    "BREAKFAST": time(7, 0),
+    "LUNCH": time(12, 0),
+    "DINNER": time(18, 0),
+}
 
 
 class PrescriptionItemSerializer(
@@ -13,6 +22,7 @@ class PrescriptionItemSerializer(
         source="id",
         read_only=True,
     )
+    meal_times = serializers.SerializerMethodField()
 
     class Meta:
         model = PrescriptionItem
@@ -26,6 +36,15 @@ class PrescriptionItemSerializer(
             "instructions",
             "start_date",
             "end_date",
+            "meal_times",
+        ]
+
+    def get_meal_times(self, obj):
+        by_time = {value: key for key, value in MEAL_TIMES.items()}
+        return [
+            by_time[schedule.dose_time]
+            for schedule in obj.medication_schedules.all()
+            if schedule.dose_time in by_time
         ]
 
 
@@ -102,6 +121,14 @@ class ClinicianPrescriptionSerializer(
 class PrescriptionItemInputSerializer(
     serializers.ModelSerializer
 ):
+    meal_times = serializers.ListField(
+        child=serializers.ChoiceField(choices=tuple(MEAL_TIMES)),
+        allow_empty=False,
+        required=False,
+        default=["BREAKFAST"],
+        write_only=True,
+    )
+
     class Meta:
         model = PrescriptionItem
         fields = [
@@ -113,6 +140,7 @@ class PrescriptionItemInputSerializer(
             "instructions",
             "start_date",
             "end_date",
+            "meal_times",
         ]
 
     def validate(self, attrs):
@@ -191,10 +219,22 @@ class ClinicianPrescriptionCreateSerializer(
         )
 
         for item_data in items_data:
-            PrescriptionItem.objects.create(
+            meal_times = item_data.pop("meal_times")
+            item = PrescriptionItem.objects.create(
                 prescription=prescription,
                 **item_data,
             )
+            MedicationSchedule.objects.bulk_create([
+                MedicationSchedule(
+                    prescription_item=item,
+                    dose_time=MEAL_TIMES[meal],
+                    days_of_week=[],
+                    start_date=item.start_date,
+                    end_date=item.end_date,
+                    is_active=True,
+                )
+                for meal in meal_times
+            ])
 
         return prescription
 
@@ -205,4 +245,3 @@ class PrescriptionStatusUpdateSerializer(
     status = serializers.ChoiceField(
         choices=Prescription.Status.choices,
     )
-

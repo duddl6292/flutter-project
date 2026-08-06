@@ -62,7 +62,6 @@ class ClinicianDrawer extends ConsumerWidget {
                   _DrawerMenuItem(
                     icon: Icons.notifications_none_rounded,
                     title: '알림센터',
-                    badgeCount: 3,
                     onTap: () {
                       _openFeature(
                         context,
@@ -70,6 +69,25 @@ class ClinicianDrawer extends ConsumerWidget {
                       );
                     },
                   ),
+                  const Divider(height: 24, color: _border),
+
+                  _DrawerMenuItem(
+                    icon: Icons.smart_toy_outlined,
+                    title: 'AI 어시스턴트',
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      context.pushNamed(RouteNames.chatbot);
+                    },
+                  ),
+                  _DrawerMenuItem(
+                    icon: Icons.tune_rounded,
+                    title: '푸시 알림 설정',
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      context.pushNamed(RouteNames.notificationSettings);
+                    },
+                  ),
+
                   const Divider(height: 24, color: _border),
 
                   const _DrawerSectionTitle('업무'),
@@ -312,7 +330,6 @@ class _DrawerMenuItem extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.onTap,
-    this.badgeCount,
     this.iconColor = const Color(0xFF334155),
     this.textColor = const Color(0xFF111827),
   });
@@ -320,7 +337,6 @@ class _DrawerMenuItem extends StatelessWidget {
   final IconData icon;
   final String title;
   final VoidCallback onTap;
-  final int? badgeCount;
   final Color iconColor;
   final Color textColor;
 
@@ -347,27 +363,6 @@ class _DrawerMenuItem extends StatelessWidget {
                   ),
                 ),
               ),
-              if (badgeCount != null && badgeCount! > 0)
-                Container(
-                  constraints: const BoxConstraints(
-                    minWidth: 20,
-                    minHeight: 20,
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  alignment: Alignment.center,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFE34255),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Text(
-                    '$badgeCount',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
             ],
           ),
         ),

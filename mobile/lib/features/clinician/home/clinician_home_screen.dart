@@ -3,6 +3,7 @@ import 'package:brainon_mobile/core/router/route_names.dart';
 import 'package:brainon_mobile/features/clinician/home/clinician_dashboard_model.dart';
 import 'package:brainon_mobile/features/clinician/home/clinician_home_provider.dart';
 import 'package:brainon_mobile/features/clinician/clinician_feature_navigation.dart';
+import 'package:brainon_mobile/features/notifications/notification_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -29,6 +30,8 @@ class ClinicianHomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dashboardAsync = ref.watch(clinicianDashboardProvider);
+    final notificationCount =
+        ref.watch(unreadNotificationCountProvider).valueOrNull ?? 0;
 
     return dashboardAsync.when(
       loading: () => const _DashboardLoadingView(),
@@ -44,6 +47,7 @@ class ClinicianHomeScreen extends ConsumerWidget {
         dashboard: dashboard,
         onOpenDrawer: onOpenDrawer,
         onSelectTab: onSelectTab,
+        notificationCount: notificationCount,
         onRefresh: () async {
           final refresh = ref.refresh(clinicianDashboardProvider.future);
           await refresh;
@@ -64,6 +68,7 @@ class _ClinicianHomeContent extends StatelessWidget {
     required this.onOpenDrawer,
     required this.onSelectTab,
     required this.onRefresh,
+    required this.notificationCount,
   });
 
   static const _background = Color(0xFFF6F8FC);
@@ -79,6 +84,7 @@ class _ClinicianHomeContent extends StatelessWidget {
   final VoidCallback onOpenDrawer;
   final ValueChanged<int> onSelectTab;
   final Future<void> Function() onRefresh;
+  final int notificationCount;
 
   @override
   Widget build(BuildContext context) {
@@ -152,9 +158,10 @@ class _ClinicianHomeContent extends StatelessWidget {
           IconButton(
             tooltip: '알림',
             onPressed: () => ClinicianFeatureNavigation.notifications(context),
-            icon: const Badge(
-              label: Text('2'),
-              child: Icon(
+            icon: Badge(
+              isLabelVisible: notificationCount > 0,
+              label: Text('$notificationCount'),
+              child: const Icon(
                 Icons.notifications_none_rounded,
                 size: 27,
                 color: _text,

@@ -2,6 +2,8 @@ import 'package:brainon_mobile/core/auth/auth_provider.dart';
 import 'package:brainon_mobile/core/router/route_names.dart';
 import 'package:brainon_mobile/features/patient/providers/patient_profile_provider.dart';
 import 'package:brainon_mobile/features/medication/medication_list_screen.dart';
+import 'package:brainon_mobile/features/patient/support/customer_service_screen.dart';
+import 'package:brainon_mobile/features/patient/support/notice_list_screen.dart';
 import 'package:brainon_mobile/shared/models/patient_profile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -98,7 +100,7 @@ class MyPageScreen extends ConsumerWidget {
             child: IconButton(
               tooltip: '알림',
               onPressed: () {
-                _showPreparingMessage(context, '알림함');
+                context.pushNamed(RouteNames.notifications);
               },
               icon: const Icon(
                 Icons.notifications_none_rounded,
@@ -206,6 +208,16 @@ class MyPageScreen extends ConsumerWidget {
             _buildDivider(),
             _buildMenuItem(
               context: context,
+              icon: Icons.receipt_long_outlined,
+              title: '내 처방전',
+              subtitle: '의료진이 발급한 처방전을 확인해요.',
+              onTap: () {
+                context.pushNamed(RouteNames.patientPrescriptions);
+              },
+            ),
+            _buildDivider(),
+            _buildMenuItem(
+              context: context,
               icon: Icons.medication_outlined,
               title: '복약 관리',
               subtitle: '처방약과 복약 일정을 관리해요.',
@@ -268,7 +280,11 @@ class MyPageScreen extends ConsumerWidget {
               icon: Icons.campaign_outlined,
               title: '공지사항',
               onTap: () {
-                _showPreparingMessage(context, '공지사항');
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const NoticeListScreen(),
+                  ),
+                );
               },
             ),
             _buildDivider(),
@@ -277,7 +293,11 @@ class MyPageScreen extends ConsumerWidget {
               icon: Icons.help_outline_rounded,
               title: '고객센터',
               onTap: () {
-                _showPreparingMessage(context, '고객센터');
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const CustomerServiceScreen(),
+                  ),
+                );
               },
             ),
             _buildDivider(),
@@ -392,7 +412,7 @@ class MyPageScreen extends ConsumerWidget {
           IconButton(
             tooltip: '내 정보 수정',
             onPressed: () {
-              _showPreparingMessage(context, '내 정보 수정');
+              context.pushNamed(RouteNames.personalInfo);
             },
             icon: const Icon(
               Icons.chevron_right_rounded,
@@ -605,14 +625,5 @@ class MyPageScreen extends ConsumerWidget {
         context,
       ).showSnackBar(const SnackBar(content: Text('로그아웃 처리 중 오류가 발생했습니다.')));
     }
-  }
-
-  // ============================================================
-  // 준비 중 안내
-  // ============================================================
-  void _showPreparingMessage(BuildContext context, String featureName) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('$featureName 기능은 준비 중입니다.')));
   }
 }

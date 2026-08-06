@@ -16,11 +16,32 @@ from apps.core.pagination import CommonPageNumberPagination
 from apps.patients.permissions import IsClinician
 
 from .models import Prescription
+from apps.notifications.models import Notification
 from .serializers import (
     ClinicianPrescriptionCreateSerializer,
     ClinicianPrescriptionSerializer,
     PrescriptionStatusUpdateSerializer,
 )
+
+
+def _notify_patient_prescription(prescription):
+    patient_user = prescription.encounter.patient.user
+    if patient_user is None:
+        return None
+    return Notification.objects.get_or_create(
+        recipient=patient_user,
+        deduplication_key=f"prescription:{prescription.id}:active",
+        defaults={
+            "type": Notification.Type.MEDICATION,
+            "title": "새 처방이 등록되었습니다.",
+            "body": "처방약과 복약 안내를 확인해 주세요.",
+            "data": {
+                "prescription_id": str(prescription.id),
+                "path": "/patient",
+                "event": "PRESCRIPTION_ACTIVE",
+            },
+        },
+    )[0]
 
 
 def _clinician_prescriptions(request):
@@ -36,7 +57,7 @@ def _clinician_prescriptions(request):
             "clinical_record",
             "clinician",
         )
-        .prefetch_related("items")
+        .prefetch_related("items__medication_schedules")
     )
 
 
@@ -138,6 +159,9 @@ class ClinicianPrescriptionListCreateView(APIView):
         prescription = _clinician_prescriptions(
             request,
         ).get(id=prescription.id)
+
+        if prescription.status == Prescription.Status.ACTIVE:
+            _notify_patient_prescription(prescription)
 
         return Response(
             {
@@ -297,6 +321,18 @@ class ClinicianPrescriptionStatusView(APIView):
                 "updated_at",
             ],
         )
+        if next_status in {
+            Prescription.Status.COMPLETED,
+            Prescription.Status.DISCONTINUED,
+            Prescription.Status.CANCELLED,
+        }:
+            from apps.medications.models import MedicationSchedule
+            MedicationSchedule.objects.filter(
+                prescription_item__prescription=prescription,
+            ).update(is_active=False, updated_at=timezone.now())
+
+        if next_status == Prescription.Status.ACTIVE:
+            _notify_patient_prescription(prescription)
 
         prescription = _clinician_prescriptions(
             request,

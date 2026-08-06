@@ -18,6 +18,7 @@ class Medication {
 class MedicationScheduleDto {
   const MedicationScheduleDto({
     required this.id,
+    required this.prescriptionItemId,
     required this.name,
     required this.dosage,
     required this.doseUnit,
@@ -29,7 +30,7 @@ class MedicationScheduleDto {
     required this.endDate,
     required this.isActive,
   });
-  final String id, name, dosage, doseUnit, frequency, instructions, doseTime;
+  final String id, prescriptionItemId, name, dosage, doseUnit, frequency, instructions, doseTime;
   final List<int> daysOfWeek;
   final DateTime startDate;
   final DateTime? endDate;
@@ -37,6 +38,7 @@ class MedicationScheduleDto {
 
   factory MedicationScheduleDto.fromJson(Map<String, dynamic> json) => MedicationScheduleDto(
     id: json['schedule_id']?.toString() ?? '',
+    prescriptionItemId: json['prescription_item_id']?.toString() ?? '',
     name: json['medicine_name']?.toString() ?? '',
     dosage: json['dosage']?.toString() ?? '',
     doseUnit: json['dose_unit']?.toString() ?? '',

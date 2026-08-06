@@ -1,5 +1,5 @@
 import 'package:brainon_mobile/core/auth/auth_provider.dart';
-import 'package:brainon_mobile/core/config/app_config.dart';
+import 'package:brainon_mobile/core/api/api_client.dart';
 import 'package:brainon_mobile/core/router/route_names.dart';
 import 'package:brainon_mobile/features/appointment/appointment_create_screen.dart';
 import 'package:brainon_mobile/features/emergency/emergency_guide_screen.dart';
@@ -38,10 +38,7 @@ class _PatientMainScreenState extends ConsumerState<PatientMainScreen> {
   void initState() {
     super.initState();
 
-    _emergencyRepository = HttpEmergencyRepository(
-      // Chrome에서 로컬 백엔드를 실행할 때 사용하는 주소입니다.
-      baseUrl: AppConfig.apiBaseUrl,
-    );
+    _emergencyRepository = HttpEmergencyRepository(ref.read(apiClientProvider));
   }
 
   @override
@@ -106,18 +103,6 @@ class _PatientMainScreenState extends ConsumerState<PatientMainScreen> {
 
   void _closeDrawer() {
     Navigator.of(context).pop();
-  }
-
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
   }
 
   @override
@@ -258,10 +243,28 @@ class _PatientMainScreenState extends ConsumerState<PatientMainScreen> {
 
             _buildDrawerItem(
               icon: Icons.notifications_outlined,
-              title: '알림설정',
+              title: '알림',
               onTap: () {
                 _closeDrawer();
-                _showMessage('알림 설정 화면은 다음 단계에서 연결합니다.');
+                context.pushNamed(RouteNames.notifications);
+              },
+            ),
+
+            _buildDrawerItem(
+              icon: Icons.tune_rounded,
+              title: '푸시 알림 설정',
+              onTap: () {
+                _closeDrawer();
+                context.pushNamed(RouteNames.notificationSettings);
+              },
+            ),
+
+            _buildDrawerItem(
+              icon: Icons.smart_toy_outlined,
+              title: 'AI 건강 챗봇',
+              onTap: () {
+                _closeDrawer();
+                context.pushNamed(RouteNames.chatbot);
               },
             ),
 
