@@ -125,6 +125,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   // ============================================================
 
   Future<void> _submit() async {
+    // 키보드 완료와 로그인 버튼이 거의 동시에 실행되더라도
+    // 진행 중인 로그인 요청이 있으면 같은 요청을 다시 보내지 않는다.
+    if (_isSubmitting) {
+      return;
+    }
+
     // ==========================================================
     // 1. 개발용 임시 로그인 우회
     //
@@ -205,15 +211,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         return;
       }
 
-      // API 응답으로 저장된 실제 사용자 역할 확인
-      final authenticatedRole = ref.read(authProvider).user!.role;
-
-      final destination = switch (authenticatedRole) {
-        UserRole.patient => RouteNames.patientMain,
-        UserRole.clinician => RouteNames.clinicianHome,
-      };
-
-      context.goNamed(destination);
+      // 인증 상태 변경을 감지한 GoRouter가 역할에 맞는 메인 화면으로 이동한다.
+      // 여기서 다시 이동하면 특히 환자 로그인 시 화면 전환이 중복될 수 있다.
     } on Object catch (error) {
       if (!mounted) {
         return;

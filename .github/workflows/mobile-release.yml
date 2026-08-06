@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - apk-mobile
+    tags:
+      - "mobile-v*"
     paths:
       - "mobile/**"
       - ".github/workflows/mobile-release.yml"
@@ -62,10 +64,93 @@ jobs:
           flutter build apk --release
           --dart-define=API_BASE_URL=https://www.brainon.kro.kr
           --dart-define=DISTRIBUTION_CHANNEL=direct
+          --dart-define=UPDATE_METADATA_URL=https://github.com/duddl6292/flutter-project/releases/latest/download/version.json
+
+      - name: Prepare direct release files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version_value="$(awk '/^version:/ { print $2; exit }' pubspec.yaml)"
+          version_name="${version_value%%+*}"
+          version_code="${version_value##*+}"
+
+          if [[ "$GITHUB_REF_TYPE" == "tag" && "$GITHUB_REF_NAME" != "mobile-v${version_name}" ]]; then
+            echo "태그 ${GITHUB_REF_NAME}와 앱 버전 ${version_name}이 일치하지 않습니다."
+            exit 1
+          fi
+
+          mkdir -p build/release
+          cp build/app/outputs/flutter-apk/app-release.apk build/release/brainon.apk
+
+          cat > build/release/version.json <<EOF
+          {
+            "versionName": "${version_name}",
+            "versionCode": ${version_code},
+            "minimumVersionCode": 1,
+            "forceUpdate": false,
+            "message": "업데이트 항목이 있습니다. 업데이트를 진행해 주세요.",
+            "apkUrl": "https://github.com/duddl6292/flutter-project/releases/latest/download/brainon.apk"
+          }
+          EOF
 
       - name: Upload signed APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: brainon-mobile-release-apk
-          path: mobile/build/app/outputs/flutter-apk/app-release.apk
+          path: mobile/build/release/
           if-no-files-found: error
+
+      - name: Build Google Play release AAB
+        if: startsWith(github.ref, 'refs/tags/mobile-v')
+        run: >
+          flutter build appbundle --release
+          --dart-define=API_BASE_URL=https://www.brainon.kro.kr
+          --dart-define=DISTRIBUTION_CHANNEL=play
+
+      - name: Upload Google Play AAB artifact
+        if: startsWith(github.ref, 'refs/tags/mobile-v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: brainon-mobile-play-aab
+          path: mobile/build/app/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+
+  publish-github-release:
+    if: startsWith(github.ref, 'refs/tags/mobile-v')
+    needs: verify-and-build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download direct release files
+        uses: actions/download-artifact@v4
+        with:
+          name: brainon-mobile-release-apk
+          path: release-files
+
+      - name: Upload APK and metadata to GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" \
+              release-files/brainon.apk \
+              release-files/version.json \
+              --clobber \
+              --repo "$GITHUB_REPOSITORY"
+            gh release edit "$GITHUB_REF_NAME" --latest --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              release-files/brainon.apk \
+              release-files/version.json \
+              --target "$GITHUB_SHA" \
+              --title "BrainOn Mobile ${GITHUB_REF_NAME#mobile-v}" \
+              --generate-notes \
+              --latest \
+              --repo "$GITHUB_REPOSITORY"
+          fi
