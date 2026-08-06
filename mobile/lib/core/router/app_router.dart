@@ -302,23 +302,12 @@ String? authRedirect(AuthState authState, String location) {
   // 역할 선택 화면과 로그인 화면
   final isEntryRoute = location == '/' || location == '/login';
 
-  // ==========================================================
-  // 임시 화면 확인용 공개 경로
-  //
-  // 로그인 API가 연결되기 전까지
-  // 환자·의료진 메인 화면 접근을 임시 허용한다.
-  //
-  // 실제 인증 연결 후에는
-  // location == '/patient'
-  // location == '/clinician'
-  // 두 줄을 삭제한다.
-  // ==========================================================
+  // 로그인 API 연결이 완료되어 환자·의료진 메인 화면의 임시 공개 우회를 제거한다.
+  // 회원가입과 비밀번호 찾기 화면만 비로그인 상태에서 접근할 수 있다.
   final isPublicRoute =
       isEntryRoute ||
       location == '/patient/signup' ||
-      location == '/forgot-password' ||
-      location == '/patient' ||
-      location == '/clinician';
+      location == '/forgot-password';
 
   // 로그인하지 않은 사용자는 공개 화면만 접근 가능
   if (!isAuthenticated) {
@@ -337,8 +326,10 @@ String? authRedirect(AuthState authState, String location) {
 
   final isClinicianRoute = location.startsWith('/clinician');
 
+  // 인증된 의료진이 환자 회원가입 화면에 접근하면 의료진 홈으로 이동한다.
   final isPatientRoute =
       location == '/patient' ||
+      location == '/patient/signup' ||
       location == '/home' ||
       location.startsWith('/appointments') ||
       location == '/notification-settings' ||
