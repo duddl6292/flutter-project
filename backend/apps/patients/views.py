@@ -19,6 +19,7 @@ from .serializers import (
     PatientDetailSerializer,
     PatientFavoriteHospitalCreateSerializer,
     PatientFavoriteHospitalSerializer,
+    MedicationRecordMarkTakenInputSerializer,
     PatientMedicalHistorySerializer,
     PatientMedicationRecordSerializer,
     PatientMedicationScheduleSerializer,
@@ -615,6 +616,74 @@ class PatientMedicationRecordListView(
             serializer_class=(
                 PatientMedicationRecordSerializer
             ),
+        )
+
+
+class PatientMedicationRecordMarkTakenView(
+    PatientOwnedDataMixin,
+    APIView,
+):
+    """
+    환자가 복약 완료를 직접 체크/취소한다.
+
+    POST /api/v1/patients/me/medication-records/mark-taken/
+    다시 호출하면(이미 TAKEN 상태) 체크가 취소된다.
+    """
+
+    permission_classes = [IsPatient]
+
+    def post(self, request):
+        patient = self.get_patient(request)
+
+        input_serializer = MedicationRecordMarkTakenInputSerializer(
+            data=request.data,
+        )
+        input_serializer.is_valid(raise_exception=True)
+        schedule_id = input_serializer.validated_data["schedule_id"]
+        scheduled_at = input_serializer.validated_data["scheduled_at"]
+
+        schedule = get_object_or_404(
+            MedicationSchedule.objects.filter(
+                prescription_item__prescription__encounter__patient=(
+                    patient
+                ),
+            ),
+            id=schedule_id,
+        )
+
+        existing = MedicationRecord.objects.filter(
+            schedule=schedule,
+            scheduled_at=scheduled_at,
+        ).first()
+
+        if existing and existing.status == MedicationRecord.Status.TAKEN:
+            existing.delete()
+            return Response(
+                {"data": {"status": "PENDING"}},
+            )
+
+        if existing:
+            existing.status = MedicationRecord.Status.TAKEN
+            existing.taken_at = timezone.now()
+            existing.save(
+                update_fields=["status", "taken_at", "updated_at"],
+            )
+            record = existing
+        else:
+            record = MedicationRecord.objects.create(
+                schedule=schedule,
+                prescription_item=schedule.prescription_item,
+                scheduled_at=scheduled_at,
+                status=MedicationRecord.Status.TAKEN,
+                taken_at=timezone.now(),
+            )
+
+        return Response(
+            {
+                "data": PatientMedicationRecordSerializer(
+                    record,
+                ).data,
+            },
         )
 
 

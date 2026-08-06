@@ -2,6 +2,7 @@ import 'package:brainon_mobile/core/router/route_names.dart';
 import 'package:brainon_mobile/features/appointment/providers/appointment_provider.dart';
 import 'package:brainon_mobile/features/medication/providers/medication_provider.dart';
 import 'package:brainon_mobile/features/medication/medication_list_screen.dart';
+import 'package:brainon_mobile/features/medication/repositories/medication_repository.dart';
 import 'package:brainon_mobile/features/notifications/notification_provider.dart';
 import 'package:brainon_mobile/features/patient/providers/patient_profile_provider.dart';
 import 'package:brainon_mobile/shared/models/medication.dart';
@@ -31,6 +32,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   static const Color primaryColor = Color(0xFF2563EB);
   static const Color textColor = Color(0xFF111827);
   static const Color subTextColor = Color(0xFF6B7280);
+
+  final Set<String> _togglingMedicationIds = {};
+
+  Future<void> _toggleMedicationTaken(Medication item) async {
+    final scheduleId = item.scheduleId;
+    if (scheduleId == null || _togglingMedicationIds.contains(item.id)) {
+      return;
+    }
+
+    setState(() => _togglingMedicationIds.add(item.id));
+    try {
+      await ref
+          .read(medicationRepositoryProvider)
+          .toggleTaken(
+            scheduleId: scheduleId,
+            scheduledAt: item.scheduledAt,
+          );
+      ref.invalidate(todayMedicationsProvider);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('복용 체크에 실패했습니다.\n$error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _togglingMedicationIds.remove(item.id));
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -752,24 +782,68 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ),
 
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8F5FF),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: const Color(0xFFD9CCFF)),
-            ),
-            child: Text(
-              item.completed ? '복용 완료' : '복용 예정',
-              style: const TextStyle(
-                color: Color(0xFF8B5CF6),
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
+          _buildMedicationBadge(item),
         ],
       ),
+    );
+  }
+
+  Widget _buildMedicationBadge(Medication item) {
+    final tappable = item.scheduleId != null;
+    final busy = _togglingMedicationIds.contains(item.id);
+    final badge = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+      decoration: BoxDecoration(
+        color: item.completed
+            ? const Color(0xFFEFFCF3)
+            : const Color(0xFFF8F5FF),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: item.completed
+              ? const Color(0xFFB6E8C6)
+              : const Color(0xFFD9CCFF),
+        ),
+      ),
+      child: busy
+          ? const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (item.completed)
+                  const Padding(
+                    padding: EdgeInsets.only(right: 5),
+                    child: Icon(
+                      Icons.check_circle,
+                      size: 15,
+                      color: Color(0xFF16A34A),
+                    ),
+                  ),
+                Text(
+                  item.completed ? '복용 완료' : '복용 예정',
+                  style: TextStyle(
+                    color: item.completed
+                        ? const Color(0xFF16A34A)
+                        : const Color(0xFF8B5CF6),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+    );
+
+    if (!tappable) {
+      return badge;
+    }
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(24),
+      onTap: busy ? null : () => _toggleMedicationTaken(item),
+      child: badge,
     );
   }
 

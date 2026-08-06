@@ -11,6 +11,7 @@ from .views import (
     PatientListView,
     PatientMedicalHistoryView,
     PatientMedicationRecordListView,
+    PatientMedicationRecordMarkTakenView,
     PatientMedicationScheduleListView,
     PatientMeView,
     PatientNotificationListView,
@@ -64,6 +65,11 @@ urlpatterns = [
         "me/medication-records/",
         PatientMedicationRecordListView.as_view(),
         name="patient-medication-record-list",
+    ),
+    path(
+        "me/medication-records/mark-taken/",
+        PatientMedicationRecordMarkTakenView.as_view(),
+        name="patient-medication-record-mark-taken",
     ),
     path(
         "me/ct-results/",

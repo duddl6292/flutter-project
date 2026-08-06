@@ -8,11 +8,16 @@ class Medication {
     required this.instruction,
     required this.completed,
     required this.takenAt,
+    this.scheduleId,
   });
   final String id, name, dose, period, instruction;
   final DateTime scheduledAt;
   final bool completed;
   final DateTime? takenAt;
+
+  /// 복약 일정(MedicationSchedule)에서 만들어진 항목만 값이 있다.
+  /// 이 값이 있어야 복용 체크(mark-taken) API를 호출할 수 있다.
+  final String? scheduleId;
 }
 
 class MedicationScheduleDto {

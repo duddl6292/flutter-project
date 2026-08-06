@@ -663,6 +663,18 @@ class PatientMedicationRecordSerializer(
             "note",
         ]
 
+
+class MedicationRecordMarkTakenInputSerializer(
+    serializers.Serializer
+):
+    """
+    환자가 복약 체크를 남길 때 사용하는 입력 Serializer.
+    """
+
+    schedule_id = serializers.UUIDField()
+    scheduled_at = serializers.DateTimeField()
+
+
 class PatientFavoriteHospitalSerializer(
     serializers.ModelSerializer
 ):

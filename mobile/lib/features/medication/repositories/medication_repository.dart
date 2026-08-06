@@ -34,6 +34,7 @@ class MedicationRepository {
       }
       return Medication(
         id: schedule.id,
+        scheduleId: schedule.id,
         name: schedule.name,
         dose: '${schedule.dosage}${schedule.doseUnit}',
         scheduledAt: scheduledAt,
@@ -65,6 +66,22 @@ class MedicationRepository {
       }
     }
     return items..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+  });
+
+  /// 복용 체크를 토글한다. 이미 복용 완료 상태면 다시 취소된다.
+  Future<bool> toggleTaken({
+    required String scheduleId,
+    required DateTime scheduledAt,
+  }) => runApiRequest(() async {
+    final response = await _dio.post<Map<String, dynamic>>(
+      '/api/v1/patients/me/medication-records/mark-taken/',
+      data: {
+        'schedule_id': scheduleId,
+        'scheduled_at': scheduledAt.toUtc().toIso8601String(),
+      },
+    );
+    final data = response.data?['data'] as Map<String, dynamic>? ?? const {};
+    return data['status']?.toString() == 'TAKEN';
   });
 
   List<Map<String, dynamic>> _rows(Map<String, dynamic>? body) => (body?['data'] as List<dynamic>? ?? const []).cast<Map<String, dynamic>>();
