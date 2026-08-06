@@ -1,246 +1,594 @@
+import 'package:brainon_mobile/core/api/api_exception.dart';
+import 'package:brainon_mobile/core/router/route_names.dart';
+import 'package:brainon_mobile/features/clinician/home/clinician_dashboard_model.dart';
+import 'package:brainon_mobile/features/clinician/home/clinician_home_provider.dart';
+import 'package:brainon_mobile/features/clinician/clinician_feature_navigation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
-class ClinicianHomeScreen extends StatelessWidget {
-  const ClinicianHomeScreen({super.key});
+/// 의료진 홈 진입 화면
+///
+/// Provider에서 대시보드 데이터를 받아 로딩, 오류, 성공 상태를 처리한다.
+/// 기존 [ClinicianHomeScreen] 호출부를 수정하지 않아도 되도록
+/// 생성자 형태는 그대로 유지한다.
+class ClinicianHomeScreen extends ConsumerWidget {
+  const ClinicianHomeScreen({
+    required this.clinicianName,
+    required this.departmentName,
+    required this.onOpenDrawer,
+    required this.onSelectTab,
+    super.key,
+  });
 
-  static const Color _backgroundColor = Color(0xFFF7F9FC);
-  static const Color _primaryColor = Color(0xFF28669E);
-  static const Color _primaryTextColor = Color(0xFF111827);
-  static const Color _secondaryTextColor = Color(0xFF6B7280);
-  static const Color _borderColor = Color(0xFFE5E7EB);
-  static const Color _iconBackgroundColor = Color(0xFFEAF2FA);
+  final String clinicianName;
+  final String departmentName;
+  final VoidCallback onOpenDrawer;
+  final ValueChanged<int> onSelectTab;
 
-  static const String _clinicianName = '이현우';
-  static const String _department = '신경과';
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final dashboardAsync = ref.watch(clinicianDashboardProvider);
 
-  static const List<_ScheduleItem> _todaySchedules = [
-    _ScheduleItem(
-      time: '09:00',
-      patientName: '김민준',
-      visitType: '초진',
-      status: '진료 완료',
-      isCompleted: true,
-    ),
-    _ScheduleItem(
-      time: '10:30',
-      patientName: '박서연',
-      visitType: '재진',
-      status: '대기 중',
-    ),
-    _ScheduleItem(
-      time: '11:20',
-      patientName: '최영수',
-      visitType: '검사 상담',
-      status: '예약',
-    ),
-    _ScheduleItem(
-      time: '14:00',
-      patientName: '정미영',
-      visitType: '재진',
-      status: '예약',
-    ),
-  ];
+    return dashboardAsync.when(
+      loading: () => const _DashboardLoadingView(),
+      error: (error, stackTrace) => _DashboardErrorView(
+        error: error,
+        onRetry: () {
+          ref.invalidate(clinicianDashboardProvider);
+        },
+      ),
+      data: (dashboard) => _ClinicianHomeContent(
+        clinicianName: clinicianName,
+        departmentName: departmentName,
+        dashboard: dashboard,
+        onOpenDrawer: onOpenDrawer,
+        onSelectTab: onSelectTab,
+        onRefresh: () async {
+          final refresh = ref.refresh(clinicianDashboardProvider.future);
+          await refresh;
+        },
+      ),
+    );
+  }
+}
+
+/// 의료진 홈의 실제 UI
+///
+/// 이 위젯은 전달받은 모델만 사용하며 Mock, Repository, Provider를 직접 참조하지 않는다.
+class _ClinicianHomeContent extends StatelessWidget {
+  const _ClinicianHomeContent({
+    required this.clinicianName,
+    required this.departmentName,
+    required this.dashboard,
+    required this.onOpenDrawer,
+    required this.onSelectTab,
+    required this.onRefresh,
+  });
+
+  static const _background = Color(0xFFF6F8FC);
+  static const _primary = Color(0xFF28669E);
+  static const _text = Color(0xFF111827);
+  static const _secondaryText = Color(0xFF6B7280);
+  static const _border = Color(0xFFE5EAF2);
+  static const _lavender = Color(0xFFF1EDFF);
+
+  final String clinicianName;
+  final String departmentName;
+  final ClinicianDashboard dashboard;
+  final VoidCallback onOpenDrawer;
+  final ValueChanged<int> onSelectTab;
+  final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _backgroundColor,
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 36),
-          children: [
-            _buildGreeting(),
-            const SizedBox(height: 24),
-            _buildSummaryGrid(),
-            const SizedBox(height: 28),
-            _buildSectionTitle('빠른 메뉴'),
-            const SizedBox(height: 12),
-            _buildQuickMenu(context),
-            const SizedBox(height: 28),
-            _buildScheduleHeader(),
-            const SizedBox(height: 12),
-            _buildScheduleCard(),
-          ],
+    return ColoredBox(
+      color: _background,
+      child: SafeArea(
+        bottom: false,
+        child: RefreshIndicator(
+          onRefresh: onRefresh,
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            slivers: [
+              SliverToBoxAdapter(child: _buildHeader(context)),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
+                sliver: SliverList.list(
+                  children: [
+                    _buildProfile(),
+                    const SizedBox(height: 18),
+                    _buildSummary(),
+                    const SizedBox(height: 14),
+                    _buildConsultationBanner(),
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        _sectionTitle('빠른 메뉴'),
+                        const Spacer(),
+                        TextButton(
+                          onPressed: () {
+                            _showReady(context, '빠른 메뉴 편집');
+                          },
+                          child: const Text(
+                            '편집',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    _buildQuickMenu(context),
+                    const SizedBox(height: 24),
+                    _buildScheduleHeader(),
+                    const SizedBox(height: 12),
+                    _buildScheduleCard(context),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildGreeting() {
-    return Row(
+  Widget _buildHeader(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 6, 12, 0),
+      child: Row(
+        children: [
+          IconButton(
+            tooltip: '메뉴',
+            onPressed: onOpenDrawer,
+            icon: const Icon(Icons.menu_rounded, size: 29, color: _text),
+          ),
+          const Spacer(),
+          IconButton(
+            tooltip: '알림',
+            onPressed: () => ClinicianFeatureNavigation.notifications(context),
+            icon: const Badge(
+              label: Text('2'),
+              child: Icon(
+                Icons.notifications_none_rounded,
+                size: 27,
+                color: _text,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            width: 43,
+            height: 43,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEAF2FA),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+            ),
+            child: const Icon(
+              Icons.medical_services_outlined,
+              color: _primary,
+              size: 23,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfile() {
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                '안녕하세요, $_clinicianName 의료진님',
-                style: TextStyle(
-                  color: _primaryTextColor,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
+        const Text(
+          '안녕하세요,',
+          style: TextStyle(color: _secondaryText, fontSize: 14),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          '$clinicianName 의료진님 👋',
+          style: const TextStyle(
+            color: _text,
+            fontSize: 25,
+            height: 1.2,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEAF2FA),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                departmentName,
+                style: const TextStyle(
+                  color: _primary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _iconBackgroundColor,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Text(
-                      _department,
+            ),
+            const Spacer(),
+            Text(
+              _formatToday(),
+              style: const TextStyle(
+                color: _secondaryText,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSummary() {
+    final summary = dashboard.summary;
+
+    final items = [
+      ('예약 환자', summary.appointmentTotal, '명', _text),
+      ('대기 환자', summary.appointmentWaiting, '명', _primary),
+      ('협진 요청', summary.consultationWaiting, '건', const Color(0xFFE34255)),
+      ('검사 결과', summary.testResultWaiting, '건', const Color(0xFF7957D5)),
+    ];
+
+    return Container(
+      decoration: _cardDecoration(),
+      child: Row(
+        children: [
+          for (var index = 0; index < items.length; index++) ...[
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 17),
+                child: Column(
+                  children: [
+                    Text(
+                      items[index].$1,
                       style: TextStyle(
-                        color: _primaryColor,
-                        fontSize: 13,
+                        color: items[index].$4,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    Text.rich(
+                      TextSpan(
+                        text: '${items[index].$2}',
+                        children: [
+                          TextSpan(
+                            text: items[index].$3,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      style: TextStyle(
+                        color: items[index].$4,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (index != items.length - 1)
+              const SizedBox(
+                height: 40,
+                child: VerticalDivider(width: 1, color: _border),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConsultationBanner() {
+    final waiting = dashboard.consultations
+        .where((item) => item.status == 'requested' || item.status == 'waiting')
+        .toList();
+
+    if (waiting.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final departments = waiting
+        .map((item) => item.department)
+        .where((department) => department.isNotEmpty)
+        .join(' · ');
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => onSelectTab(3),
+        borderRadius: BorderRadius.circular(16),
+        child: Ink(
+          padding: const EdgeInsets.all(15),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF102A50), Color(0xFF1C3764)],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x22102A50),
+                blurRadius: 14,
+                offset: Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFE34255),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.groups_2_outlined,
+                  color: Colors.white,
+                  size: 19,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '협진 요청 ${waiting.length}건 도착',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      departments.isEmpty ? '새 협진 요청을 확인해 주세요.' : departments,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFFCAD7EA),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 11,
+                  vertical: 7,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Row(
+                  children: [
+                    Text(
+                      '바로 확인',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    _formattedToday(),
-                    style: const TextStyle(
-                      color: _secondaryTextColor,
-                      fontSize: 14,
+                    SizedBox(width: 3),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      color: Colors.white,
+                      size: 17,
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),
         ),
-        Container(
-          width: 52,
-          height: 52,
-          decoration: const BoxDecoration(
-            color: _iconBackgroundColor,
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(
-            Icons.medical_services_outlined,
-            color: _primaryColor,
-            size: 28,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSummaryGrid() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        const spacing = 12.0;
-        final cardWidth = (constraints.maxWidth - spacing) / 2;
-
-        return Wrap(
-          spacing: spacing,
-          runSpacing: spacing,
-          children: [
-            SizedBox(
-              width: cardWidth,
-              child: const _SummaryCard(
-                icon: Icons.calendar_today_outlined,
-                label: '오늘 예약 환자',
-                value: '12명',
-                color: _primaryColor,
-              ),
-            ),
-            SizedBox(
-              width: cardWidth,
-              child: const _SummaryCard(
-                icon: Icons.hourglass_top_rounded,
-                label: '진료 대기 환자',
-                value: '4명',
-                color: Color(0xFFF59E0B),
-              ),
-            ),
-            SizedBox(
-              width: constraints.maxWidth,
-              child: const _SummaryCard(
-                icon: Icons.assignment_late_outlined,
-                label: '확인이 필요한 검사결과',
-                value: '3건',
-                color: Color(0xFFD14343),
-                horizontal: true,
-              ),
-            ),
-          ],
-        );
-      },
+      ),
     );
   }
 
   Widget _buildQuickMenu(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _QuickMenuItem(
-            icon: Icons.person_search_outlined,
-            label: '환자 조회',
-            onTap: () => _showPreparingMessage(context, '환자 조회'),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _QuickMenuItem(
-            icon: Icons.event_note_outlined,
-            label: '예약 관리',
-            onTap: () => _showPreparingMessage(context, '예약 관리'),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _QuickMenuItem(
-            icon: Icons.description_outlined,
-            label: '진료 기록',
-            onTap: () => _showPreparingMessage(context, '진료 기록'),
-          ),
-        ),
-      ],
+    final items = [
+      (
+        title: '환자 조회',
+        icon: Icons.person_search_outlined,
+        backgroundColor: const Color(0xFFEAF2FF),
+        iconColor: _primary,
+      ),
+      (
+        title: '예약 관리',
+        icon: Icons.calendar_month_outlined,
+        backgroundColor: const Color(0xFFEAF2FF),
+        iconColor: const Color(0xFF4A7FE5),
+      ),
+      (
+        title: '검사 결과',
+        icon: Icons.assignment_outlined,
+        backgroundColor: _lavender,
+        iconColor: const Color(0xFF7957D5),
+      ),
+      (
+        title: '처방 관리',
+        icon: Icons.medication_outlined,
+        backgroundColor: const Color(0xFFEAF7F1),
+        iconColor: const Color(0xFF2E9C75),
+      ),
+      (
+        title: 'AI 분석',
+        icon: Icons.psychology_alt_outlined,
+        backgroundColor: const Color(0xFFF1EDFF),
+        iconColor: const Color(0xFF7957D5),
+      ),
+    ];
+
+    return SizedBox(
+      height: 104,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        itemCount: items.length,
+        separatorBuilder: (context, index) {
+          return const SizedBox(width: 10);
+        },
+        itemBuilder: (context, index) {
+          final item = items[index];
+
+          return SizedBox(
+            width: 82,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () {
+                  _onQuickMenuTap(context, item.title);
+                },
+                child: Ink(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: _border),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x08000000),
+                        blurRadius: 8,
+                        offset: Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 12,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: item.backgroundColor,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            item.icon,
+                            color: item.iconColor,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(height: 9),
+                        Text(
+                          item.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: _text,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
   Widget _buildScheduleHeader() {
     return Row(
       children: [
-        _buildSectionTitle('오늘 진료 일정'),
+        _sectionTitle('오늘 일정'),
         const Spacer(),
-        Text(
-          '총 ${_todaySchedules.length}건',
-          style: const TextStyle(
-            color: _secondaryTextColor,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
+        TextButton(
+          onPressed: () => onSelectTab(1),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('전체보기'),
+              SizedBox(width: 2),
+              Icon(Icons.chevron_right_rounded, size: 17),
+            ],
           ),
         ),
       ],
     );
   }
 
-  Widget _buildScheduleCard() {
+  Widget _buildScheduleCard(BuildContext context) {
+    final schedules = dashboard.schedules;
+
+    if (schedules.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 32),
+        decoration: _cardDecoration(),
+        child: const Column(
+          children: [
+            Icon(
+              Icons.event_available_outlined,
+              color: _secondaryText,
+              size: 30,
+            ),
+            SizedBox(height: 8),
+            Text(
+              '오늘 등록된 일정이 없습니다.',
+              style: TextStyle(
+                color: _secondaryText,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _borderColor),
-      ),
+      decoration: _cardDecoration(),
       child: Column(
         children: [
-          for (var index = 0; index < _todaySchedules.length; index++) ...[
-            _ScheduleTile(schedule: _todaySchedules[index]),
-            if (index != _todaySchedules.length - 1)
+          for (var index = 0; index < schedules.length; index++) ...[
+            _ScheduleRow(
+              schedule: schedules[index],
+              onTap: schedules[index].patientId.isEmpty
+                  ? null
+                  : () => context.pushNamed(
+                      RouteNames.clinicianPatientDetail,
+                      pathParameters: {
+                        'patientId': schedules[index].patientId,
+                      },
+                    ),
+            ),
+            if (index != schedules.length - 1)
               const Divider(
                 height: 1,
-                indent: 82,
-                endIndent: 16,
-                color: _borderColor,
+                indent: 70,
+                endIndent: 14,
+                color: _border,
               ),
           ],
         ],
@@ -248,258 +596,245 @@ class ClinicianHomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _sectionTitle(String value) {
     return Text(
-      title,
+      value,
       style: const TextStyle(
-        color: _primaryTextColor,
+        color: _text,
         fontSize: 17,
         fontWeight: FontWeight.w800,
       ),
     );
   }
 
-  static String _formattedToday() {
-    final today = DateTime.now();
-    const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
-    return '${today.year}년 ${today.month}월 ${today.day}일 '
-        '${weekdays[today.weekday - 1]}요일';
+  BoxDecoration _cardDecoration() {
+    return BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: _border),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x08000000),
+          blurRadius: 10,
+          offset: Offset(0, 3),
+        ),
+      ],
+    );
   }
 
-  void _showPreparingMessage(BuildContext context, String featureName) {
+  String _formatToday() {
+    final now = DateTime.now();
+    const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+
+    return '${now.year}.'
+        '${now.month.toString().padLeft(2, '0')}.'
+        '${now.day.toString().padLeft(2, '0')} '
+        '(${weekdays[now.weekday - 1]})';
+  }
+
+  void _onQuickMenuTap(BuildContext context, String menuTitle) {
+    switch (menuTitle) {
+      case '환자 조회':
+        onSelectTab(0);
+        break;
+      case '예약 관리':
+        onSelectTab(1);
+        break;
+      case '검사 결과':
+        ClinicianFeatureNavigation.testResults(context);
+        break;
+      case '처방 관리':
+        ClinicianFeatureNavigation.prescriptions(context);
+        break;
+      case 'AI 분석':
+        ClinicianFeatureNavigation.aiAnalysis(context);
+        break;
+      default:
+        _showReady(context, menuTitle);
+    }
+  }
+
+  void _showReady(BuildContext context, String feature) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text('$featureName 기능은 준비 중입니다.'),
+          content: Text('$feature 기능은 준비 중입니다.'),
           behavior: SnackBarBehavior.floating,
         ),
       );
   }
 }
 
-class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.color,
-    this.horizontal = false,
-  });
+class _ScheduleRow extends StatelessWidget {
+  const _ScheduleRow({required this.schedule, required this.onTap});
 
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color color;
-  final bool horizontal;
+  final ClinicianSchedule schedule;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final iconWidget = Container(
-      width: 42,
-      height: 42,
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(13),
-      ),
-      child: Icon(icon, color: color, size: 22),
-    );
+    final status = schedule.status;
 
-    return Container(
-      padding: const EdgeInsets.all(17),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: ClinicianHomeScreen._borderColor),
+    final (label, foreground, background) = switch (status) {
+      'in_progress' => ('진료', const Color(0xFF28669E), const Color(0xFFEAF2FA)),
+      'waiting' => ('대기', const Color(0xFFD47A12), const Color(0xFFFFF3DF)),
+      'scheduled' => ('예약', const Color(0xFF7957D5), const Color(0xFFF1EDFF)),
+      'confirmed' => ('예약', const Color(0xFF7957D5), const Color(0xFFF1EDFF)),
+      'checked_in' => ('접수', const Color(0xFFD47A12), const Color(0xFFFFF3DF)),
+      'completed' => ('완료', const Color(0xFF2E9C75), const Color(0xFFEAF7F1)),
+      'cancelled' => ('취소', const Color(0xFF6B7280), const Color(0xFFF3F4F6)),
+      'no_show' => ('미방문', const Color(0xFFE34255), const Color(0xFFFDECEF)),
+      _ => (
+        status.isEmpty ? '확인' : status,
+        const Color(0xFF6B7280),
+        const Color(0xFFF3F4F6),
       ),
-      child: horizontal
-          ? Row(
+    };
+
+    final startAt = schedule.startAt.toLocal();
+    final time =
+        '${startAt.hour.toString().padLeft(2, '0')}:'
+        '${startAt.minute.toString().padLeft(2, '0')}';
+
+    final patientName = schedule.patientName.isEmpty
+        ? '-'
+        : schedule.patientName;
+    final room = schedule.room.isEmpty ? '-' : schedule.room;
+
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        child: Row(
+        children: [
+          SizedBox(
+            width: 47,
+            child: Text(
+              time,
+              style: const TextStyle(
+                color: Color(0xFF111827),
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Row(
               children: [
-                iconWidget,
-                const SizedBox(width: 14),
-                Expanded(child: _buildLabel()),
-                _buildValue(),
-              ],
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                iconWidget,
-                const SizedBox(height: 16),
-                _buildValue(),
-                const SizedBox(height: 5),
-                _buildLabel(),
+                Flexible(
+                  child: Text(
+                    patientName,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF111827),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    room,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF6B7280),
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
               ],
             ),
-    );
-  }
-
-  Widget _buildLabel() {
-    return Text(
-      label,
-      style: const TextStyle(
-        color: ClinicianHomeScreen._secondaryTextColor,
-        fontSize: 13,
-        height: 1.35,
-      ),
-    );
-  }
-
-  Widget _buildValue() {
-    return Text(
-      value,
-      style: const TextStyle(
-        color: ClinicianHomeScreen._primaryTextColor,
-        fontSize: 23,
-        fontWeight: FontWeight.w800,
-      ),
-    );
-  }
-}
-
-class _QuickMenuItem extends StatelessWidget {
-  const _QuickMenuItem({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 17),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: ClinicianHomeScreen._borderColor),
           ),
-          child: Column(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: ClinicianHomeScreen._iconBackgroundColor,
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: Icon(
-                  icon,
-                  color: ClinicianHomeScreen._primaryColor,
-                  size: 22,
-                ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+            decoration: BoxDecoration(
+              color: background,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                color: foreground,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
               ),
-              const SizedBox(height: 10),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: ClinicianHomeScreen._primaryTextColor,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
+            ),
           ),
+        ],
         ),
       ),
     );
   }
 }
 
-class _ScheduleTile extends StatelessWidget {
-  const _ScheduleTile({required this.schedule});
-
-  final _ScheduleItem schedule;
+class _DashboardLoadingView extends StatelessWidget {
+  const _DashboardLoadingView();
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = schedule.isCompleted
-        ? const Color(0xFF2F855A)
-        : schedule.status == '대기 중'
-        ? const Color(0xFFF59E0B)
-        : ClinicianHomeScreen._primaryColor;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 50,
-            child: Text(
-              schedule.time,
-              style: const TextStyle(
-                color: ClinicianHomeScreen._primaryTextColor,
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  schedule.patientName,
-                  style: const TextStyle(
-                    color: ClinicianHomeScreen._primaryTextColor,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  schedule.visitType,
-                  style: const TextStyle(
-                    color: ClinicianHomeScreen._secondaryTextColor,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              schedule.status,
-              style: TextStyle(
-                color: statusColor,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
+    return const ColoredBox(
+      color: Color(0xFFF6F8FC),
+      child: SafeArea(child: Center(child: CircularProgressIndicator())),
     );
   }
 }
 
-class _ScheduleItem {
-  const _ScheduleItem({
-    required this.time,
-    required this.patientName,
-    required this.visitType,
-    required this.status,
-    this.isCompleted = false,
-  });
+class _DashboardErrorView extends StatelessWidget {
+  const _DashboardErrorView({required this.error, required this.onRetry});
 
-  final String time;
-  final String patientName;
-  final String visitType;
-  final String status;
-  final bool isCompleted;
+  final Object error;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final unauthorized =
+        error is ApiException && (error as ApiException).statusCode == 401;
+    return ColoredBox(
+      color: const Color(0xFFF6F8FC),
+      child: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.cloud_off_outlined,
+                  size: 44,
+                  color: Color(0xFF6B7280),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  unauthorized
+                      ? '로그인이 만료되었습니다. 다시 로그인해주세요.'
+                      : '의료진 홈 정보를 불러오지 못했습니다.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Color(0xFF111827),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  '잠시 후 다시 시도해 주세요.',
+                  style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+                ),
+                const SizedBox(height: 18),
+                FilledButton.icon(
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('다시 시도'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

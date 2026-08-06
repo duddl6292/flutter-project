@@ -12,6 +12,14 @@ class MockFavoriteHospitalRepository implements FavoriteHospitalRepository {
   final List<Hospital> _favorites;
 
   @override
+  Future<List<Hospital>> searchHospitals(String query) async {
+    return hospitalMockList
+        .map(Hospital.fromJson)
+        .where((hospital) => hospital.hospitalName.contains(query))
+        .toList();
+  }
+
+  @override
   Future<List<Hospital>> getFavoriteHospitals() async {
     await _simulateDelay();
     return List<Hospital>.unmodifiable(_favorites);

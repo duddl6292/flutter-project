@@ -1,57 +1,40 @@
+import 'package:brainon_mobile/core/api/api_client.dart';
+import 'package:brainon_mobile/features/patient/repositories/api_favorite_hospital_repository.dart';
 import 'package:brainon_mobile/features/patient/repositories/favorite_hospital_repository.dart';
-import 'package:brainon_mobile/shared/mock/mock_favorite_hospital_repository.dart';
 import 'package:brainon_mobile/shared/models/hospital.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final favoriteHospitalRepositoryProvider = Provider<FavoriteHospitalRepository>(
-  (ref) {
-    return MockFavoriteHospitalRepository();
-  },
+  (ref) => ApiFavoriteHospitalRepository(ref.watch(apiClientProvider)),
 );
 
-final favoriteHospitalsProvider =
-    AsyncNotifierProvider<FavoriteHospitalsNotifier, List<Hospital>>(
-      FavoriteHospitalsNotifier.new,
-    );
+final favoriteHospitalsProvider = FutureProvider<List<Hospital>>(
+  (ref) => ref.watch(favoriteHospitalRepositoryProvider).getFavoriteHospitals(),
+);
 
-class FavoriteHospitalsNotifier extends AsyncNotifier<List<Hospital>> {
-  FavoriteHospitalRepository get _repository {
-    return ref.read(favoriteHospitalRepositoryProvider);
-  }
+final hospitalSearchProvider = FutureProvider.autoDispose.family<List<Hospital>, String>((ref, query) async {
+  final repository = ref.watch(favoriteHospitalRepositoryProvider);
+  final results = await repository.searchHospitals(query);
+  final favorites = await ref.watch(favoriteHospitalsProvider.future);
+  final ids = favorites.map((item) => item.hospitalId).toSet();
+  return results.map((item) => item.copyWith(isFavorite: ids.contains(item.hospitalId))).toList();
+});
 
-  @override
-  Future<List<Hospital>> build() {
-    return _repository.getFavoriteHospitals();
-  }
+final favoriteMutationProvider = StateProvider.autoDispose<bool>((ref) => false);
 
-  Future<void> toggleFavorite(Hospital hospital) async {
-    final previous = state.valueOrNull ?? const <Hospital>[];
-    final isFavorite = previous.any(
-      (favorite) => favorite.hospitalId == hospital.hospitalId,
-    );
-
-    if (isFavorite) {
-      state = AsyncValue.data(
-        previous
-            .where((favorite) => favorite.hospitalId != hospital.hospitalId)
-            .toList(),
-      );
+Future<void> toggleFavorite(WidgetRef ref, Hospital hospital) async {
+  if (ref.read(favoriteMutationProvider)) return;
+  ref.read(favoriteMutationProvider.notifier).state = true;
+  try {
+    final repository = ref.read(favoriteHospitalRepositoryProvider);
+    if (hospital.isFavorite) {
+      await repository.removeFavoriteHospital(hospital.hospitalId);
     } else {
-      state = AsyncValue.data([
-        ...previous,
-        hospital.copyWith(isFavorite: true),
-      ]);
+      await repository.addFavoriteHospital(hospital);
     }
-
-    try {
-      if (isFavorite) {
-        await _repository.removeFavoriteHospital(hospital.hospitalId);
-      } else {
-        await _repository.addFavoriteHospital(hospital);
-      }
-    } on Object catch (error, stackTrace) {
-      state = AsyncValue.data(previous);
-      Error.throwWithStackTrace(error, stackTrace);
-    }
+    ref.invalidate(favoriteHospitalsProvider);
+    ref.invalidate(hospitalSearchProvider);
+  } finally {
+    ref.read(favoriteMutationProvider.notifier).state = false;
   }
 }

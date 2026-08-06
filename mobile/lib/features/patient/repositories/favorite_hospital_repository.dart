@@ -1,6 +1,8 @@
 import 'package:brainon_mobile/shared/models/hospital.dart';
 
 abstract interface class FavoriteHospitalRepository {
+  Future<List<Hospital>> searchHospitals(String query);
+
   Future<List<Hospital>> getFavoriteHospitals();
 
   Future<void> addFavoriteHospital(Hospital hospital);

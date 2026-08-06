@@ -1,10 +1,49 @@
-import 'package:brainon_mobile/shared/mock/medication_mock.dart';
+import 'package:brainon_mobile/core/api/api_client.dart';
 import 'package:brainon_mobile/shared/models/medication.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+final medicationRepositoryProvider = Provider<MedicationRepository>((ref) => MedicationRepository(ref.watch(apiClientProvider)));
 
 class MedicationRepository {
-  Future<List<Medication>> getMedications() async {
-    await Future<void>.delayed(const Duration(milliseconds: 500));
+  const MedicationRepository(this._dio);
+  final Dio _dio;
 
-    return medicationMock.map((json) => Medication.fromJson(json)).toList();
-  }
+  Future<List<Medication>> getTodayMedications() => runApiRequest(() async {
+    final responses = await Future.wait([
+      _dio.get<Map<String, dynamic>>('/api/v1/patients/me/medication-schedules/', queryParameters: {'active': true, 'page_size': 100}),
+      _dio.get<Map<String, dynamic>>('/api/v1/patients/me/medication-records/', queryParameters: {'page_size': 100}),
+    ]);
+    final schedules = _rows(responses[0].data).map(MedicationScheduleDto.fromJson);
+    final records = _rows(responses[1].data).map(MedicationRecordDto.fromJson).toList();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return schedules.where((schedule) {
+      final end = schedule.endDate;
+      return schedule.isActive && !today.isBefore(schedule.startDate) && (end == null || !today.isAfter(end)) && (schedule.daysOfWeek.isEmpty || schedule.daysOfWeek.contains(today.weekday));
+    }).map((schedule) {
+      final parts = schedule.doseTime.split(':');
+      final scheduledAt = DateTime(today.year, today.month, today.day, int.tryParse(parts.first) ?? 0, parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0);
+      MedicationRecordDto? matching;
+      for (final record in records) {
+        if (record.scheduleId == schedule.id && _sameDay(record.scheduledAt, today)) {
+          matching = record;
+          break;
+        }
+      }
+      return Medication(
+        id: schedule.id,
+        name: schedule.name,
+        dose: '${schedule.dosage}${schedule.doseUnit}',
+        scheduledAt: scheduledAt,
+        period: schedule.frequency,
+        instruction: schedule.instructions,
+        completed: matching?.status == 'TAKEN',
+        takenAt: matching?.takenAt,
+      );
+    }).toList()..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+  });
+
+  List<Map<String, dynamic>> _rows(Map<String, dynamic>? body) => (body?['data'] as List<dynamic>? ?? const []).cast<Map<String, dynamic>>();
+  bool _sameDay(DateTime first, DateTime second) => first.year == second.year && first.month == second.month && first.day == second.day;
 }

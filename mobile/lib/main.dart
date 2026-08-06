@@ -21,7 +21,7 @@ final localNotifications = FlutterLocalNotificationsPlugin();
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-    // UI 확인 모드면 Firebase 설정을 건너뛰고 바로 앱 실행
+  // UI 확인 모드면 Firebase 설정을 건너뛰고 바로 앱 실행
   if (uiPreviewMode) {
     runApp(const ProviderScope(child: BrainOnApp()));
     return;

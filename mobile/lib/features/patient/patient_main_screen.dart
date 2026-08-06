@@ -1,3 +1,4 @@
+import 'package:brainon_mobile/core/auth/auth_provider.dart';
 import 'package:brainon_mobile/core/router/route_names.dart';
 import 'package:brainon_mobile/features/appointment/appointment_create_screen.dart';
 import 'package:brainon_mobile/features/emergency/emergency_guide_screen.dart';
@@ -5,18 +6,20 @@ import 'package:brainon_mobile/features/emergency/repository/emergency_repositor
 import 'package:brainon_mobile/features/home/home_screen.dart';
 import 'package:brainon_mobile/features/medication/medication_list_screen.dart';
 import 'package:brainon_mobile/features/patient/my_page_screen.dart';
+import 'package:brainon_mobile/features/patient/test_results/patient_test_result_screen.dart';
 import 'package:brainon_mobile/shared/mock/patient_home_mock.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-class PatientMainScreen extends StatefulWidget {
+class PatientMainScreen extends ConsumerStatefulWidget {
   const PatientMainScreen({super.key});
 
   @override
-  State<PatientMainScreen> createState() => _PatientMainScreenState();
+  ConsumerState<PatientMainScreen> createState() => _PatientMainScreenState();
 }
 
-class _PatientMainScreenState extends State<PatientMainScreen> {
+class _PatientMainScreenState extends ConsumerState<PatientMainScreen> {
   // 모든 탭에서 공통 Drawer를 열기 위한 키
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -58,17 +61,7 @@ class _PatientMainScreenState extends State<PatientMainScreen> {
     return [
       AppointmentCreateScreen(onOpenDrawer: _openDrawer),
 
-      // 검사결과 화면은 실제 파일을 전달받으면 교체합니다.
-      const Center(
-        child: Text(
-          '검사결과 화면 준비중',
-          style: TextStyle(
-            color: Color(0xFF111827),
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
+      PatientTestResultScreen(onOpenDrawer: _openDrawer),
 
       HomeScreen(
         onOpenDrawer: _openDrawer,
@@ -259,7 +252,7 @@ class _PatientMainScreenState extends State<PatientMainScreen> {
               title: '찜한 병원',
               onTap: () {
                 _closeDrawer();
-                _showMessage('찜한 병원 화면은 추후 연결합니다.');
+                context.pushNamed(RouteNames.favoriteHospitals);
               },
             ),
 
@@ -295,9 +288,9 @@ class _PatientMainScreenState extends State<PatientMainScreen> {
             _buildDrawerItem(
               icon: Icons.logout_rounded,
               title: '로그아웃',
-              onTap: () {
+              onTap: () async {
                 _closeDrawer();
-                context.goNamed(RouteNames.roleSelection);
+                await ref.read(authProvider.notifier).logout();
               },
             ),
 

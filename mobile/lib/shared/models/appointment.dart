@@ -24,14 +24,27 @@ class Appointment {
   factory Appointment.fromJson(Map<String, dynamic> json) {
     return Appointment(
       appointmentId: json['appointment_id']?.toString() ?? '',
-      scheduledAt: DateTime.parse(json['scheduled_at']?.toString() ?? ''),
-      type: json['type']?.toString() ?? '',
+      scheduledAt: DateTime.parse(
+        json['scheduled_at']?.toString() ?? '',
+      ).toLocal(),
+      type: json['reason']?.toString() ?? '',
       hospitalName: json['hospital_name']?.toString() ?? '',
-      department: json['department']?.toString() ?? '',
-      doctorName: json['doctor_name']?.toString() ?? '',
+      department: json['department_name']?.toString() ?? '',
+      doctorName: json['clinician_name']?.toString() ?? '',
       location: json['location']?.toString() ?? '',
-      dDay: json['d_day']?.toString() ?? '',
-      status: json['status']?.toString() ?? '',
+      dDay: _dDay(DateTime.parse(json['scheduled_at']?.toString() ?? '').toLocal()),
+      status: json['status_label']?.toString() ?? json['status']?.toString() ?? '',
     );
+  }
+
+  static String _dDay(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final target = DateTime(date.year, date.month, date.day);
+    final days = target.difference(today).inDays;
+    if (days == 0) {
+      return 'D-Day';
+    }
+    return days > 0 ? 'D-$days' : 'D+${days.abs()}';
   }
 }
