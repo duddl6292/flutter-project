@@ -44,6 +44,14 @@ import {
   EncounterPage,
 } from '../../features/encounters/EncounterPage'
 
+import {
+  ConsultationPage,
+} from '../../features/consultations/ConsultationPage'
+
+import {
+  ExaminationPage,
+} from '../../features/examinations/ExaminationPage'
+
 function NotFoundPage() {
   return (
     <main>
@@ -106,6 +114,22 @@ export function AppRouter() {
         <Route
           path="/prescriptions"
           element={<PrescriptionPage />}
+        />
+        <Route
+          path="/consultations"
+          element={<ConsultationPage />}
+        />
+        <Route
+          path="/consultations/:consultationId"
+          element={<ConsultationPage />}
+        />
+        <Route
+          path="/examinations"
+          element={<ExaminationPage />}
+        />
+        <Route
+          path="/examinations/:examinationId"
+          element={<ExaminationPage />}
         />
         <Route
           path="/my-page"
