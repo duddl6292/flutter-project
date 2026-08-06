@@ -40,15 +40,32 @@ jobs:
       - name: Test
         run: flutter test --concurrency=1
 
-      - name: Build test APK
+      - name: Configure Android signing
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" \
+            | base64 --decode \
+            > android/app/brainon-app-signing.jks
+
+          printf 'storePassword=%s\n' "$ANDROID_STORE_PASSWORD" > android/key.properties
+          printf 'keyPassword=%s\n' "$ANDROID_KEY_PASSWORD" >> android/key.properties
+          printf 'keyAlias=%s\n' "$ANDROID_KEY_ALIAS" >> android/key.properties
+          printf 'storeFile=brainon-app-signing.jks\n' >> android/key.properties
+
+      - name: Build signed release APK
         run: >
           flutter build apk --release
           --dart-define=API_BASE_URL=https://www.brainon.kro.kr
           --dart-define=DISTRIBUTION_CHANNEL=direct
 
-      - name: Upload APK artifact
+      - name: Upload signed APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: brainon-mobile-test-apk
+          name: brainon-mobile-release-apk
           path: mobile/build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
