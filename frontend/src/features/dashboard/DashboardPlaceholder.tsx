@@ -22,20 +22,9 @@ import type {
 } from '../examinations/examination.types'
 import { getDashboard } from './dashboard.api'
 import type { DashboardResponse } from './dashboard.types'
-import {
-  ConsultationPanel,
-} from './components/ConsultationPanel'
-import type {
-  ConsultationTab,
-} from './components/ConsultationPanel'
 import { DashboardHeader } from './components/DashboardHeader'
 import { DashboardSidebar } from './components/DashboardSidebar'
-import {
-  ExaminationOverviewPanel,
-} from './components/ExaminationOverviewPanel'
 import { PatientPanel } from './components/PatientPanel'
-import { QuickActionsPanel } from './components/QuickActionsPanel'
-import { RecentActivityPanel } from './components/RecentActivityPanel'
 import { SummaryCards } from './components/SummaryCards'
 import type { SummaryItem } from './components/SummaryCards'
 import { TodaySchedulePanel } from './components/TodaySchedulePanel'
@@ -66,7 +55,6 @@ export function DashboardPlaceholder() {
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null)
   const [examinations, setExaminations] = useState<Examination[]>([])
   const [searchText, setSearchText] = useState('')
-  const [consultationTab, setConsultationTab] = useState<ConsultationTab>('all')
   const [dashboardLoading, setDashboardLoading] = useState(true)
   const [examinationLoading, setExaminationLoading] = useState(true)
   const [dashboardError, setDashboardError] = useState('')
@@ -129,35 +117,19 @@ export function DashboardPlaceholder() {
     navigate(keyword ? `/patients?search=${encodeURIComponent(keyword)}` : '/patients')
   }
 
-  const consultationCounts = useMemo(() => {
-    const rows = dashboard?.consultations ?? []
-    return {
-      all: rows.length,
-      waiting: rows.filter((row) => row.status === 'requested' || row.status === 'waiting').length,
-      completed: rows.filter((row) => row.status === 'answered' || row.status === 'completed').length,
-    }
-  }, [dashboard])
-
-  const filteredConsultations = useMemo(() => {
-    const rows = dashboard?.consultations ?? []
-    if (consultationTab === 'waiting') return rows.filter((row) => row.status === 'requested' || row.status === 'waiting')
-    if (consultationTab === 'completed') return rows.filter((row) => row.status === 'answered' || row.status === 'completed')
-    return rows
-  }, [consultationTab, dashboard])
-
   const summaryItems: SummaryItem[] = useMemo(() => {
     const summary = dashboard?.summary
     const activeEncounters = (dashboard?.patients ?? []).filter((patient) => patient.status === 'waiting' || patient.status === 'in_progress').length
     const urgentResults = examinations.filter((item) => item.overall_interpretation === 'CRITICAL' || item.overall_interpretation === 'ABNORMAL').length
     return [
       {
-        title: '오늘 예약', value: summary?.appointments.total ?? 0, unit: '건',
+        title: selectedDate === today ? '오늘 예약' : '선택일 예약', value: summary?.appointments.total ?? 0, unit: '건',
         detail: `확정 ${summary?.appointments.confirmed ?? 0} · 대기 ${summary?.appointments.waiting ?? 0}`,
         icon: CalendarDays, color: '#6157d8', background: '#f1efff',
       },
       {
         title: '진료 대기·진행', value: activeEncounters, unit: '명',
-        detail: `오늘 진료 환자 ${(dashboard?.patients ?? []).length}명`,
+        detail: `${selectedDate === today ? '오늘' : '선택일'} 진료 환자 ${(dashboard?.patients ?? []).length}명`,
         icon: Stethoscope, color: '#397eb6', background: '#eaf5fd',
       },
       {
@@ -171,7 +143,7 @@ export function DashboardPlaceholder() {
         icon: ClipboardCheck, color: '#c35b54', background: '#fff0ef',
       },
     ]
-  }, [dashboard, examinations])
+  }, [dashboard, examinations, selectedDate, today])
 
   const doctor = dashboard?.doctor ?? { name: '의료진', department: '-', title: '전문의' }
 
@@ -198,43 +170,27 @@ export function DashboardPlaceholder() {
           {examinationError && <p className="dashboard-error" role="alert">{examinationError}</p>}
           <SummaryCards items={summaryItems} loading={dashboardLoading || examinationLoading} />
 
-          <section className="dashboard-workspace">
-            <div className="dashboard-primary-column">
-              <div className="dashboard-top-grid">
-                <TodaySchedulePanel
-                  selectedDate={selectedDate}
-                  schedules={dashboard?.schedules ?? []}
-                  onPreviousDate={() => setSelectedDate((value) => shiftDate(value, -1))}
-                  onNextDate={() => setSelectedDate((value) => shiftDate(value, 1))}
-                />
-                <WorkQueuePanel
-                  examinations={examinations}
-                  consultations={dashboard?.consultations ?? []}
-                  loading={dashboardLoading || examinationLoading}
-                />
-              </div>
-
-              <PatientPanel patients={dashboard?.patients ?? []} loading={dashboardLoading} />
-
-              <div className="dashboard-bottom-grid">
-                <ConsultationPanel
-                  consultations={filteredConsultations.slice(0, 5)}
-                  activeTab={consultationTab}
-                  counts={consultationCounts}
-                  onSelect={(id) => navigate(`/consultations/${id}`)}
-                  onTabChange={setConsultationTab}
-                />
-                <ExaminationOverviewPanel
-                  examinations={examinations}
-                  loading={examinationLoading}
-                />
-              </div>
+          <section className="dashboard-focus-layout">
+            <div className="dashboard-top-grid">
+              <TodaySchedulePanel
+                selectedDate={selectedDate}
+                schedules={(dashboard?.schedules ?? []).slice(0, 4)}
+                totalCount={dashboard?.schedules.length ?? 0}
+                onPreviousDate={() => setSelectedDate((value) => shiftDate(value, -1))}
+                onNextDate={() => setSelectedDate((value) => shiftDate(value, 1))}
+              />
+              <WorkQueuePanel
+                examinations={examinations}
+                consultations={dashboard?.consultations ?? []}
+                loading={dashboardLoading || examinationLoading}
+              />
             </div>
 
-            <aside className="dashboard-side-column">
-              <QuickActionsPanel />
-              <RecentActivityPanel activities={(dashboard?.activities ?? []).filter((activity) => activity.type !== 'ct_analysis')} />
-            </aside>
+            <PatientPanel
+              patients={(dashboard?.patients ?? []).slice(0, 5)}
+              loading={dashboardLoading}
+              title={selectedDate === today ? '오늘 진료 환자' : '선택일 진료 환자'}
+            />
           </section>
         </main>
       </div>

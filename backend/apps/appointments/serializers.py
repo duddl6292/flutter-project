@@ -72,6 +72,12 @@ class AppointmentSummarySerializer(
         allow_null=True,
     )
 
+    encounter_id = serializers.SerializerMethodField()
+
+    def get_encounter_id(self, appointment):
+        encounter = getattr(appointment, "encounter", None)
+        return str(encounter.id) if encounter is not None else None
+
     class Meta:
         model = Appointment
 
@@ -86,6 +92,7 @@ class AppointmentSummarySerializer(
             "department_name",
             "hospital_id",
             "hospital_name",
+            "encounter_id",
             "scheduled_at",
             "duration_minutes",
             "location",

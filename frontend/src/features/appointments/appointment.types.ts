@@ -21,6 +21,7 @@ export interface Appointment {
 
   hospital_id: string
   hospital_name: string
+  encounter_id: string | null
 
   scheduled_at: string
   duration_minutes: number

@@ -18,8 +18,8 @@ export function formatTime(value: string): string {
   return Number.isNaN(date.getTime()) ? value || '-' : new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }).format(date)
 }
 export function genderLabel(gender: string): string { return gender === 'M' ? '남' : gender === 'F' ? '여' : gender || '-' }
-export function patientStatusLabel(status: string): string { return ({ scheduled: '진료 예정', confirmed: '예약 확정', waiting: '대기 중', in_progress: '진료 중', completed: '진료 완료', cancelled: '예약 취소' } as Record<string, string>)[status] ?? status }
-export function patientStatusTone(status: string): BadgeTone { return ({ scheduled: 'purple', confirmed: 'blue', waiting: 'yellow', in_progress: 'green', completed: 'gray', cancelled: 'gray' } as Record<string, BadgeTone>)[status] ?? 'gray' }
+export function patientStatusLabel(status: string): string { return ({ scheduled: '진료 예정', confirmed: '예약 확정', waiting: '대기 중', in_progress: '진료 중', completed: '진료 완료', cancelled: '예약 취소', no_show: '미방문' } as Record<string, string>)[status] ?? status }
+export function patientStatusTone(status: string): BadgeTone { return ({ scheduled: 'purple', confirmed: 'blue', waiting: 'yellow', in_progress: 'green', completed: 'gray', cancelled: 'gray', no_show: 'gray' } as Record<string, BadgeTone>)[status] ?? 'gray' }
 export function activityTypeLabel(type: string): string { return ({ medical_record: '진료 기록', test_result: '검사 결과', consultation: '협진', ct_analysis: 'CT 분석', prescription: '처방전' } as Record<string, string>)[type] ?? type }
 export function activityTone(type: string): BadgeTone { return ({ medical_record: 'purple', test_result: 'purple', consultation: 'green', ct_analysis: 'blue', prescription: 'purple' } as Record<string, BadgeTone>)[type] ?? 'gray' }
 export function consultationStatusLabel(status: string): string { return ({ requested: '요청', waiting: '답변 대기', answered: '답변 완료', completed: '답변 완료', cancelled: '취소' } as Record<string, string>)[status] ?? status }

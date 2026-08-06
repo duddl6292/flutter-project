@@ -130,3 +130,22 @@ export async function updateAppointment(
 
   return response.data
 }
+
+interface AppointmentEncounterRegistrationResponse {
+  data: {
+    appointment: Appointment
+    encounter_id: string
+    created: boolean
+  }
+}
+
+export async function registerAppointmentEncounter(
+  appointmentId: string,
+): Promise<AppointmentEncounterRegistrationResponse['data']> {
+  const response = await apiRequest<AppointmentEncounterRegistrationResponse>(
+    `/api/v1/appointments/${encodeURIComponent(appointmentId)}/encounter/`,
+    { method: 'POST' },
+  )
+
+  return response.data
+}

@@ -16,9 +16,12 @@ export const getSystemStatus = ai.defineTool(
     inputSchema: systemStatusInputSchema,
     outputSchema: systemStatusOutputSchema,
   },
-  async () => ({
-    status: 'ok' as const,
-    service: 'brainon-mcp' as const,
-    database_access: false as const,
-  }),
+  async () => {
+    console.info('[brainon-mcp] getSystemStatus executed');
+    return {
+      status: 'ok' as const,
+      service: 'brainon-mcp' as const,
+      database_access: false as const,
+    };
+  },
 );

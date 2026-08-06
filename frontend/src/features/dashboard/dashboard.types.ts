@@ -4,8 +4,9 @@ export type Gender = 'M' | 'F' | string
 
 export interface DashboardPatient {
   patient_id: string
+  patient_number: string | null
   name: string
-  age: number
+  age: number | null
   gender: Gender
   department: string
   appointment_at: string

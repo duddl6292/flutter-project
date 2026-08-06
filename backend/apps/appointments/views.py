@@ -3,6 +3,7 @@ from datetime import (
     time,
     timedelta,
 )
+from uuid import UUID
 
 from django.db import transaction
 from django.db.models import Q
@@ -44,6 +45,7 @@ from .services import (
     EncounterWorkflowError,
     change_appointment_status,
     change_encounter_status,
+    register_appointment_encounter,
 )
 
 
@@ -60,12 +62,29 @@ class AppointmentListCreateView(APIView):
                 "clinician",
                 "department",
                 "hospital",
+                "encounter",
             )
         )
 
         if request.user.role == "CLINICIAN":
             appointments = appointments.filter(
                 clinician__user=request.user,
+            )
+
+        patient_id = (
+            request.query_params
+            .get("patient_id", "")
+            .strip()
+        )
+        if patient_id:
+            try:
+                parsed_patient_id = UUID(patient_id)
+            except ValueError as exc:
+                raise ValidationError({
+                    "patient_id": "올바른 환자 ID를 입력해 주세요.",
+                }) from exc
+            appointments = appointments.filter(
+                patient_id=parsed_patient_id,
             )
 
         requested_status = (
@@ -195,6 +214,7 @@ class AppointmentDetailView(APIView):
             "clinician__user",
             "department",
             "hospital",
+            "encounter",
         )
         if request.user.role == "CLINICIAN":
             appointments = appointments.filter(
@@ -247,6 +267,59 @@ class AppointmentDetailView(APIView):
                 appointment,
             ).data,
         })
+
+
+class AppointmentEncounterRegistrationView(APIView):
+    permission_classes = [
+        IsClinician,
+        IsApprovedClinicianOrAdmin,
+    ]
+
+    @transaction.atomic
+    def post(self, request, appointment_id):
+        get_object_or_404(
+            Appointment.objects.filter(
+                clinician__user=request.user,
+            ),
+            id=appointment_id,
+        )
+        try:
+            encounter, created = register_appointment_encounter(
+                appointment_id=appointment_id,
+                registered_by=request.user,
+            )
+        except EncounterWorkflowError as exc:
+            raise ValidationError({
+                "appointment": str(exc),
+            }) from exc
+
+        appointment = (
+            Appointment.objects
+            .select_related(
+                "patient",
+                "clinician",
+                "department",
+                "hospital",
+                "encounter",
+            )
+            .get(id=appointment_id)
+        )
+        return Response(
+            {
+                "data": {
+                    "appointment": AppointmentSummarySerializer(
+                        appointment,
+                    ).data,
+                    "encounter_id": str(encounter.id),
+                    "created": created,
+                }
+            },
+            status=(
+                status.HTTP_201_CREATED
+                if created
+                else status.HTTP_200_OK
+            ),
+        )
 
 
 def _clinician_encounters(request):

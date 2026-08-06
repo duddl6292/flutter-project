@@ -22,6 +22,7 @@ import {
   cancelAppointment,
   createAppointment,
   getAppointments,
+  registerAppointmentEncounter,
   updateAppointment,
 } from './appointment.api'
 import {
@@ -177,6 +178,8 @@ export function AppointmentPage() {
   const [saving, setSaving] =
     useState(false)
   const [cancellingAppointment, setCancellingAppointment] =
+    useState(false)
+  const [registeringEncounter, setRegisteringEncounter] =
     useState(false)
   const [createError, setCreateError] =
     useState('')
@@ -468,6 +471,46 @@ export function AppointmentPage() {
     )
   }
 
+  const handleRegisterEncounter = async () => {
+    if (!selectedAppointment) return
+
+    const confirmed = window.confirm(
+      `${selectedAppointment.patient_name} 환자를 진료관리에 등록하시겠습니까?`,
+    )
+    if (!confirmed) return
+
+    setRegisteringEncounter(true)
+    setDetailError('')
+    try {
+      const result = await registerAppointmentEncounter(
+        selectedAppointment.appointment_id,
+      )
+      setAppointments((current) =>
+        current.map((appointment) =>
+          appointment.appointment_id === result.appointment.appointment_id
+            ? result.appointment
+            : appointment,
+        ),
+      )
+      setSelectedAppointment(result.appointment)
+    } catch (requestError) {
+      setDetailError(
+        requestError instanceof Error
+          ? requestError.message
+          : '진료관리에 등록하지 못했습니다.',
+      )
+    } finally {
+      setRegisteringEncounter(false)
+    }
+  }
+
+  const handleOpenSelectedEncounter = () => {
+    const encounterId = selectedAppointment?.encounter_id
+    if (!encounterId) return
+    setSelectedAppointment(null)
+    navigate(`/encounters?encounter_id=${encodeURIComponent(encounterId)}`)
+  }
+
   return (
     <div className="brainon-dashboard">
       <DashboardSidebar />
@@ -660,6 +703,7 @@ export function AppointmentPage() {
           appointment={selectedAppointment}
           saving={saving}
           cancelling={cancellingAppointment}
+          registeringEncounter={registeringEncounter}
           error={detailError}
           onClose={() => {
             setDetailError('')
@@ -667,6 +711,10 @@ export function AppointmentPage() {
           }}
           onOpenPatient={handleOpenSelectedPatient}
           onCancel={handleCancelAppointment}
+          onRegisterEncounter={() => {
+            void handleRegisterEncounter()
+          }}
+          onOpenEncounter={handleOpenSelectedEncounter}
           onUpdate={handleUpdateAppointment}
         />
       )}

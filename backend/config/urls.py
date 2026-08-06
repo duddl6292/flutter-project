@@ -19,5 +19,6 @@ urlpatterns = [
     path("api/v1/reports/", include("apps.reports.urls")),
     path("api/v1/notifications/", include("apps.notifications.urls")),
     path("api/v1/ct-analysis/", include("apps.ct_analysis.urls")),
+    path("api/v1/chatbot/", include("apps.chatbot.urls")),
     path("api/v1/provisional-identities/", include("apps.patients.provisional_urls")),
 ]

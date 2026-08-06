@@ -379,7 +379,8 @@ export function DashboardHeader({
 
         <input
           ref={searchInputRef}
-          type="text"
+          type="search"
+          enterKeyHint="search"
           aria-label="환자 검색"
           placeholder="환자 검색 (이름, 환자ID, 전화번호)"
           value={searchText}

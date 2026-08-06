@@ -55,8 +55,28 @@ export function createAiHttpServer() {
           });
           return;
         }
-        sendJson(response, 200, await assistantFlow({ message: input.message }));
-      } catch {
+        const userTokenHeader = request.headers['x-brainon-user-token'];
+        const userAccessToken = Array.isArray(userTokenHeader)
+          ? userTokenHeader[0]
+          : userTokenHeader;
+        const userRoleHeader = request.headers['x-brainon-user-role'];
+        const userRole = Array.isArray(userRoleHeader)
+          ? userRoleHeader[0]
+          : userRoleHeader;
+        sendJson(response, 200, await assistantFlow({
+          message: input.message,
+          userAccessToken,
+          userRole: (
+            userRole === 'PATIENT'
+            || userRole === 'CLINICIAN'
+            || userRole === 'ADMIN'
+          ) ? userRole : undefined,
+        }));
+      } catch (error) {
+        console.error(
+          '[brainon-ai] assistant request failed:',
+          error instanceof Error ? error.stack ?? error.message : error,
+        );
         sendJson(response, 500, {
           error: {
             code: 'AI_REQUEST_FAILED',

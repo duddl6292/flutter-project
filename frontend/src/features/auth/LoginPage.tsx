@@ -1,5 +1,6 @@
 import {
   type FormEvent,
+  type KeyboardEvent,
   useEffect,
   useState,
 } from 'react'
@@ -171,6 +172,22 @@ export function LoginPage() {
     }
   }
 
+  function handleLoginEnter(
+    event: KeyboardEvent<HTMLInputElement>,
+  ) {
+    if (
+      event.key !== 'Enter'
+      || event.nativeEvent.isComposing
+      || loginLoading
+      || departmentLoading
+    ) {
+      return
+    }
+
+    event.preventDefault()
+    event.currentTarget.form?.requestSubmit()
+  }
+
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>,
   ) {
@@ -255,6 +272,7 @@ export function LoginPage() {
             <div className="search-row">
               <input
                 type="search"
+                enterKeyHint="search"
                 value={hospitalSearch}
                 placeholder="병원 이름 또는 주소"
                 disabled={
@@ -266,6 +284,17 @@ export function LoginPage() {
                     event.target.value,
                   )
                 }
+                onKeyDown={(event) => {
+                  if (
+                    event.key !== 'Enter'
+                    || event.nativeEvent.isComposing
+                  ) {
+                    return
+                  }
+
+                  event.preventDefault()
+                  void handleHospitalSearch()
+                }}
               />
 
               <button
@@ -379,6 +408,7 @@ export function LoginPage() {
                 numbersOnly,
               )
             }}
+            onKeyDown={handleLoginEnter}
           />
         </label>
 
@@ -396,6 +426,7 @@ export function LoginPage() {
                 event.target.value,
               )
             }
+            onKeyDown={handleLoginEnter}
           />
         </label>
 

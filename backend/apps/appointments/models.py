@@ -562,8 +562,15 @@ class Encounter(TimeStampedModel):
                     }
                 )
 
-            # 취소된 예약으로 실제 진료 건 생성 금지
-            if self.appointment.status == Appointment.Status.CANCELLED:
+            # 취소된 예약으로 새 진료 건 생성은 금지하되,
+            # 기존 진료 건을 함께 취소하는 것은 허용한다.
+            if (
+                self.appointment.status == Appointment.Status.CANCELLED
+                and (
+                    self._state.adding
+                    or self.status != Encounter.Status.CANCELLED
+                )
+            ):
                 raise ValidationError(
                     {
                         "appointment": (

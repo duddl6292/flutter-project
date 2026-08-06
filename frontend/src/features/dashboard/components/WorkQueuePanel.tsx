@@ -15,7 +15,7 @@ export function WorkQueuePanel({ examinations, consultations, loading }: Props) 
     ...urgent.map((item) => ({ id: `result-${item.examination_id}`, tone: 'danger', icon: AlertTriangle, title: `${item.patient_name} · ${item.test_name}`, description: `${item.overall_interpretation_label} 결과 확인`, path: `/examinations/${item.examination_id}` })),
     ...preliminary.filter((item) => !urgent.some((urgentItem) => urgentItem.examination_id === item.examination_id)).map((item) => ({ id: `preliminary-${item.examination_id}`, tone: 'warning', icon: Clock3, title: `${item.patient_name} · ${item.test_name}`, description: '최종 결과 확정 대기', path: `/examinations/${item.examination_id}` })),
     ...waitingConsultations.map((item) => ({ id: `consultation-${item.consultation_id}`, tone: 'consultation', icon: Handshake, title: item.title, description: `${item.patient_display} · 협진 답변 대기`, path: `/consultations/${item.consultation_id}` })),
-  ].slice(0, 5)
+  ].slice(0, 4)
 
   return (
     <article className="dashboard-panel work-queue-panel">

@@ -1,8 +1,13 @@
+import logging
 from typing import Any
 
+from django.conf import settings
 from rest_framework import exceptions, status
 from rest_framework.response import Response
 from rest_framework.views import exception_handler
+
+
+logger = logging.getLogger("django.request")
 
 
 def _error_code(exc: Exception) -> str:
@@ -55,12 +60,28 @@ def api_exception_handler(
 ) -> Response:
     response = exception_handler(exc, context)
     if response is None:
+        request = context.get("request")
+        logger.error(
+            "Unhandled API exception: method=%s path=%s view=%s",
+            getattr(request, "method", ""),
+            getattr(request, "path", ""),
+            context.get("view").__class__.__name__
+            if context.get("view") is not None
+            else "",
+            exc_info=(type(exc), exc, exc.__traceback__),
+        )
+        details = {}
+        if settings.DEBUG:
+            details = {
+                "exception": type(exc).__name__,
+                "message": str(exc),
+            }
         return Response(
             {
                 "error": {
                     "code": "INTERNAL_ERROR",
                     "message": "서버에서 요청을 처리하지 못했습니다.",
-                    "details": {},
+                    "details": details,
                 }
             },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,

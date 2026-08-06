@@ -88,7 +88,7 @@ export function CtAnalysisPanel({
             key={patient.patient_id}
             value={patient.patient_id}
           >
-            {patient.patient_id} · {patient.name}
+            {patient.patient_number ?? '-'} · {patient.name}
           </option>
         ))}
       </select>

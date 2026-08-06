@@ -140,7 +140,11 @@ class CTCaseSerializer(serializers.BaseSerializer):
     def to_representation(self, case: CTCase):
         jobs = list(case.inference_jobs.all())
         job = jobs[0] if jobs else None
-        patient = case.encounter.patient if case.encounter_id else None
+        patient = case.encounter.patient if case.encounter_id else (
+            case.imaging_study.examination.patient
+            if case.imaging_study_id
+            else None
+        )
         result = None
         if job is not None:
             try:

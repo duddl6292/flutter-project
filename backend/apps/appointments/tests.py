@@ -151,6 +151,45 @@ class ClinicianEncounterApiTests(APITestCase):
             ).exists()
         )
 
+    def test_appointment_list_filters_by_patient_id(self) -> None:
+        another_patient = Patient.objects.create(
+            medical_record_number="P-ENC-002",
+            name="Another Patient",
+            status=Patient.Status.ACTIVE,
+        )
+        Appointment.objects.create(
+            patient=another_patient,
+            clinician=self.clinician,
+            department=self.department,
+            hospital=self.hospital,
+            created_by=self.user,
+            scheduled_at=timezone.now() + timedelta(hours=2),
+            status=Appointment.Status.SCHEDULED,
+        )
+
+        response = self.client.get(
+            "/api/v1/appointments/",
+            {"patient_id": str(self.patient.id)},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["meta"]["total_count"], 1)
+        self.assertEqual(
+            response.data["data"][0]["patient_id"],
+            str(self.patient.id),
+        )
+
+    def test_appointment_list_rejects_invalid_patient_id(self) -> None:
+        response = self.client.get(
+            "/api/v1/appointments/",
+            {"patient_id": "not-a-uuid"},
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+
     def test_clinician_cannot_register_patient_arrival(
         self,
     ) -> None:
@@ -164,6 +203,128 @@ class ClinicianEncounterApiTests(APITestCase):
             response.status_code,
             status.HTTP_405_METHOD_NOT_ALLOWED,
         )
+
+    def test_registers_today_appointment_in_encounter_queue(
+        self,
+    ) -> None:
+        self.appointment.status = Appointment.Status.SCHEDULED
+        self.appointment.save(update_fields=["status", "updated_at"])
+        url = (
+            f"/api/v1/appointments/{self.appointment.id}/encounter/"
+        )
+
+        first_response = self.client.post(url, {}, format="json")
+        second_response = self.client.post(url, {}, format="json")
+
+        self.assertEqual(
+            first_response.status_code,
+            status.HTTP_201_CREATED,
+            first_response.data,
+        )
+        self.assertEqual(
+            second_response.status_code,
+            status.HTTP_200_OK,
+            second_response.data,
+        )
+        self.assertEqual(Encounter.objects.count(), 1)
+        encounter = Encounter.objects.get(
+            appointment=self.appointment,
+        )
+        self.assertEqual(encounter.patient, self.patient)
+        self.assertEqual(
+            encounter.attending_clinician,
+            self.clinician,
+        )
+        self.assertEqual(encounter.status, Encounter.Status.ARRIVED)
+        self.appointment.refresh_from_db()
+        self.assertEqual(
+            self.appointment.status,
+            Appointment.Status.CHECKED_IN,
+        )
+        self.assertEqual(
+            first_response.data["data"]["appointment"]
+            ["encounter_id"],
+            str(encounter.id),
+        )
+
+    def test_cannot_register_future_appointment_in_encounter_queue(
+        self,
+    ) -> None:
+        self.appointment.scheduled_at = (
+            timezone.now() + timedelta(days=1)
+        )
+        self.appointment.save(
+            update_fields=["scheduled_at", "updated_at"]
+        )
+
+        response = self.client.post(
+            f"/api/v1/appointments/{self.appointment.id}/encounter/",
+            {},
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertFalse(
+            Encounter.objects.filter(
+                appointment=self.appointment,
+            ).exists()
+        )
+
+    def test_cancel_checked_in_appointment_cancels_arrived_encounter(
+        self,
+    ) -> None:
+        encounter = self.create_encounter()
+
+        response = self.client.patch(
+            f"/api/v1/appointments/{self.appointment.id}/",
+            {
+                "status": Appointment.Status.CANCELLED,
+                "reason": "Patient request",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+            response.data,
+        )
+        self.appointment.refresh_from_db()
+        encounter.refresh_from_db()
+        self.assertEqual(
+            self.appointment.status,
+            Appointment.Status.CANCELLED,
+        )
+        self.assertEqual(encounter.status, Encounter.Status.CANCELLED)
+
+    def test_cannot_cancel_appointment_after_encounter_started(
+        self,
+    ) -> None:
+        encounter = self.create_encounter()
+        encounter.status = Encounter.Status.IN_PROGRESS
+        encounter.started_at = timezone.now()
+        encounter.save(update_fields=["status", "started_at", "updated_at"])
+
+        response = self.client.patch(
+            f"/api/v1/appointments/{self.appointment.id}/",
+            {
+                "status": Appointment.Status.CANCELLED,
+                "reason": "Patient request",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.appointment.refresh_from_db()
+        encounter.refresh_from_db()
+        self.assertEqual(
+            self.appointment.status,
+            Appointment.Status.CHECKED_IN,
+        )
+        self.assertEqual(encounter.status, Encounter.Status.IN_PROGRESS)
 
     def test_lists_and_searches_own_encounters(
         self,

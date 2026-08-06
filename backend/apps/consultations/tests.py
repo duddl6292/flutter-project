@@ -1,4 +1,5 @@
 from datetime import timedelta
+from uuid import uuid4
 
 from django.utils import timezone
 from rest_framework import status
@@ -399,6 +400,25 @@ class ConsultationApiTests(APITestCase):
             ],
             str(consultation.id),
         )
+
+    def test_list_filters_by_patient_id(self) -> None:
+        consultation = self.create_consultation()
+
+        own_response = self.client.get(
+            "/api/v1/consultations/",
+            {"patient_id": str(self.patient.id)},
+        )
+        other_response = self.client.get(
+            "/api/v1/consultations/",
+            {"patient_id": str(uuid4())},
+        )
+
+        self.assertEqual(own_response.data["meta"]["total_count"], 1)
+        self.assertEqual(
+            own_response.data["data"][0]["consultation_id"],
+            str(consultation.id),
+        )
+        self.assertEqual(other_response.data["meta"]["total_count"], 0)
 
     def test_cannot_request_for_another_encounter(
         self,

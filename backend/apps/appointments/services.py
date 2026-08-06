@@ -47,6 +47,7 @@ ALLOWED_STATUS_TRANSITIONS = {
     },
     Appointment.Status.CHECKED_IN: {
         Appointment.Status.COMPLETED,
+        Appointment.Status.CANCELLED,
     },
     Appointment.Status.COMPLETED: set(),
     Appointment.Status.CANCELLED: set(),
@@ -158,6 +159,91 @@ def notify_appointment(
             "event": event,
         },
     )
+
+
+@transaction.atomic
+def register_appointment_encounter(
+    *,
+    appointment_id,
+    registered_by,
+) -> tuple[Encounter, bool]:
+    """오늘 예약을 담당 의료진의 진료 대기 건으로 등록한다."""
+    appointment = (
+        Appointment.objects
+        .select_for_update(of=("self",))
+        .select_related(
+            "patient",
+            "clinician__user",
+            "department",
+            "hospital",
+        )
+        .get(id=appointment_id)
+    )
+
+    if appointment.clinician.user_id != registered_by.id:
+        raise EncounterWorkflowError(
+            "본인 예약만 진료관리에 등록할 수 있습니다."
+        )
+
+    existing_encounter = Encounter.objects.filter(
+        appointment=appointment,
+    ).first()
+    if existing_encounter is not None:
+        return existing_encounter, False
+
+    if (
+        timezone.localdate(appointment.scheduled_at)
+        != timezone.localdate()
+    ):
+        raise EncounterWorkflowError(
+            "오늘 예약만 진료관리에 등록할 수 있습니다."
+        )
+
+    allowed_statuses = {
+        Appointment.Status.SCHEDULED,
+        Appointment.Status.CONFIRMED,
+        Appointment.Status.CHECKED_IN,
+    }
+    if appointment.status not in allowed_statuses:
+        raise EncounterWorkflowError(
+            "예약·확정·접수 상태의 예약만 등록할 수 있습니다."
+        )
+
+    if appointment.status != Appointment.Status.CHECKED_IN:
+        previous_status = appointment.status
+        appointment.status = Appointment.Status.CHECKED_IN
+        appointment.save(update_fields=["status", "updated_at"])
+        AppointmentStatusHistory.objects.create(
+            appointment=appointment,
+            previous_status=previous_status,
+            new_status=Appointment.Status.CHECKED_IN,
+            changed_by=registered_by,
+            reason="진료관리 등록",
+        )
+        notify_appointment(
+            appointment=appointment,
+            title="진료 접수가 완료되었습니다.",
+            body=(
+                f"{appointment.patient.name} 환자가 "
+                "진료 대기 목록에 등록되었습니다."
+            ),
+            event="CHECKED_IN",
+        )
+
+    now = timezone.now()
+    encounter = Encounter.objects.create(
+        encounter_number=f"ENC-{appointment.id.hex}",
+        patient=appointment.patient,
+        appointment=appointment,
+        department=appointment.department,
+        hospital=appointment.hospital,
+        attending_clinician=appointment.clinician,
+        registered_by=registered_by,
+        encounter_type=Encounter.EncounterType.OUTPATIENT,
+        status=Encounter.Status.ARRIVED,
+        arrived_at=now,
+    )
+    return encounter, True
 
 
 @transaction.atomic
@@ -302,6 +388,30 @@ def change_appointment_status(
             f"{previous_status}에서 {new_status}(으)로 변경할 수 없습니다."
         )
 
+    linked_encounter = None
+    if (
+        previous_status == Appointment.Status.CHECKED_IN
+        and new_status == Appointment.Status.CANCELLED
+    ):
+        linked_encounter = (
+            Encounter.objects
+            .select_for_update()
+            .filter(appointment=appointment)
+            .first()
+        )
+        if (
+            linked_encounter is not None
+            and linked_encounter.status
+            not in {
+                Encounter.Status.REGISTERED,
+                Encounter.Status.ARRIVED,
+                Encounter.Status.CANCELLED,
+            }
+        ):
+            raise AppointmentStatusTransitionError(
+                "이미 진료가 시작되었거나 완료된 예약은 취소할 수 없습니다."
+            )
+
     appointment.status = new_status
 
     if new_status == Appointment.Status.CANCELLED:
@@ -312,6 +422,13 @@ def change_appointment_status(
         )
 
     appointment.save()
+
+    if (
+        linked_encounter is not None
+        and linked_encounter.status != Encounter.Status.CANCELLED
+    ):
+        linked_encounter.status = Encounter.Status.CANCELLED
+        linked_encounter.save(update_fields=["status", "updated_at"])
 
     AppointmentStatusHistory.objects.create(
         appointment=appointment,

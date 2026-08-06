@@ -1,5 +1,6 @@
 from django.db import transaction
 from django.db.models import Q
+from uuid import UUID
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
@@ -47,6 +48,21 @@ class ClinicianPrescriptionListCreateView(APIView):
 
     def get(self, request):
         prescriptions = _clinician_prescriptions(request)
+        patient_id = (
+            request.query_params
+            .get("patient_id", "")
+            .strip()
+        )
+        if patient_id:
+            try:
+                parsed_patient_id = UUID(patient_id)
+            except ValueError as exc:
+                raise ValidationError({
+                    "patient_id": "올바른 환자 ID를 입력해 주세요.",
+                }) from exc
+            prescriptions = prescriptions.filter(
+                encounter__patient_id=parsed_patient_id,
+            )
         requested_status = (
             request.query_params
             .get("status", "")

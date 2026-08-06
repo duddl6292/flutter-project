@@ -93,7 +93,7 @@ export function ConsultationPage() {
           <div className="consultation-toolbar">
             <form onSubmit={(event) => { event.preventDefault(); resetPage(); setSubmittedSearch(searchText.trim()) }}>
               <Search size={18} />
-              <input value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="환자명, 환자번호, 제목, 의료진 검색" />
+              <input type="search" enterKeyHint="search" value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="환자명, 환자번호, 제목, 의료진 검색" />
               <button type="submit">검색</button>
             </form>
             <select aria-label="협진 상태" value={status} onChange={(event) => { setStatus(event.target.value as ConsultationStatus | ''); resetPage() }}>

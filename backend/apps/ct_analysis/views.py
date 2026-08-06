@@ -1,9 +1,11 @@
 from datetime import UTC, datetime
+from uuid import UUID
 
 from django.db.models import Q
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404
 from rest_framework import status
+from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -70,7 +72,24 @@ class CTCaseListCreateView(APIView):
             limit = min(max(int(request.query_params.get("limit", "50")), 1), 100)
         except ValueError:
             limit = 50
-        cases = _case_queryset(request)[:limit]
+        cases = _case_queryset(request)
+        patient_id = request.query_params.get("patient_id", "").strip()
+        if patient_id:
+            try:
+                parsed_patient_id = UUID(patient_id)
+            except ValueError as exc:
+                raise ValidationError({
+                    "patient_id": "올바른 환자 ID를 입력해 주세요.",
+                }) from exc
+            cases = cases.filter(
+                Q(encounter__patient_id=parsed_patient_id)
+                | Q(
+                    imaging_study__examination__patient_id=(
+                        parsed_patient_id
+                    )
+                )
+            )
+        cases = cases[:limit]
         return Response({"data": CTCaseSerializer(cases, many=True).data})
 
     def post(self, request):

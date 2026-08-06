@@ -10,7 +10,7 @@ import {
   useEffect,
   useState,
 } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 
 import {
   AccountPageLayout,
@@ -92,6 +92,8 @@ function nextStatusAction(status: EncounterStatus) {
 
 export function EncounterPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const requestedEncounterId = searchParams.get('encounter_id') ?? ''
   const today = toDateKey(new Date())
   const [dateFrom, setDateFrom] = useState(today)
   const [dateTo, setDateTo] = useState(today)
@@ -139,6 +141,15 @@ export function EncounterPage() {
 
         setSelectedId((current) => {
           if (
+            requestedEncounterId
+            && response.data.some(
+              (item) => item.encounter_id === requestedEncounterId,
+            )
+          ) {
+            return requestedEncounterId
+          }
+
+          if (
             current
             && response.data.some(
               (item) => item.encounter_id === current,
@@ -178,6 +189,7 @@ export function EncounterPage() {
     reloadKey,
     search,
     statusFilter,
+    requestedEncounterId,
   ])
 
   useEffect(() => {
@@ -293,6 +305,8 @@ export function EncounterPage() {
           >
             <Search size={17} />
             <input
+              type="search"
+              enterKeyHint="search"
               value={searchText}
               placeholder="환자명, 환자번호, 진료번호 검색"
               onChange={(event) =>

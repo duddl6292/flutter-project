@@ -193,12 +193,29 @@ export function ConsultationCreateModal({
             <div className="consultation-clinician-search">
               <Search size={18} />
               <input
+                type="search"
+                enterKeyHint="search"
                 value={clinicianSearch}
                 onChange={(event) =>
                   setClinicianSearch(event.target.value)
                 }
                 placeholder="의사명, 진료과 또는 병원명으로 검색"
                 aria-label="협진 의료진 검색"
+                onKeyDown={(event) => {
+                  if (
+                    event.key !== 'Enter'
+                    || event.nativeEvent.isComposing
+                  ) {
+                    return
+                  }
+
+                  event.preventDefault()
+
+                  if (!clinicianLoading && clinicians[0]) {
+                    setConsultantId(clinicians[0].clinician_id)
+                    setSelectedClinician(clinicians[0])
+                  }
+                }}
               />
             </div>
 

@@ -415,7 +415,26 @@
 }
 
 .appointment-detail-modal {
-  width: min(560px, 100%);
+  width: min(860px, 100%);
+  padding: 30px;
+}
+
+.appointment-detail-modal > footer {
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.appointment-detail-modal > footer .appointment-cancel-button {
+  margin-right: auto;
+}
+
+.appointment-detail-modal > footer button {
+  flex: 0 0 auto;
+  min-height: 42px;
+  padding-right: 16px;
+  padding-left: 16px;
+  white-space: nowrap;
 }
 
 .appointment-detail-summary {
@@ -506,11 +525,45 @@
   cursor: pointer;
 }
 
+.appointment-encounter-button {
+  border: 0;
+  border-radius: 9px;
+  background: #e8f6ef;
+  padding: 10px 15px;
+  color: #23815a;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.appointment-encounter-button:hover {
+  background: #d9f0e5;
+}
+
 .appointment-submit-button:disabled,
 .appointment-cancel-button:disabled,
 .appointment-edit-button:disabled {
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+.appointment-encounter-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+@media (max-width: 900px) {
+  .appointment-detail-modal {
+    width: min(760px, 100%);
+    padding: 26px;
+  }
+
+  .appointment-detail-modal > footer {
+    flex-wrap: wrap;
+  }
+
+  .appointment-detail-modal > footer .appointment-cancel-button {
+    margin-right: 0;
+  }
 }
 
 @media (max-width: 600px) {
@@ -536,6 +589,14 @@
   .appointment-modal footer {
     align-items: stretch;
     flex-direction: column-reverse;
+  }
+
+  .appointment-detail-modal {
+    padding: 18px;
+  }
+
+  .appointment-detail-modal > footer button {
+    width: 100%;
   }
 
   .appointment-detail-list {

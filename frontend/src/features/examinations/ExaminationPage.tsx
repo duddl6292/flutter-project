@@ -96,7 +96,7 @@ export function ExaminationPage() {
           <div className="examination-toolbar">
             <form onSubmit={(event) => { event.preventDefault(); setPage(1); setSearch(searchText.trim()) }}>
               <Search size={18} />
-              <input value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="환자명, 환자번호, 검사명 또는 검사코드 검색" />
+              <input type="search" enterKeyHint="search" value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="환자명, 환자번호, 검사명 또는 검사코드 검색" />
               <button type="submit">검색</button>
             </form>
             <select aria-label="검사 분류" value={category} onChange={(event) => { setCategory(event.target.value as ExaminationCategory | ''); setPage(1) }}>

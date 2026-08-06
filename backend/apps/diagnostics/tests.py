@@ -1,4 +1,5 @@
 from datetime import timedelta
+from uuid import uuid4
 
 from django.utils import timezone
 from rest_framework import status
@@ -175,6 +176,21 @@ class ExaminationApiTests(APITestCase):
             response.data["data"][0]["overall_interpretation"],
             ExaminationObservation.Interpretation.LOW,
         )
+
+    def test_list_filters_by_accessible_patient_id(self):
+        self.create_result()
+
+        own_response = self.client.get(
+            "/api/v1/examinations/",
+            {"patient_id": str(self.patient.id)},
+        )
+        other_response = self.client.get(
+            "/api/v1/examinations/",
+            {"patient_id": str(uuid4())},
+        )
+
+        self.assertEqual(own_response.data["meta"]["total_count"], 1)
+        self.assertEqual(other_response.data["meta"]["total_count"], 0)
 
     def test_outside_hospital_cannot_open_result(self):
         examination = self.create_result()

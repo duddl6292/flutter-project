@@ -17,11 +17,14 @@ interface AppointmentDetailModalProps {
   appointment: Appointment
   saving: boolean
   cancelling: boolean
+  registeringEncounter: boolean
   error: string
 
   onClose: () => void
   onOpenPatient: () => void
   onCancel: () => void
+  onRegisterEncounter: () => void
+  onOpenEncounter: () => void
   onUpdate: (
     input: AppointmentUpdateInput,
   ) => Promise<boolean>
@@ -74,10 +77,13 @@ export function AppointmentDetailModal({
   appointment,
   saving,
   cancelling,
+  registeringEncounter,
   error,
   onClose,
   onOpenPatient,
   onCancel,
+  onRegisterEncounter,
+  onOpenEncounter,
   onUpdate,
 }: AppointmentDetailModalProps) {
   const [editing, setEditing] =
@@ -105,6 +111,19 @@ export function AppointmentDetailModal({
     'CANCELLED',
     'COMPLETED',
   ].includes(appointment.status)
+  const scheduledDate = toLocalDateTimeInput(
+    appointment.scheduled_at,
+  ).slice(0, 10)
+  const today = toLocalDateTimeInput(new Date().toISOString()).slice(0, 10)
+  const canRegisterEncounter = (
+    !appointment.encounter_id
+    && scheduledDate === today
+    && [
+      'SCHEDULED',
+      'CONFIRMED',
+      'CHECKED_IN',
+    ].includes(appointment.status)
+  )
 
   useEffect(() => {
     setScheduledAt(
@@ -420,6 +439,29 @@ export function AppointmentDetailModal({
               >
                 환자 관리에서 보기
               </button>
+
+              {appointment.encounter_id && (
+                <button
+                  type="button"
+                  className="appointment-encounter-button"
+                  onClick={onOpenEncounter}
+                >
+                  진료관리에서 보기
+                </button>
+              )}
+
+              {canRegisterEncounter && (
+                <button
+                  type="button"
+                  className="appointment-encounter-button"
+                  disabled={registeringEncounter}
+                  onClick={onRegisterEncounter}
+                >
+                  {registeringEncounter
+                    ? '등록 중'
+                    : '진료관리 등록'}
+                </button>
+              )}
 
               {editable && (
                 <button

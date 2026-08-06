@@ -1,5 +1,6 @@
 from decimal import Decimal
 from unittest.mock import patch
+from uuid import uuid4
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
@@ -172,6 +173,30 @@ class CTAnalysisApiTests(APITestCase):
         reused = CTCase.objects.get(id=create_response.data["data"]["case_id"])
         self.assertEqual(reused.input_uri, source_case.input_uri)
         self.assertEqual(reused.encounter.patient, self.patient)
+
+    def test_case_list_filters_by_patient_id(self) -> None:
+        case = CTCase.objects.create(
+            encounter=self.encounter,
+            study_type=CTCase.StudyType.NCCT,
+            status=CTCase.Status.READY,
+            input_uri="gs://brainon_ct-input_patient/uploads/filter.nii.gz",
+            input_sha256="e" * 64,
+            file_size_bytes=1024,
+            content_type="application/gzip",
+            created_by=self.user,
+        )
+
+        own_response = self.client.get(
+            "/api/v1/ct-analysis/cases/",
+            {"patient_id": str(self.patient.id)},
+        )
+        other_response = self.client.get(
+            "/api/v1/ct-analysis/cases/",
+            {"patient_id": str(uuid4())},
+        )
+
+        self.assertEqual(own_response.data["data"][0]["case_id"], str(case.id))
+        self.assertEqual(other_response.data["data"], [])
 
     @patch("apps.ct_analysis.services.call_inference_gateway")
     def test_run_persists_result_and_viewer_urls(self, gateway_mock) -> None:

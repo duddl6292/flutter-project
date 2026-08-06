@@ -1,4 +1,5 @@
 from datetime import date
+from uuid import uuid4
 
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -164,6 +165,25 @@ class ClinicianPrescriptionApiTests(APITestCase):
                 "prescription_id"
             ],
         )
+
+    def test_list_filters_by_patient_id(self) -> None:
+        self.client.post(
+            "/api/v1/prescriptions/",
+            self.create_data(),
+            format="json",
+        )
+
+        own_response = self.client.get(
+            "/api/v1/prescriptions/",
+            {"patient_id": str(self.patient.id)},
+        )
+        other_response = self.client.get(
+            "/api/v1/prescriptions/",
+            {"patient_id": str(uuid4())},
+        )
+
+        self.assertEqual(own_response.data["meta"]["total_count"], 1)
+        self.assertEqual(other_response.data["meta"]["total_count"], 0)
 
     def test_discontinues_active_prescription(self) -> None:
         create_response = self.client.post(

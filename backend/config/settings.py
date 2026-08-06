@@ -196,6 +196,14 @@ JWT_REFRESH_COOKIE_NAME = os.getenv(
     "brainon_refresh",
 )
 
+AI_SERVICE_URL = os.getenv(
+    "AI_SERVICE_URL",
+    "http://localhost:18200",
+).rstrip("/")
+AI_SERVICE_TIMEOUT_SECONDS = int(
+    os.getenv("AI_SERVICE_TIMEOUT_SECONDS", "120")
+)
+
 FCM_ENABLED = os.getenv(
     "FCM_ENABLED",
     "false",

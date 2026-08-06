@@ -1,4 +1,5 @@
 from django.db.models import Q
+from uuid import UUID
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
@@ -87,6 +88,21 @@ class ExaminationListCreateView(APIView):
             request,
             include_consultation=True,
         )
+        patient_id = (
+            request.query_params
+            .get("patient_id", "")
+            .strip()
+        )
+        if patient_id:
+            try:
+                parsed_patient_id = UUID(patient_id)
+            except ValueError as exc:
+                raise ValidationError({
+                    "patient_id": "올바른 환자 ID를 입력해 주세요.",
+                }) from exc
+            examinations = examinations.filter(
+                patient_id=parsed_patient_id,
+            )
         requested_status = (
             request.query_params
             .get("status", "")

@@ -174,6 +174,8 @@ export function PrescriptionPage() {
             >
               <Search size={18} />
               <input
+                type="search"
+                enterKeyHint="search"
                 value={searchText}
                 placeholder="환자명, 환자번호, 약품명 검색"
                 onChange={(event) =>
