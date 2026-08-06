@@ -1,32 +1,25 @@
+import 'package:brainon_mobile/core/auth/auth_provider.dart';
 import 'package:brainon_mobile/shared/models/patient_signup_request.dart';
-import 'package:brainon_mobile/features/auth/repositories/auth_repository.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class PatientSignupScreen extends StatefulWidget {
+class PatientSignupScreen extends ConsumerStatefulWidget {
   const PatientSignupScreen({super.key});
 
   @override
-  State<PatientSignupScreen> createState() => _PatientSignupScreenState();
+  ConsumerState<PatientSignupScreen> createState() =>
+      _PatientSignupScreenState();
 }
 
-class _PatientSignupScreenState extends State<PatientSignupScreen> {
+class _PatientSignupScreenState extends ConsumerState<PatientSignupScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  final AuthRepository _authRepository = AuthRepository();
-
   final _usernameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _lastNameController = TextEditingController();
-  final _firstNameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _passwordConfirmController = TextEditingController();
 
-  final _medicalRecordNumberController = TextEditingController();
   final _patientNameController = TextEditingController();
   final _birthDateController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _emergencyContactController = TextEditingController();
-  final _addressController = TextEditingController();
 
   String _selectedSex = 'UNKNOWN';
 
@@ -39,17 +32,10 @@ class _PatientSignupScreenState extends State<PatientSignupScreen> {
   @override
   void dispose() {
     _usernameController.dispose();
-    _emailController.dispose();
-    _lastNameController.dispose();
-    _firstNameController.dispose();
     _passwordController.dispose();
     _passwordConfirmController.dispose();
-    _medicalRecordNumberController.dispose();
     _patientNameController.dispose();
     _birthDateController.dispose();
-    _phoneController.dispose();
-    _emergencyContactController.dispose();
-    _addressController.dispose();
 
     super.dispose();
   }
@@ -99,19 +85,13 @@ class _PatientSignupScreenState extends State<PatientSignupScreen> {
       final request = PatientSignupRequest(
         username: _usernameController.text.trim(),
         password: _passwordController.text,
-        email: _emailController.text.trim(),
-        firstName: _firstNameController.text.trim(),
-        lastName: _lastNameController.text.trim(),
-        medicalRecordNumber: _medicalRecordNumberController.text.trim(),
-        patientName: _patientNameController.text.trim(),
+        passwordConfirm: _passwordConfirmController.text,
+        name: _patientNameController.text.trim(),
         birthDate: _birthDateController.text.trim(),
         sex: _selectedSex,
-        phone: _phoneController.text.trim(),
-        emergencyContact: _emergencyContactController.text.trim(),
-        address: _addressController.text.trim(),
       );
 
-      await _authRepository.signupPatient(request);
+      await ref.read(authRepositoryProvider).signupPatient(request);
 
       if (!mounted) {
         return;
@@ -122,6 +102,13 @@ class _PatientSignupScreenState extends State<PatientSignupScreen> {
       ).showSnackBar(const SnackBar(content: Text('회원가입이 완료되었습니다.')));
 
       Navigator.of(context).pop();
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(error.toString())));
     } finally {
       if (mounted) {
         setState(() {
@@ -197,51 +184,6 @@ class _PatientSignupScreenState extends State<PatientSignupScreen> {
               const SizedBox(height: 14),
 
               _SignupTextField(
-                controller: _emailController,
-                label: '이메일',
-                hintText: 'example@email.com',
-                prefixIcon: Icons.email_outlined,
-                keyboardType: TextInputType.emailAddress,
-                validator: (value) {
-                  final text = value?.trim() ?? '';
-
-                  if (text.isEmpty) {
-                    return '이메일을 입력해 주세요.';
-                  }
-
-                  if (!text.contains('@')) {
-                    return '올바른 이메일 형식을 입력해 주세요.';
-                  }
-
-                  return null;
-                },
-              ),
-              const SizedBox(height: 14),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: _SignupTextField(
-                      controller: _lastNameController,
-                      label: '성',
-                      hintText: '남',
-                      validator: _requiredValidator,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _SignupTextField(
-                      controller: _firstNameController,
-                      label: '이름',
-                      hintText: '지원',
-                      validator: _requiredValidator,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-
-              _SignupTextField(
                 controller: _passwordController,
                 label: '비밀번호',
                 hintText: '8자 이상 입력',
@@ -306,36 +248,12 @@ class _PatientSignupScreenState extends State<PatientSignupScreen> {
                 },
               ),
 
-              const SizedBox(height: 32),
-
-              const Text(
-                '환자 정보',
-                style: TextStyle(
-                  color: Color(0xFF111827),
-                  fontSize: 21,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                '병원에 등록된 환자 정보와 동일하게 입력해 주세요.',
-                style: TextStyle(color: Color(0xFF6B7280), fontSize: 14),
-              ),
               const SizedBox(height: 20),
-
-              _SignupTextField(
-                controller: _medicalRecordNumberController,
-                label: '병원 환자번호',
-                hintText: '병원에서 발급받은 환자번호',
-                prefixIcon: Icons.badge_outlined,
-                validator: _requiredValidator,
-              ),
-              const SizedBox(height: 14),
 
               _SignupTextField(
                 controller: _patientNameController,
                 label: '환자 이름',
-                hintText: '병원 등록 이름',
+                hintText: '이름 입력',
                 prefixIcon: Icons.account_circle_outlined,
                 validator: _requiredValidator,
               ),
@@ -369,35 +287,6 @@ class _PatientSignupScreenState extends State<PatientSignupScreen> {
                   });
                 },
               ),
-              const SizedBox(height: 14),
-
-              _SignupTextField(
-                controller: _phoneController,
-                label: '휴대전화번호',
-                hintText: '010-0000-0000',
-                prefixIcon: Icons.phone_outlined,
-                keyboardType: TextInputType.phone,
-                validator: _requiredValidator,
-              ),
-              const SizedBox(height: 14),
-
-              _SignupTextField(
-                controller: _emergencyContactController,
-                label: '비상 연락처',
-                hintText: '보호자 또는 가족 연락처',
-                prefixIcon: Icons.contact_emergency_outlined,
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: 14),
-
-              _SignupTextField(
-                controller: _addressController,
-                label: '주소',
-                hintText: '거주지 주소',
-                prefixIcon: Icons.home_outlined,
-                maxLines: 2,
-              ),
-
               const SizedBox(height: 24),
 
               CheckboxListTile(
@@ -480,10 +369,8 @@ class _SignupTextField extends StatelessWidget {
     this.hintText,
     this.prefixIcon,
     this.suffixIcon,
-    this.keyboardType,
     this.obscureText = false,
     this.readOnly = false,
-    this.maxLines = 1,
     this.onTap,
     this.validator,
   });
@@ -493,10 +380,8 @@ class _SignupTextField extends StatelessWidget {
   final String? hintText;
   final IconData? prefixIcon;
   final Widget? suffixIcon;
-  final TextInputType? keyboardType;
   final bool obscureText;
   final bool readOnly;
-  final int maxLines;
   final VoidCallback? onTap;
   final String? Function(String?)? validator;
 
@@ -504,10 +389,8 @@ class _SignupTextField extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextFormField(
       controller: controller,
-      keyboardType: keyboardType,
       obscureText: obscureText,
       readOnly: readOnly,
-      maxLines: obscureText ? 1 : maxLines,
       onTap: onTap,
       validator: validator,
       decoration: _inputDecoration(

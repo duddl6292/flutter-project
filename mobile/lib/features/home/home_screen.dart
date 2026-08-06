@@ -1,9 +1,13 @@
 import 'package:brainon_mobile/core/router/route_names.dart';
+import 'package:brainon_mobile/features/medication/providers/medication_provider.dart';
+import 'package:brainon_mobile/features/medication/medication_list_screen.dart';
+import 'package:brainon_mobile/shared/models/medication.dart';
 import 'package:brainon_mobile/shared/mock/patient_home_mock.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({
     required this.onOpenDrawer,
     required this.onOpenAppointment,
@@ -17,10 +21,10 @@ class HomeScreen extends StatefulWidget {
   final VoidCallback onOpenAppointment;
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   static const Color primaryColor = Color(0xFF2563EB);
   static const Color textColor = Color(0xFF111827);
   static const Color subTextColor = Color(0xFF6B7280);
@@ -34,9 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final upcomingDates = patientHomeMock['upcoming_dates'] as List<dynamic>;
 
-    final medication = patientHomeMock['medication'] as Map<String, dynamic>;
-
-    final medicationItems = medication['items'] as List<dynamic>;
+    final medications = ref.watch(todayMedicationsProvider);
 
     return Scaffold(
       // 챗봇 버튼
@@ -73,10 +75,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                         const SizedBox(height: 18),
 
-                        _buildMedicationCard(
-                          medication: medication,
-                          items: medicationItems,
-                        ),
+                        _buildMedicationCard(medications),
                       ],
                     ),
                   ),
@@ -528,103 +527,45 @@ class _HomeScreenState extends State<HomeScreen> {
   // ============================================================
   // 복약 카드
   // ============================================================
-  Widget _buildMedicationCard({
-    required Map<String, dynamic> medication,
-    required List<dynamic> items,
-  }) {
+  Widget _buildMedicationCard(AsyncValue<List<Medication>> value) {
     return Container(
       decoration: _cardDecoration(),
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 12),
-            child: Column(
+            padding: const EdgeInsets.all(18),
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.calendar_today_outlined,
-                      color: Color(0xFF1E3A5F),
-                      size: 25,
-                    ),
-                    const SizedBox(width: 10),
-                    const Expanded(
-                      child: Text(
-                        '오늘의 복약',
-                        style: TextStyle(
-                          color: textColor,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    const Icon(
-                      Icons.check_circle_outline_rounded,
-                      color: primaryColor,
-                      size: 25,
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      '${medication['completed_count']}/'
-                      '${medication['total_count']} 완료',
-                      style: const TextStyle(
-                        color: subTextColor,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 12),
-
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 11,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF3F7FF),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFF93B4FF)),
-                    ),
-                    child: Text(
-                      medication['date'] as String,
-                      style: const TextStyle(
-                        color: primaryColor,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
+                const Icon(Icons.calendar_today_outlined, color: Color(0xFF1E3A5F)),
+                const SizedBox(width: 10),
+                const Expanded(child: Text('오늘의 복약', style: TextStyle(color: textColor, fontSize: 20, fontWeight: FontWeight.w800))),
+                TextButton(
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const MedicationListScreen())),
+                  child: const Text('전체보기'),
                 ),
               ],
             ),
           ),
-
           const Divider(height: 1, color: Color(0xFFE5E7EB)),
-
-          ...items.map((itemData) {
-            final item = itemData as Map<String, dynamic>;
-
-            return _buildMedicationItem(item);
-          }),
+          value.when(
+            loading: () => const Padding(padding: EdgeInsets.all(28), child: CircularProgressIndicator()),
+            error: (_, _) => TextButton.icon(onPressed: () => ref.invalidate(todayMedicationsProvider), icon: const Icon(Icons.refresh), label: const Text('복약 정보 다시 불러오기')),
+            data: (items) => Column(children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                child: Align(alignment: Alignment.centerLeft, child: Text('${items.where((item) => item.completed).length}/${items.length} 완료')),
+              ),
+              if (items.isEmpty) const Padding(padding: EdgeInsets.all(24), child: Text('오늘 예정된 복약 일정이 없습니다.')),
+              for (final item in items) _buildMedicationItem(item),
+            ]),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildMedicationItem(Map<String, dynamic> item) {
-    final isPurple = item['icon_type'] == 'purple';
-
-    final iconColor = isPurple ? const Color(0xFF8B5CF6) : primaryColor;
-
-    final iconBackground = isPurple
-        ? const Color(0xFFF3EEFF)
-        : const Color(0xFFEAF2FF);
-
+  Widget _buildMedicationItem(Medication item) {
+    final time = '${item.scheduledAt.hour.toString().padLeft(2, '0')}:${item.scheduledAt.minute.toString().padLeft(2, '0')}';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       decoration: const BoxDecoration(
@@ -636,10 +577,10 @@ class _HomeScreenState extends State<HomeScreen> {
             width: 54,
             height: 54,
             decoration: BoxDecoration(
-              color: iconBackground,
+              color: const Color(0xFFEAF2FF),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(Icons.medication_outlined, color: iconColor, size: 31),
+            child: const Icon(Icons.medication_outlined, color: primaryColor, size: 31),
           ),
 
           const SizedBox(width: 14),
@@ -649,7 +590,7 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item['name'] as String,
+                  item.name,
                   style: const TextStyle(
                     color: textColor,
                     fontSize: 17,
@@ -666,7 +607,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(width: 5),
                     Text(
-                      '${item['time']} 알림',
+                      '$time · ${item.dose}',
                       style: const TextStyle(color: subTextColor, fontSize: 13),
                     ),
                   ],
@@ -683,7 +624,7 @@ class _HomeScreenState extends State<HomeScreen> {
               border: Border.all(color: const Color(0xFFD9CCFF)),
             ),
             child: Text(
-              item['status'] as String,
+              item.completed ? '복용 완료' : '복용 예정',
               style: const TextStyle(
                 color: Color(0xFF8B5CF6),
                 fontSize: 13,

@@ -1,12 +1,14 @@
+import 'package:brainon_mobile/core/auth/auth_provider.dart';
+import 'package:brainon_mobile/core/auth/auth_state.dart';
 import 'package:brainon_mobile/core/router/route_names.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:brainon_mobile/features/auth/user_role.dart';
-import 'package:brainon_mobile/shared/mock/clinician_mock.dart';
-import 'package:brainon_mobile/shared/mock/hospital_mock.dart';
 import 'package:flutter/material.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({required this.role, super.key});
 
   /// 역할 선택 화면에서 전달받은 사용자 역할
@@ -16,10 +18,22 @@ class LoginScreen extends StatefulWidget {
   final UserRole role;
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
+  // ============================================================
+  // 개발용 임시 로그인 우회 설정
+  //
+  // true:
+  //   로그인 API를 호출하지 않고 환자/의료진 메인 화면으로 이동한다.
+  //
+  // false:
+  //   아래 _submit()의 실제 로그인 API 코드를 실행한다.
+  //
+  // 실제 Django 로그인 API 연결이 완료되면 false로 변경한다.
+  // ============================================================
+  static const bool _enableDevelopmentLoginBypass = true;
   // ============================================================
   // Form 및 입력 Controller
   // ============================================================
@@ -59,8 +73,43 @@ class _LoginScreenState extends State<LoginScreen> {
   /// 화면에 표시하거나 임시 검증에 사용할 병원명
   String _selectedHospitalName = '';
 
+  List<AuthHospital> _hospitals = const [];
+  List<AuthDepartment> _departments = const [];
+
   /// 현재 화면이 의료진 로그인 화면인지 확인
   bool get _isClinician => widget.role == UserRole.clinician;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isClinician) {
+      Future<void>.microtask(_loadClinicianLoginOptions);
+    }
+  }
+
+  Future<void> _loadClinicianLoginOptions() async {
+    try {
+      final repository = ref.read(authRepositoryProvider);
+      final results = await Future.wait([
+        repository.getHospitals(),
+        repository.getDepartments(),
+      ]);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _hospitals = results[0] as List<AuthHospital>;
+        _departments = results[1] as List<AuthDepartment>;
+      });
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
 
   @override
   void dispose() {
@@ -76,6 +125,50 @@ class _LoginScreenState extends State<LoginScreen> {
   // ============================================================
 
   Future<void> _submit() async {
+    // ==========================================================
+    // 1. 개발용 임시 로그인 우회
+    //
+    // 현재 로그인 API가 연결되지 않은 동안 사용하는 코드다.
+    // 입력값 검증과 API 요청 없이 역할에 맞는 임시 인증 상태를 만들고,
+    // 환자는 환자 메인, 의료진은 의료진 메인으로 이동한다.
+    //
+    // 실제 API 연결 후에는:
+    //   _enableDevelopmentLoginBypass = false
+    // 로 바꾸면 아래 실제 로그인 코드가 다시 실행된다.
+    // ==========================================================
+    if (kDebugMode && _enableDevelopmentLoginBypass) {
+      if (_isClinician) {
+        // 의료진 임시 인증 상태 생성
+        ref.read(authProvider.notifier).startDevelopmentClinicianSession();
+
+        if (!mounted) {
+          return;
+        }
+
+        // 의료진 메인 화면으로 이동
+        context.goNamed(RouteNames.clinicianHome);
+        return;
+      }
+
+      // 환자 임시 인증 상태 생성
+      ref.read(authProvider.notifier).startDevelopmentPatientSession();
+
+      if (!mounted) {
+        return;
+      }
+
+      // 환자 메인 화면으로 이동
+      context.goNamed(RouteNames.patientMain);
+      return;
+    }
+
+    // ==========================================================
+    // 2. 실제 로그인 API 처리
+    //
+    // 개발용 우회 설정이 false일 때만 실행된다.
+    // 이 코드는 삭제하지 않고 그대로 보관한다.
+    // ==========================================================
+
     // TextFormField와 Dropdown의 validator를 실행한다.
     final isFormValid = _formKey.currentState?.validate() ?? false;
 
@@ -95,24 +188,47 @@ class _LoginScreenState extends State<LoginScreen> {
       _isSubmitting = true;
     });
 
-    // 실제 Django 로그인 API가 아직 연결되지 않았으므로
-    // 서버 요청처럼 보이도록 임시 지연 시간을 준다.
-    await Future<void>.delayed(const Duration(milliseconds: 700));
+    try {
+      // 실제 Django 로그인 API 호출
+      await ref
+          .read(authProvider.notifier)
+          .login(
+            role: widget.role,
+            password: _passwordController.text,
+            username: _isClinician ? null : _usernameController.text.trim(),
+            hospitalId: _selectedHospitalId,
+            departmentCode: _selectedDepartmentCode,
+            licenseNumber: _licenseNumberController.text.trim(),
+          );
 
-    if (!mounted) {
-      return;
+      if (!mounted) {
+        return;
+      }
+
+      // API 응답으로 저장된 실제 사용자 역할 확인
+      final authenticatedRole = ref.read(authProvider).user!.role;
+
+      final destination = switch (authenticatedRole) {
+        UserRole.patient => RouteNames.patientMain,
+        UserRole.clinician => RouteNames.clinicianHome,
+      };
+
+      context.goNamed(destination);
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
     }
-
-    setState(() {
-      _isSubmitting = false;
-    });
-
-    final destination = switch (widget.role) {
-      UserRole.patient => RouteNames.patientMain,
-      UserRole.clinician => RouteNames.clinicianHome,
-    };
-
-    context.goNamed(destination);
   }
 
   @override
@@ -344,10 +460,10 @@ class _LoginScreenState extends State<LoginScreen> {
             prefixIcon: Icons.medical_services_outlined,
           ),
 
-          // clinician_mock.dart의 데이터를 Dropdown 항목으로 변환한다.
-          items: clinicianTypeMockList.map((item) {
-            final code = item['code']!;
-            final label = item['label']!;
+          // Django에서 조회한 활성 진료과를 Dropdown 항목으로 변환한다.
+          items: _departments.map((item) {
+            final code = item.code;
+            final label = item.name;
 
             return DropdownMenuItem<String>(value: code, child: Text(label));
           }).toList(),
@@ -380,43 +496,30 @@ class _LoginScreenState extends State<LoginScreen> {
       children: [
         const _FieldLabel('병원 검색'),
 
-        Autocomplete<Map<String, dynamic>>(
+        Autocomplete<AuthHospital>(
           // 사용자가 입력한 검색어와 일치하는 병원을 반환한다.
           optionsBuilder: (TextEditingValue textEditingValue) {
             if (textEditingValue.text.trim().isEmpty) {
-              return const Iterable<Map<String, dynamic>>.empty();
+              return const Iterable<AuthHospital>.empty();
             }
 
             final keyword = textEditingValue.text.trim().toLowerCase();
 
-            return hospitalMockList.where((hospital) {
-              final hospitalName =
-                  hospital['name']?.toString() ??
-                  hospital['hospital_name']?.toString() ??
-                  '';
-
-              return hospitalName.toLowerCase().contains(keyword);
+            return _hospitals.where((hospital) {
+              return hospital.name.toLowerCase().contains(keyword);
             });
           },
 
           // 입력창에 표시할 값은 hospital_name이다.
           displayStringForOption: (hospital) {
-            return hospital['name']?.toString() ??
-                hospital['hospital_name']?.toString() ??
-                '';
+            return hospital.name;
           },
 
           // 사용자가 추천 목록에서 병원을 선택했을 때 실행된다.
           onSelected: (hospital) {
             setState(() {
-              _selectedHospitalId =
-                  hospital['id']?.toString() ??
-                  hospital['hospital_id']?.toString();
-
-              _selectedHospitalName =
-                  hospital['name']?.toString() ??
-                  hospital['hospital_name']?.toString() ??
-                  '';
+              _selectedHospitalId = hospital.id;
+              _selectedHospitalName = hospital.name;
             });
           },
 
@@ -473,10 +576,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     itemBuilder: (context, index) {
                       final hospital = optionList[index];
 
-                      final hospitalName =
-                          hospital['name']?.toString() ??
-                          hospital['hospital_name']?.toString() ??
-                          '';
+                      final hospitalName = hospital.name;
 
                       return ListTile(
                         // --------------------------------------------------

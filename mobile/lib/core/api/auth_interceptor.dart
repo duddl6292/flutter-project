@@ -37,7 +37,7 @@ class AuthInterceptor extends Interceptor {
     final shouldRefresh =
         err.response?.statusCode == 401 &&
         request.extra[_retriedKey] != true &&
-        !request.path.endsWith('/api/v1/auth/refresh/');
+        !request.path.endsWith('/api/v1/auth/token/refresh/');
     if (!shouldRefresh) {
       handler.next(err);
       return;
@@ -75,10 +75,10 @@ class AuthInterceptor extends Interceptor {
       throw StateError('Refresh Token이 없습니다.');
     }
     final response = await _refreshDio.post<Map<String, dynamic>>(
-      '/api/v1/auth/refresh/',
-      data: {'refresh': refreshToken, 'client_type': 'MOBILE'},
+      '/api/v1/auth/token/refresh/',
+      data: {'refresh': refreshToken},
     );
-    final data = response.data;
+    final data = response.data?['data'] as Map<String, dynamic>?;
     final accessToken = data?['access'] as String?;
     final rotatedRefreshToken = data?['refresh'] as String?;
     if (accessToken == null || accessToken.isEmpty) {

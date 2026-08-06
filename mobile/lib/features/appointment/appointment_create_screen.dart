@@ -1,32 +1,24 @@
 import 'package:brainon_mobile/features/appointment/hospital_select_screen.dart';
-import 'package:brainon_mobile/features/appointment/repositories/appointment_create_repository.dart';
 import 'package:brainon_mobile/features/appointment/repositories/department_repository.dart';
 import 'package:brainon_mobile/features/appointment/repositories/doctor_repository.dart';
-import 'package:brainon_mobile/shared/mock/appointment_time_mock.dart';
-import 'package:brainon_mobile/shared/models/appointment_create_request.dart';
 import 'package:brainon_mobile/shared/models/department.dart';
 import 'package:brainon_mobile/shared/models/doctor.dart';
 import 'package:brainon_mobile/shared/models/hospital.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AppointmentCreateScreen extends StatefulWidget {
+class AppointmentCreateScreen extends ConsumerStatefulWidget {
   const AppointmentCreateScreen({required this.onOpenDrawer, super.key});
 
   final VoidCallback onOpenDrawer;
 
   @override
-  State<AppointmentCreateScreen> createState() =>
+  ConsumerState<AppointmentCreateScreen> createState() =>
       _AppointmentCreateScreenState();
 }
 
-class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
-  final DepartmentRepository _departmentRepository = DepartmentRepository();
-
-  final DoctorRepository _doctorRepository = DoctorRepository();
-
-  final AppointmentCreateRepository _appointmentRepository =
-      AppointmentCreateRepository();
-
+class _AppointmentCreateScreenState
+    extends ConsumerState<AppointmentCreateScreen> {
   Hospital? _selectedHospital;
   Department? _selectedDepartment;
   Doctor? _selectedDoctor;
@@ -42,7 +34,7 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
   int? _editingStepFromConfirm;
 
   bool _isLoading = false;
-  bool _isSubmitting = false;
+  final bool _isSubmitting = false;
 
   bool get _canSubmit =>
       _selectedHospital != null &&
@@ -94,9 +86,9 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
     });
 
     try {
-      final departments = await _departmentRepository.getDepartmentsByHospital(
-        hospital.hospitalId,
-      );
+      final departments = await ref
+          .read(departmentRepositoryProvider)
+          .getDepartmentsByHospital(hospital.hospitalId);
 
       if (!mounted) {
         return;
@@ -156,9 +148,9 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
     });
 
     try {
-      final doctors = await _doctorRepository.getDoctorsByDepartment(
-        department.departmentId,
-      );
+      final doctors = await ref
+          .read(doctorRepositoryProvider)
+          .getDoctorsByDepartment(department);
 
       if (!mounted) {
         return;
@@ -266,16 +258,6 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
   // ============================================================
   // 시간 선택
   // ============================================================
-  void _selectTime(String time) {
-    setState(() {
-      _selectedTime = time;
-      _editingStepFromConfirm = null;
-
-      // 시간 선택 후 바로 확인 화면
-      _currentStep = 5;
-    });
-  }
-
   // ============================================================
   // 완료한 이전 단계로 돌아가기
   // ============================================================
@@ -339,100 +321,7 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
   // 예약 생성
   // ============================================================
   Future<void> _submitAppointment() async {
-    if (!_canSubmit || _isSubmitting) {
-      _showMessage('예약 정보를 모두 선택해 주세요.');
-      return;
-    }
-
-    final timeParts = _selectedTime!.split(':');
-
-    if (timeParts.length != 2) {
-      _showMessage('진료 시간 형식이 올바르지 않습니다.');
-      return;
-    }
-
-    final hour = int.tryParse(timeParts[0]);
-    final minute = int.tryParse(timeParts[1]);
-
-    if (hour == null || minute == null) {
-      _showMessage('진료 시간 형식이 올바르지 않습니다.');
-      return;
-    }
-
-    final scheduledAt = DateTime(
-      _selectedDate!.year,
-      _selectedDate!.month,
-      _selectedDate!.day,
-      hour,
-      minute,
-    );
-
-    final request = AppointmentCreateRequest(
-      hospitalId: _selectedHospital!.hospitalId,
-      departmentId: _selectedDepartment!.departmentId,
-      doctorId: _selectedDoctor!.doctorId,
-      scheduledAt: scheduledAt,
-    );
-
-    setState(() {
-      _isSubmitting = true;
-    });
-
-    try {
-      await _appointmentRepository.createAppointment(request);
-
-      if (!mounted) {
-        return;
-      }
-
-      await showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) {
-          return AlertDialog(
-            title: const Row(
-              children: [
-                Icon(Icons.check_circle_rounded, color: Color(0xFF2563EB)),
-                SizedBox(width: 8),
-                Text('예약 완료', style: TextStyle(fontWeight: FontWeight.w800)),
-              ],
-            ),
-            content: Text(
-              '${_selectedHospital!.hospitalName}\n'
-              '${_selectedDepartment!.departmentName}\n'
-              '${_selectedDoctor!.doctorName}\n'
-              '${_formatDate(_selectedDate!)} $_selectedTime',
-            ),
-            actions: [
-              FilledButton(
-                onPressed: () {
-                  Navigator.of(dialogContext).pop();
-                },
-                child: const Text('확인'),
-              ),
-            ],
-          );
-        },
-      );
-
-      if (!mounted) {
-        return;
-      }
-
-      Navigator.of(context).pop(true);
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      _showMessage('예약을 완료하지 못했습니다.');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isSubmitting = false;
-        });
-      }
-    }
+    _showMessage('환자용 예약 생성 API와 예약 가능 시간 API가 필요합니다.');
   }
 
   void _showMessage(String message) {
@@ -792,42 +681,11 @@ class _AppointmentCreateScreenState extends State<AppointmentCreateScreen> {
   // 5단계: 시간
   // ============================================================
   Widget _buildTimeStep() {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: appointmentTimeMock.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: 2.1,
-      ),
-      itemBuilder: (context, index) {
-        final time = appointmentTimeMock[index];
-        final selected = _selectedTime == time;
-
-        return OutlinedButton(
-          onPressed: () {
-            _selectTime(time);
-          },
-          style: OutlinedButton.styleFrom(
-            foregroundColor: selected ? Colors.white : const Color(0xFF2563EB),
-            backgroundColor: selected ? const Color(0xFF2563EB) : Colors.white,
-            side: BorderSide(
-              color: selected
-                  ? const Color(0xFF2563EB)
-                  : const Color(0xFFBFDBFE),
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-          ),
-          child: Text(
-            time,
-            style: const TextStyle(fontWeight: FontWeight.w800),
-          ),
-        );
-      },
+    return _EmptyStepCard(
+      icon: Icons.schedule_outlined,
+      message: '환자용 예약 가능 시간 API가 없어 시간을 선택할 수 없습니다.',
+      buttonText: 'API 연결 필요',
+      onPressed: () => _showMessage('예약 가능 시간 API가 필요합니다.'),
     );
   }
 

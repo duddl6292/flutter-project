@@ -1,0 +1,26 @@
+const clinicianTestResultMock = <Map<String, dynamic>>[
+  {
+    'id': 'test-001',
+    'patient_name': '김민준',
+    'patient_number': 'P-20260801',
+    'patient_sex': 'M',
+    'patient_age': 62,
+    'test_name': 'Brain MRI',
+    'tested_at': '2026-08-05T08:30:00+09:00',
+    'status': 'needs_review',
+    'has_abnormal_finding': true,
+    'summary': '좌측 뇌혈관 협착 의심 소견이 확인됩니다.',
+  },
+  {
+    'id': 'test-002',
+    'patient_name': '박서연',
+    'patient_number': 'P-20260718',
+    'patient_sex': 'F',
+    'patient_age': 57,
+    'test_name': '혈액 검사',
+    'tested_at': '2026-08-04T14:10:00+09:00',
+    'status': 'reviewed',
+    'has_abnormal_finding': false,
+    'summary': '주요 수치가 정상 범위입니다.',
+  },
+];

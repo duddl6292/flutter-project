@@ -11,6 +11,16 @@ enum UserRole {
     }
   }
 
+  String get serverValue => name.toUpperCase();
+
+  static UserRole fromApiValue(String value) {
+    return switch (value.toUpperCase()) {
+      'PATIENT' => UserRole.patient,
+      'CLINICIAN' => UserRole.clinician,
+      _ => throw FormatException('Unsupported user role: $value'),
+    };
+  }
+
   String get displayName {
     switch (this) {
       case UserRole.patient:

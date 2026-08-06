@@ -1,30 +1,16 @@
 import 'package:brainon_mobile/core/router/route_names.dart';
-import 'package:brainon_mobile/features/appointment/repositories/appointment_repository.dart';
+import 'package:brainon_mobile/features/appointment/providers/appointment_provider.dart';
 import 'package:brainon_mobile/shared/models/appointment.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-class AppointmentListScreen extends StatefulWidget {
+class AppointmentListScreen extends ConsumerWidget {
   const AppointmentListScreen({super.key});
 
   @override
-  State<AppointmentListScreen> createState() => _AppointmentListScreenState();
-}
-
-class _AppointmentListScreenState extends State<AppointmentListScreen> {
-  final AppointmentRepository _repository = AppointmentRepository();
-
-  late final Future<List<Appointment>> _appointmentsFuture;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _appointmentsFuture = _repository.getAppointments();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final value = ref.watch(patientAppointmentsProvider);
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
       appBar: AppBar(
@@ -42,52 +28,47 @@ class _AppointmentListScreenState extends State<AppointmentListScreen> {
         centerTitle: false,
       ),
       body: SafeArea(
-        child: FutureBuilder<List<Appointment>>(
-          future: _appointmentsFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            if (snapshot.hasError) {
-              return Center(
-                child: Text(
-                  '예약 정보를 불러오지 못했습니다.\n${snapshot.error}',
-                  textAlign: TextAlign.center,
-                ),
-              );
-            }
-
-            final appointments = snapshot.data ?? <Appointment>[];
-
+        child: value.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => Center(
+            child: OutlinedButton.icon(
+              onPressed: () => ref.invalidate(patientAppointmentsProvider),
+              icon: const Icon(Icons.refresh),
+              label: const Text('예약 정보 다시 불러오기'),
+            ),
+          ),
+          data: (appointments) {
             if (appointments.isEmpty) {
               return const Center(child: Text('예정된 진료가 없습니다.'));
             }
-
-            return ListView(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-              children: [
-                const Text(
-                  '다가오는 진료',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF111827),
+            return RefreshIndicator(
+              onRefresh: () => ref.refresh(patientAppointmentsProvider.future),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+                children: [
+                  const Text(
+                    '진료 예약 내역',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF111827),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  '예정된 진료와 검사 일정을 확인하세요.',
-                  style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
-                ),
-                const SizedBox(height: 24),
-                ...appointments.map(
-                  (appointment) => Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: _AppointmentCard(appointment: appointment),
+                  const SizedBox(height: 6),
+                  const Text(
+                    '로그인한 환자의 예약을 확인하세요.',
+                    style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 24),
+                  ...appointments.map(
+                    (appointment) => Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: _AppointmentCard(appointment: appointment),
+                    ),
+                  ),
+                ],
+              ),
             );
           },
         ),

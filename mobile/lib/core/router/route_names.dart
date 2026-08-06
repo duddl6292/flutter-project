@@ -12,9 +12,23 @@ abstract final class RouteNames {
   static const String appointmentCreate = 'appointmentCreate'; //진료예약하기
   static const String patientMain = 'patientMain';
   static const String clinicianHome = 'clinicianHome';
+  static const String clinicianPatientDetail = 'clinicianPatientDetail';
+  static const String clinicianPatientResources = 'clinicianPatientResources';
+  static const String clinicianExaminationDetail = 'clinicianExaminationDetail';
+  static const String clinicianPrescriptionCreate =
+      'clinicianPrescriptionCreate';
+  static const String clinicianPrescriptionDetail =
+      'clinicianPrescriptionDetail';
+  static const String clinicianConsultationCreate =
+      'clinicianConsultationCreate';
+  static const String clinicianConsultationDetail =
+      'clinicianConsultationDetail';
   static const String notificationSettings = 'notification-settings';
   static const String personalInfo = 'personal-info';
-  static const String guardianManagement = 'guardian-management';
   static const String appInfo = 'app-info';
   static const String favoriteHospitals = 'favorite-hospitals';
+  static const String patientTestResultDetail = 'patient-test-result-detail';
+  static const String patientMedicalHistory = 'patient-medical-history';
+  static const String patientMedicalHistoryDetail =
+      'patient-medical-history-detail';
 }

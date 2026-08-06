@@ -1,6 +1,7 @@
 import 'package:brainon_mobile/core/auth/auth_provider.dart';
 import 'package:brainon_mobile/core/router/route_names.dart';
 import 'package:brainon_mobile/features/patient/providers/patient_profile_provider.dart';
+import 'package:brainon_mobile/features/medication/medication_list_screen.dart';
 import 'package:brainon_mobile/shared/models/patient_profile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -199,7 +200,7 @@ class MyPageScreen extends ConsumerWidget {
               title: '진료 내역',
               subtitle: '이전에 받은 진료 기록을 확인해요.',
               onTap: () {
-                _showPreparingMessage(context, '진료 내역');
+                context.pushNamed(RouteNames.patientMedicalHistory);
               },
             ),
             _buildDivider(),
@@ -209,7 +210,11 @@ class MyPageScreen extends ConsumerWidget {
               title: '복약 관리',
               subtitle: '처방약과 복약 일정을 관리해요.',
               onTap: () {
-                _showPreparingMessage(context, '복약 관리');
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const MedicationListScreen(),
+                  ),
+                );
               },
             ),
             _buildDivider(),
@@ -248,17 +253,6 @@ class MyPageScreen extends ConsumerWidget {
               subtitle: '연락처와 개인정보를 확인하고 수정해요.',
               onTap: () {
                 context.pushNamed(RouteNames.personalInfo);
-              },
-            ),
-
-            _buildDivider(),
-            _buildMenuItem(
-              context: context,
-              icon: Icons.family_restroom_rounded,
-              title: '보호자 관리',
-              subtitle: '응급 연락을 위한 보호자 정보를 관리해요.',
-              onTap: () {
-                context.pushNamed(RouteNames.guardianManagement);
               },
             ),
           ],

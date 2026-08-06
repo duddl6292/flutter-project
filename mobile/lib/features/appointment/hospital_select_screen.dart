@@ -1,6 +1,5 @@
 import 'package:brainon_mobile/features/appointment/repositories/hospital_repository.dart';
 import 'package:brainon_mobile/features/patient/providers/favorite_hospitals_provider.dart';
-import 'package:brainon_mobile/shared/mock/recent_hospital_mock.dart';
 import 'package:brainon_mobile/shared/models/hospital.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,7 +13,6 @@ class HospitalSelectScreen extends ConsumerStatefulWidget {
 }
 
 class _HospitalSelectScreenState extends ConsumerState<HospitalSelectScreen> {
-  final HospitalRepository _repository = HospitalRepository();
   final TextEditingController _searchController = TextEditingController();
 
   List<Hospital> _hospitals = [];
@@ -37,7 +35,7 @@ class _HospitalSelectScreenState extends ConsumerState<HospitalSelectScreen> {
 
   Future<void> _loadHospitals() async {
     try {
-      final hospitals = await _repository.getHospitals();
+      final hospitals = await ref.read(hospitalRepositoryProvider).getHospitals();
 
       if (!mounted) {
         return;
@@ -61,18 +59,7 @@ class _HospitalSelectScreenState extends ConsumerState<HospitalSelectScreen> {
   }
 
   List<Hospital> get _recentHospitals {
-    return recentHospitalIdMock
-        .map((hospitalId) {
-          for (final hospital in _hospitals) {
-            if (hospital.hospitalId == hospitalId) {
-              return hospital;
-            }
-          }
-
-          return null;
-        })
-        .whereType<Hospital>()
-        .toList();
+    return const [];
   }
 
   void _selectHospital(Hospital hospital) {
@@ -83,11 +70,11 @@ class _HospitalSelectScreenState extends ConsumerState<HospitalSelectScreen> {
 
   Future<void> _toggleFavorite(Hospital selectedHospital) async {
     try {
-      await ref
-          .read(favoriteHospitalsProvider.notifier)
-          .toggleFavorite(selectedHospital);
+      await toggleFavorite(ref, selectedHospital);
     } on Object {
-      if (mounted) _showMessage('즐겨찾기를 변경하지 못했습니다.');
+      if (mounted) {
+        _showMessage('즐겨찾기를 변경하지 못했습니다.');
+      }
     }
   }
 
@@ -269,16 +256,7 @@ class _HospitalSelectScreenState extends ConsumerState<HospitalSelectScreen> {
                           if (_recentHospitals.isEmpty)
                             const _EmptySection(message: '최근 방문한 병원이 없습니다.')
                           else
-                            ...recentHospitalIdMock
-                                .map(
-                                  (hospitalId) => displayHospitals
-                                      .where(
-                                        (hospital) =>
-                                            hospital.hospitalId == hospitalId,
-                                      )
-                                      .firstOrNull,
-                                )
-                                .whereType<Hospital>()
+                            ..._recentHospitals
                                 .take(3)
                                 .map((hospital) {
                                   return Padding(
