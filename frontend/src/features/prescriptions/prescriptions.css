@@ -412,6 +412,18 @@
   grid-column: span 2;
 }
 
+.prescription-wide-field label {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  font-weight: 400;
+}
+
+.prescription-wide-field input[type='checkbox'] {
+  width: auto;
+  flex: none;
+}
+
 .prescription-create-modal .prescription-field:last-of-type {
   margin-top: 18px;
 }
