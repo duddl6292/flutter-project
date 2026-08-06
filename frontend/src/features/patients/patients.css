@@ -138,6 +138,29 @@
   color: #687086;
 }
 
+.patient-access-scope {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 5px 9px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.patient-access-scope-hospital {
+  background: #edf3ff;
+  color: #315fbd;
+}
+
+.patient-access-scope-consultation {
+  background: #f2edff;
+  color: #6842c2;
+}
+
+.patient-access-scope-admin {
+  background: #fff4dc;
+  color: #986600;
+}
+
 .patient-empty,
 .patient-loading {
   padding: 30px !important;

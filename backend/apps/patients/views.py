@@ -5,6 +5,10 @@ from rest_framework.exceptions import (NotFound, PermissionDenied, ValidationErr
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .access import (
+    accessible_encounters_for_user,
+    accessible_patients_for_user,
+)
 from .models import (Patient, PatientIdentityResolutionLog, ProvisionalIdentity,)
 from .pagination import PatientPagination
 from .permissions import (IsClinician, IsClinicianOrAdmin, IsPatient,)
@@ -920,9 +924,12 @@ class PatientListView(APIView):
             "",
         ).strip().upper()
 
-        patients = Patient.objects.select_related(
-            "user",
-            "merged_into",
+        patients = accessible_patients_for_user(
+            request.user,
+            Patient.objects.select_related(
+                "user",
+                "merged_into",
+            ),
         )
 
         # 기본적으로 통합된 중복 환자는 목록에서 제외합니다.
@@ -967,6 +974,7 @@ class PatientListView(APIView):
         serializer = PatientSummarySerializer(
             page,
             many=True,
+            context={"request": request},
         )
 
         return paginator.get_paginated_response(
@@ -985,18 +993,32 @@ class PatientDetailView(APIView):
 
     def get(self, request, patient_id):
         patient = get_object_or_404(
-            Patient.objects.select_related(
-                "user",
-                "merged_into",
+            accessible_patients_for_user(
+                request.user,
+                Patient.objects.select_related(
+                    "user",
+                    "merged_into",
+                ),
             ),
             id=patient_id,
         )
 
         # 중복 환자가 통합된 경우 최종 정식 환자를 반환합니다.
-        patient = patient.canonical_patient
+        if patient.canonical_patient.id != patient.id:
+            patient = get_object_or_404(
+                accessible_patients_for_user(
+                    request.user,
+                    Patient.objects.select_related(
+                        "user",
+                        "merged_into",
+                    ),
+                ),
+                id=patient.canonical_patient.id,
+            )
 
         serializer = PatientDetailSerializer(
             patient,
+            context={"request": request},
         )
 
         return Response({
@@ -1018,16 +1040,22 @@ class ClinicianPatientMedicalHistoryView(APIView):
 
     def get(self, request, patient_id):
         patient = get_object_or_404(
-            Patient.objects.select_related("merged_into"),
+            accessible_patients_for_user(
+                request.user,
+                Patient.objects.select_related("merged_into"),
+            ),
             id=patient_id,
         ).canonical_patient
-        encounters = (
-            Encounter.objects
-            .filter(
+        encounters = accessible_encounters_for_user(
+            request.user,
+            Encounter.objects.filter(
                 patient=patient,
                 status=Encounter.Status.COMPLETED,
                 clinical_records__isnull=False,
-            )
+            ),
+        )
+        encounters = (
+            encounters
             .select_related(
                 "patient",
                 "provisional_identity",
@@ -1043,11 +1071,6 @@ class ClinicianPatientMedicalHistoryView(APIView):
             )
             .distinct()
         )
-
-        if request.user.role == "CLINICIAN":
-            encounters = encounters.filter(
-                hospital=request.user.clinician.hospital,
-            )
 
         encounters = encounters.order_by(
             "-completed_at",
@@ -1079,7 +1102,11 @@ class PatientAccountClaimIssueView(APIView):
 
     def post(self, request, patient_id):
         patient = get_object_or_404(
-            Patient.objects.select_related("user"),
+            accessible_patients_for_user(
+                request.user,
+                Patient.objects.select_related("user"),
+                include_consultation=False,
+            ),
             id=patient_id,
         )
 

@@ -3,6 +3,7 @@ import {
   BarChart3,
   CalendarDays,
   ChevronLeft,
+  ChevronRight,
   ClipboardCheck,
   FlaskConical,
   Handshake,
@@ -12,6 +13,7 @@ import {
   Stethoscope,
   Users,
 } from 'lucide-react'
+import { useState } from 'react'
 import type {
   LucideIcon,
 } from 'lucide-react'
@@ -68,6 +70,7 @@ NavigationItem[] = [
   {
     label: 'CT 분석',
     icon: ScanLine,
+    path: '/ct-analysis',
   },
   {
     label: '통계·리포트',
@@ -76,12 +79,35 @@ NavigationItem[] = [
   },
 ]
 
+const SIDEBAR_STORAGE_KEY = 'brainon-sidebar-collapsed'
+
+function readInitialCollapsedState(): boolean {
+  try {
+    return localStorage.getItem(SIDEBAR_STORAGE_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
+
 export function DashboardSidebar() {
   const navigate = useNavigate()
   const location = useLocation()
+  const [collapsed, setCollapsed] = useState(readInitialCollapsedState)
+
+  const toggleCollapsed = () => {
+    setCollapsed((current) => {
+      const next = !current
+      try {
+        localStorage.setItem(SIDEBAR_STORAGE_KEY, String(next))
+      } catch {
+        // 저장소를 사용할 수 없어도 현재 화면의 접기 기능은 유지한다.
+      }
+      return next
+    })
+  }
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
       <Link
         className="brand"
         to="/dashboard"
@@ -119,6 +145,8 @@ export function DashboardSidebar() {
                     ? 'active'
                     : ''
                 }`}
+                aria-label={item.label}
+                title={collapsed ? item.label : undefined}
                 onClick={() => {
                   if (item.path) {
                     navigate(item.path)
@@ -150,9 +178,13 @@ export function DashboardSidebar() {
         <button
           className="collapse-button"
           type="button"
+          onClick={toggleCollapsed}
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? '메뉴 펼치기' : '메뉴 접기'}
+          title={collapsed ? '메뉴 펼치기' : '메뉴 접기'}
         >
-          <ChevronLeft size={18} />
-          메뉴 접기
+          {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+          <span>{collapsed ? '메뉴 펼치기' : '메뉴 접기'}</span>
         </button>
 
         <p className="copyright">

@@ -1,4 +1,9 @@
 import {
+  lazy,
+  Suspense,
+} from 'react'
+
+import {
   Navigate,
   Route,
   Routes,
@@ -51,6 +56,19 @@ import {
 import {
   ExaminationPage,
 } from '../../features/examinations/ExaminationPage'
+const CTAnalysisPage = lazy(async () => {
+  const module = await import('../../features/ct-analysis/CTAnalysisPage')
+  return { default: module.CTAnalysisPage }
+})
+
+const CTAnalysisProcessPage = lazy(async () => {
+  const module = await import('../../features/ct-analysis/CTAnalysisProcessPage')
+  return { default: module.CTAnalysisProcessPage }
+})
+
+function CTPageFallback() {
+  return <main style={{ padding: 32 }}>CT 분석 화면을 불러오는 중입니다.</main>
+}
 
 function NotFoundPage() {
   return (
@@ -131,6 +149,9 @@ export function AppRouter() {
           path="/examinations/:examinationId"
           element={<ExaminationPage />}
         />
+        <Route path="/ct-analysis" element={<Suspense fallback={<CTPageFallback />}><CTAnalysisPage /></Suspense>} />
+        <Route path="/ct-analysis/:caseId" element={<Suspense fallback={<CTPageFallback />}><CTAnalysisPage /></Suspense>} />
+        <Route path="/ct-analysis/:caseId/process" element={<Suspense fallback={<CTPageFallback />}><CTAnalysisProcessPage /></Suspense>} />
         <Route
           path="/my-page"
           element={<MyPage />}

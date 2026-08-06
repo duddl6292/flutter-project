@@ -22,15 +22,31 @@ def _error_code(exc: Exception) -> str:
     return "API_ERROR"
 
 
-def _message(data: Any) -> str:
+def _first_message(data: Any) -> str | None:
     if isinstance(data, dict):
-        detail = data.get("detail")
-        if detail is not None:
-            return str(detail)
-        return "요청 값을 확인해 주세요."
-    if isinstance(data, list) and data:
-        return str(data[0])
-    return str(data)
+        if "detail" in data:
+            message = _first_message(data["detail"])
+            if message:
+                return message
+        for value in data.values():
+            message = _first_message(value)
+            if message:
+                return message
+        return None
+    if isinstance(data, (list, tuple)):
+        for value in data:
+            message = _first_message(value)
+            if message:
+                return message
+        return None
+    if data is None:
+        return None
+    message = str(data).strip()
+    return message or None
+
+
+def _message(data: Any) -> str:
+    return _first_message(data) or "요청 값을 확인해 주세요."
 
 
 def api_exception_handler(

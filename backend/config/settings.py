@@ -195,3 +195,58 @@ JWT_REFRESH_COOKIE_NAME = os.getenv(
     "JWT_REFRESH_COOKIE_NAME",
     "brainon_refresh",
 )
+
+FCM_ENABLED = os.getenv(
+    "FCM_ENABLED",
+    "false",
+).lower() == "true"
+FIREBASE_PROJECT_ID = os.getenv(
+    "FIREBASE_PROJECT_ID",
+    "",
+).strip()
+FIREBASE_CREDENTIALS_PATH = os.getenv(
+    "FIREBASE_CREDENTIALS_PATH",
+    "",
+).strip()
+FCM_HTTP_TIMEOUT_SECONDS = int(
+    os.getenv("FCM_HTTP_TIMEOUT_SECONDS", "10")
+)
+
+# CT analysis / Cloud Run inference
+CT_INPUT_BUCKET = os.getenv(
+    "CT_INPUT_BUCKET",
+    "brainon_ct-input_patient",
+).strip()
+CT_INPUT_PREFIX = os.getenv(
+    "CT_INPUT_PREFIX",
+    "uploads",
+).strip().strip("/")
+CT_DATASET_MANIFEST_URI = os.getenv(
+    "CT_DATASET_MANIFEST_URI",
+    (
+        "gs://brainon_ct-input_patient/manifests/"
+        "brainon_ct_verified_manifest_20260805.csv"
+    ),
+).strip()
+CT_INFERENCE_GATEWAY_URL = os.getenv(
+    "CT_INFERENCE_GATEWAY_URL",
+    "http://localhost:8100",
+).strip().rstrip("/")
+CT_INFERENCE_GATEWAY_AUDIENCE = os.getenv(
+    "CT_INFERENCE_GATEWAY_AUDIENCE",
+    "",
+).strip().rstrip("/")
+CT_GATEWAY_USE_GCLOUD_AUTH = os.getenv(
+    "CT_GATEWAY_USE_GCLOUD_AUTH",
+    "false",
+).lower() == "true"
+CT_MODEL_VERSION = os.getenv(
+    "CT_MODEL_VERSION",
+    "1.0.0",
+).strip()
+CT_GATEWAY_TIMEOUT_SECONDS = int(
+    os.getenv("CT_GATEWAY_TIMEOUT_SECONDS", "920")
+)
+CT_MAX_UPLOAD_BYTES = int(
+    os.getenv("CT_MAX_UPLOAD_BYTES", str(512 * 1024 * 1024))
+)

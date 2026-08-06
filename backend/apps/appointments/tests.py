@@ -8,6 +8,7 @@ from rest_framework.test import APITestCase
 from apps.accounts.models import User
 from apps.clinicians.models import Clinician, Department
 from apps.hospitals.models import Hospital
+from apps.notifications.models import Notification
 from apps.patients.models import Patient
 
 from .models import Appointment, Encounter
@@ -72,6 +73,82 @@ class ClinicianEncounterApiTests(APITestCase):
             encounter_type=Encounter.EncounterType.OUTPATIENT,
             status=Encounter.Status.ARRIVED,
             arrived_at=timezone.now(),
+        )
+
+    def test_appointment_create_update_and_cancel_create_notifications(
+        self,
+    ) -> None:
+        scheduled_at = timezone.now() + timedelta(days=2)
+        create_response = self.client.post(
+            "/api/v1/appointments/",
+            {
+                "patient_id": str(self.patient.id),
+                "scheduled_at": scheduled_at.isoformat(),
+                "duration_minutes": 30,
+                "location": "Room 1",
+                "reason": "Follow-up",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            create_response.status_code,
+            status.HTTP_201_CREATED,
+        )
+        appointment_id = create_response.data["data"][
+            "appointment_id"
+        ]
+        self.assertTrue(
+            Notification.objects.filter(
+                recipient=self.user,
+                type=Notification.Type.APPOINTMENT,
+                data__appointment_id=appointment_id,
+                data__event="CREATED",
+            ).exists()
+        )
+
+        update_response = self.client.patch(
+            f"/api/v1/appointments/{appointment_id}/",
+            {
+                "scheduled_at": (
+                    scheduled_at + timedelta(hours=1)
+                ).isoformat(),
+                "duration_minutes": 30,
+                "location": "Room 2",
+                "reason": "Changed schedule",
+            },
+            format="json",
+        )
+        self.assertEqual(
+            update_response.status_code,
+            status.HTTP_200_OK,
+        )
+        self.assertTrue(
+            Notification.objects.filter(
+                recipient=self.user,
+                data__appointment_id=appointment_id,
+                data__event="UPDATED",
+            ).exists()
+        )
+
+        cancel_response = self.client.patch(
+            f"/api/v1/appointments/{appointment_id}/",
+            {
+                "status": Appointment.Status.CANCELLED,
+                "reason": "Patient request",
+            },
+            format="json",
+        )
+        self.assertEqual(
+            cancel_response.status_code,
+            status.HTTP_200_OK,
+        )
+        self.assertTrue(
+            Notification.objects.filter(
+                recipient=self.user,
+                data__appointment_id=appointment_id,
+                data__event="STATUS_CANCELLED",
+            ).exists()
         )
 
     def test_clinician_cannot_register_patient_arrival(

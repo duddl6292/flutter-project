@@ -34,6 +34,7 @@ def notify_consultation(
     title,
     body,
     event,
+    actor_name="",
 ):
     return Notification.objects.create(
         recipient=recipient,
@@ -49,6 +50,7 @@ def notify_consultation(
                 f"{consultation.id}"
             ),
             "event": event,
+            "actor_name": actor_name,
         },
     )
 
@@ -167,6 +169,7 @@ def create_consultation(
             "협진을 요청했습니다."
         ),
         event="REQUESTED",
+        actor_name=requester.name,
     )
 
     return consultation
@@ -252,6 +255,7 @@ def accept_consultation(
             "협진 요청을 수락했습니다."
         ),
         event="ACCEPTED",
+        actor_name=clinician.name,
     )
 
     return consultation
@@ -304,6 +308,7 @@ def add_consultation_message(
         title="새 협진 메시지",
         body=f"{clinician.name}: {content[:80]}",
         event="MESSAGE",
+        actor_name=clinician.name,
     )
 
     return message
@@ -393,6 +398,7 @@ def complete_consultation(
             "최종 협진 답변을 등록했습니다."
         ),
         event="COMPLETED",
+        actor_name=clinician.name,
     )
 
     return consultation
@@ -476,6 +482,7 @@ def cancel_consultation(
             "협진 요청을 취소했습니다."
         ),
         event="CANCELLED",
+        actor_name=clinician.name,
     )
 
     return consultation

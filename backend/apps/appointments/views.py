@@ -31,14 +31,18 @@ from apps.patients.permissions import (
 from .models import Appointment, Encounter
 from .serializers import (
     AppointmentCreateSerializer,
+    AppointmentStatusUpdateSerializer,
     AppointmentSummarySerializer,
+    AppointmentUpdateSerializer,
     EncounterDetailSerializer,
     EncounterListQuerySerializer,
     EncounterStatusSerializer,
     EncounterSummarySerializer,
 )
 from .services import (
+    AppointmentStatusTransitionError,
     EncounterWorkflowError,
+    change_appointment_status,
     change_encounter_status,
 )
 
@@ -178,6 +182,71 @@ class AppointmentListCreateView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+class AppointmentDetailView(APIView):
+    permission_classes = [
+        IsClinicianOrAdmin,
+    ]
+
+    def get_object(self, request, appointment_id):
+        appointments = Appointment.objects.select_related(
+            "patient",
+            "clinician__user",
+            "department",
+            "hospital",
+        )
+        if request.user.role == "CLINICIAN":
+            appointments = appointments.filter(
+                clinician__user=request.user,
+            )
+        return get_object_or_404(
+            appointments,
+            id=appointment_id,
+        )
+
+    @transaction.atomic
+    def patch(self, request, appointment_id):
+        appointment = self.get_object(
+            request,
+            appointment_id,
+        )
+
+        if "status" in request.data:
+            serializer = AppointmentStatusUpdateSerializer(
+                data=request.data,
+            )
+            serializer.is_valid(raise_exception=True)
+            reason = serializer.validated_data.get(
+                "reason",
+                "",
+            )
+            try:
+                appointment = change_appointment_status(
+                    appointment_id=appointment.id,
+                    new_status=serializer.validated_data["status"],
+                    changed_by=request.user,
+                    reason=reason,
+                    cancellation_reason=reason,
+                )
+            except AppointmentStatusTransitionError as exc:
+                raise ValidationError({
+                    "status": str(exc),
+                }) from exc
+        else:
+            serializer = AppointmentUpdateSerializer(
+                appointment,
+                data=request.data,
+                context={"request": request},
+            )
+            serializer.is_valid(raise_exception=True)
+            appointment = serializer.save()
+
+        return Response({
+            "data": AppointmentSummarySerializer(
+                appointment,
+            ).data,
+        })
 
 
 def _clinician_encounters(request):

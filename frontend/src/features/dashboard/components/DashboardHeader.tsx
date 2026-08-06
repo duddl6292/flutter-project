@@ -27,6 +27,10 @@ import {
 } from '../../../core/auth/authStore'
 
 import {
+  WEB_PUSH_NOTIFICATION_EVENT,
+} from '../../../firebase/WebPushManager'
+
+import {
   getNotifications,
   markAllNotificationsAsRead,
   markNotificationAsRead,
@@ -65,6 +69,8 @@ type OpenMenu =
   | 'profile'
   | null
 
+const NOTIFICATION_POLL_INTERVAL_MS = 5_000
+
 function formatNotificationTime(
   value: string,
 ): string {
@@ -102,6 +108,9 @@ export function DashboardHeader({
   const menuAreaRef =
     useRef<HTMLDivElement>(null)
 
+  const notificationRequestInFlightRef =
+    useRef(false)
+
   const [
     openMenu,
     setOpenMenu,
@@ -129,9 +138,16 @@ export function DashboardHeader({
 
   const loadNotifications =
     useCallback(
-      async () => {
-        setNotificationLoading(true)
-        setNotificationError('')
+      async ({ silent = false }: { silent?: boolean } = {}) => {
+        if (notificationRequestInFlightRef.current) {
+          return
+        }
+
+        notificationRequestInFlightRef.current = true
+        if (!silent) {
+          setNotificationLoading(true)
+          setNotificationError('')
+        }
 
         try {
           const response =
@@ -145,13 +161,18 @@ export function DashboardHeader({
             response.meta.unread_count,
           )
         } catch (error) {
-          setNotificationError(
-            error instanceof Error
-              ? error.message
-              : '알림을 불러오지 못했습니다.',
-          )
+          if (!silent) {
+            setNotificationError(
+              error instanceof Error
+                ? error.message
+                : '알림을 불러오지 못했습니다.',
+            )
+          }
         } finally {
-          setNotificationLoading(false)
+          notificationRequestInFlightRef.current = false
+          if (!silent) {
+            setNotificationLoading(false)
+          }
         }
       },
       [],
@@ -163,13 +184,45 @@ export function DashboardHeader({
     const timer =
       window.setInterval(
         () => {
-          void loadNotifications()
+          if (document.visibilityState === 'visible') {
+            void loadNotifications({ silent: true })
+          }
         },
-        60_000,
+        NOTIFICATION_POLL_INTERVAL_MS,
       )
 
-    return () =>
+    const handlePushNotification = () => {
+      void loadNotifications({ silent: true })
+    }
+
+    const handlePageActive = () => {
+      if (document.visibilityState === 'visible') {
+        void loadNotifications({ silent: true })
+      }
+    }
+
+    window.addEventListener(
+      WEB_PUSH_NOTIFICATION_EVENT,
+      handlePushNotification,
+    )
+    window.addEventListener('focus', handlePageActive)
+    document.addEventListener(
+      'visibilitychange',
+      handlePageActive,
+    )
+
+    return () => {
       window.clearInterval(timer)
+      window.removeEventListener(
+        WEB_PUSH_NOTIFICATION_EVENT,
+        handlePushNotification,
+      )
+      window.removeEventListener('focus', handlePageActive)
+      document.removeEventListener(
+        'visibilitychange',
+        handlePageActive,
+      )
+    }
   }, [loadNotifications])
 
   useEffect(() => {

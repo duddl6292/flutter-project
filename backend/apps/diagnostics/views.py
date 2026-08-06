@@ -11,6 +11,7 @@ from apps.clinicians.permissions import (
     IsApprovedClinicianOrAdmin,
 )
 from apps.core.pagination import CommonPageNumberPagination
+from apps.patients.access import active_consultation_grants_for
 from apps.patients.permissions import IsClinician
 
 from .models import (
@@ -30,21 +31,28 @@ from .services import (
 )
 
 
-def clinician_examinations(request):
+def clinician_examinations(
+    request,
+    *,
+    include_consultation=False,
+):
     clinician = request.user.clinician
+    access_filter = (
+        Q(hospital=clinician.hospital)
+        & (
+            Q(ordered_by=clinician)
+            | Q(encounter__attending_clinician=clinician)
+        )
+    )
+    if include_consultation:
+        shared_encounters = active_consultation_grants_for(
+            clinician
+        ).values("encounter_id")
+        access_filter |= Q(encounter_id__in=shared_encounters)
+
     return (
         Examination.objects
-        .filter(
-            hospital=clinician.hospital,
-        )
-        .filter(
-            Q(ordered_by=clinician)
-            | Q(
-                encounter__attending_clinician=(
-                    clinician
-                )
-            )
-        )
+        .filter(access_filter)
         .select_related(
             "patient",
             "encounter",
@@ -75,7 +83,10 @@ class ExaminationListCreateView(APIView):
     ]
 
     def get(self, request):
-        examinations = clinician_examinations(request)
+        examinations = clinician_examinations(
+            request,
+            include_consultation=True,
+        )
         requested_status = (
             request.query_params
             .get("status", "")
@@ -293,7 +304,10 @@ class ExaminationDetailView(APIView):
 
     def get(self, request, examination_id):
         examination = get_object_or_404(
-            clinician_examinations(request),
+            clinician_examinations(
+                request,
+                include_consultation=True,
+            ),
             id=examination_id,
         )
         AuditEvent.objects.create(

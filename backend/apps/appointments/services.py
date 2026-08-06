@@ -9,6 +9,7 @@ from apps.clinicians.models import (
     ClinicianAvailability,
     ClinicianTimeOff,
 )
+from apps.notifications.models import Notification
 
 from .models import (
     Appointment,
@@ -58,6 +59,7 @@ def validate_appointment_slot(
     clinician: Clinician,
     scheduled_at,
     duration_minutes: int,
+    exclude_appointment_id=None,
 ) -> None:
     """근무시간, 휴진 및 기존 예약과의 충돌을 확인한다."""
 
@@ -121,6 +123,11 @@ def validate_appointment_slot(
         )
     )
 
+    if exclude_appointment_id is not None:
+        possible_conflicts = possible_conflicts.exclude(
+            id=exclude_appointment_id,
+        )
+
     for existing in possible_conflicts:
         existing_end = (
             existing.scheduled_at
@@ -131,6 +138,26 @@ def validate_appointment_slot(
             raise AppointmentSchedulingError(
                 "해당 시간에는 이미 다른 예약이 있습니다.",
             )
+
+
+def notify_appointment(
+    *,
+    appointment: Appointment,
+    title: str,
+    body: str,
+    event: str,
+) -> Notification:
+    return Notification.objects.create(
+        recipient=appointment.clinician.user,
+        type=Notification.Type.APPOINTMENT,
+        title=title,
+        body=body,
+        data={
+            "appointment_id": str(appointment.id),
+            "path": "/appointments",
+            "event": event,
+        },
+    )
 
 
 @transaction.atomic
@@ -180,6 +207,70 @@ def create_appointment(
         reason="예약 생성",
     )
 
+    notify_appointment(
+        appointment=appointment,
+        title="새 예약이 등록되었습니다.",
+        body=f"{patient.name} 환자의 예약을 확인해주세요.",
+        event="CREATED",
+    )
+
+    return appointment
+
+
+@transaction.atomic
+def update_appointment(
+    *,
+    appointment_id,
+    changed_by,
+    scheduled_at,
+    duration_minutes: int,
+    location: str = "",
+    reason: str = "",
+) -> Appointment:
+    appointment = (
+        Appointment.objects
+        .select_for_update()
+        .select_related("clinician__user", "patient")
+        .get(id=appointment_id)
+    )
+
+    if appointment.status in {
+        Appointment.Status.COMPLETED,
+        Appointment.Status.CANCELLED,
+        Appointment.Status.NO_SHOW,
+    }:
+        raise AppointmentStatusTransitionError(
+            "완료·취소·미방문 예약은 수정할 수 없습니다."
+        )
+
+    validate_appointment_slot(
+        clinician=appointment.clinician,
+        scheduled_at=scheduled_at,
+        duration_minutes=duration_minutes,
+        exclude_appointment_id=appointment.id,
+    )
+
+    appointment.scheduled_at = scheduled_at
+    appointment.duration_minutes = duration_minutes
+    appointment.location = location
+    appointment.reason = reason
+    appointment.save(
+        update_fields=[
+            "scheduled_at",
+            "duration_minutes",
+            "location",
+            "reason",
+            "updated_at",
+        ],
+    )
+
+    notify_appointment(
+        appointment=appointment,
+        title="예약 정보가 변경되었습니다.",
+        body=f"{appointment.patient.name} 환자의 예약 정보를 확인해주세요.",
+        event="UPDATED",
+    )
+
     return appointment
 
 
@@ -196,6 +287,7 @@ def change_appointment_status(
 
     appointment = (
         Appointment.objects
+        .select_related("clinician__user", "patient")
         .select_for_update()
         .get(id=appointment_id)
     )
@@ -227,6 +319,16 @@ def change_appointment_status(
         new_status=new_status,
         changed_by=changed_by,
         reason=reason,
+    )
+
+    notify_appointment(
+        appointment=appointment,
+        title="예약 상태가 변경되었습니다.",
+        body=(
+            f"{appointment.patient.name} 환자의 예약이 "
+            f"{appointment.get_status_display()} 상태로 변경되었습니다."
+        ),
+        event=f"STATUS_{new_status}",
     )
 
     return appointment

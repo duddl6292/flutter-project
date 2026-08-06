@@ -67,6 +67,18 @@ function statusLabel(
   return labels[status]
 }
 
+function accessScopeLabel(
+  patient: PatientSummary,
+): string {
+  if (patient.access_scope === 'CONSULTATION') {
+    return '협진 공유'
+  }
+  if (patient.access_scope === 'ADMIN') {
+    return '관리자 조회'
+  }
+  return '소속 병원'
+}
+
 function calculateAge(
   birthDate: string | null,
 ): string {
@@ -390,6 +402,7 @@ export function PatientListPage() {
                     <th>나이</th>
                     <th>성별</th>
                     <th>전화번호</th>
+                    <th>구분</th>
                     <th>상태</th>
                   </tr>
                 </thead>
@@ -473,6 +486,18 @@ export function PatientListPage() {
 
                         <td>
                           <span
+                            className={`patient-access-scope patient-access-scope-${(patient.access_scope ?? 'HOSPITAL').toLowerCase()}`}
+                          >
+                            {
+                              accessScopeLabel(
+                                patient,
+                              )
+                            }
+                          </span>
+                        </td>
+
+                        <td>
+                          <span
                             className={`patient-status patient-status-${patient.status.toLowerCase()}`}
                           >
                             {
@@ -491,7 +516,7 @@ export function PatientListPage() {
                     && (
                       <tr>
                         <td
-                          colSpan={7}
+                          colSpan={8}
                           className="patient-empty"
                         >
                           검색 결과가 없습니다.

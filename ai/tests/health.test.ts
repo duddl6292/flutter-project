@@ -4,7 +4,7 @@ import test from 'node:test';
 
 import { createAiHttpServer } from '../src/http/server.js';
 
-test('health works without a Gemini API key', async () => {
+test('health works without a Google Cloud project configuration', async () => {
   const server = createAiHttpServer();
   server.listen(0, '127.0.0.1');
   await once(server, 'listening');

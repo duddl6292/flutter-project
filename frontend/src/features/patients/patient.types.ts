@@ -8,6 +8,11 @@ export type PatientStatus =
   | 'INACTIVE'
   | 'MERGED'
 
+export type PatientAccessScope =
+  | 'HOSPITAL'
+  | 'CONSULTATION'
+  | 'ADMIN'
+
 export interface PatientSummary {
   patient_id: string
 
@@ -24,6 +29,12 @@ export interface PatientSummary {
   phone: string
 
   status: PatientStatus
+
+  access_scope?: PatientAccessScope | null
+
+  shared_consultation_id?: string | null
+
+  access_expires_at?: string | null
 }
 
 export interface PatientListMeta {
