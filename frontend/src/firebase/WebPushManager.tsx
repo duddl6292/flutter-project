@@ -99,7 +99,9 @@ export function WebPushManager() {
   } | null>(null)
 
   const isClinicianSession = Boolean(
-    accessToken && userRole === 'CLINICIAN',
+    accessToken
+    && userRole === 'CLINICIAN'
+    && import.meta.env.PROD,
   )
 
   const enableNotifications = useCallback(
