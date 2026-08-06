@@ -10,7 +10,9 @@ from apps.patients.models import Patient
 from .models import Appointment, Encounter
 from .services import (
     AppointmentSchedulingError,
+    AppointmentStatusTransitionError,
     create_appointment,
+    update_appointment,
 )
 
 
@@ -196,6 +198,56 @@ class AppointmentCreateSerializer(
             raise serializers.ValidationError({
                 exc.field: exc.message,
             }) from exc
+
+
+class AppointmentUpdateSerializer(serializers.Serializer):
+    scheduled_at = serializers.DateTimeField()
+    duration_minutes = serializers.ChoiceField(
+        choices=Appointment.Duration.choices,
+    )
+    location = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=255,
+    )
+    reason = serializers.CharField(
+        required=False,
+        allow_blank=True,
+    )
+
+    def validate_scheduled_at(self, value):
+        if value <= timezone.now():
+            raise serializers.ValidationError(
+                "과거 시간으로 예약할 수 없습니다."
+            )
+        return value
+
+    def update(self, instance, validated_data):
+        request = self.context["request"]
+        try:
+            return update_appointment(
+                appointment_id=instance.id,
+                changed_by=request.user,
+                **validated_data,
+            )
+        except AppointmentSchedulingError as exc:
+            raise serializers.ValidationError({
+                exc.field: exc.message,
+            }) from exc
+        except AppointmentStatusTransitionError as exc:
+            raise serializers.ValidationError({
+                "status": str(exc),
+            }) from exc
+
+
+class AppointmentStatusUpdateSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(
+        choices=Appointment.Status.choices,
+    )
+    reason = serializers.CharField(
+        required=False,
+        allow_blank=True,
+    )
 
 
 class EncounterListQuerySerializer(serializers.Serializer):

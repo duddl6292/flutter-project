@@ -27,7 +27,29 @@ function getServiceWorkerUrl(): string {
   return url.toString()
 }
 
-export async function requestFcmToken():
+export async function registerFirebaseMessagingServiceWorker():
+Promise<ServiceWorkerRegistration> {
+  const registration =
+    await navigator.serviceWorker.register(
+      getServiceWorkerUrl(),
+      {
+        scope: '/',
+        updateViaCache: 'none',
+      },
+    )
+
+  await navigator.serviceWorker.ready
+
+  return registration
+}
+
+interface RequestFcmTokenOptions {
+  requestPermission?: boolean
+}
+
+export async function requestFcmToken({
+  requestPermission = true,
+}: RequestFcmTokenOptions = {}):
 Promise<string | null> {
   try {
     if (!window.isSecureContext) {
@@ -60,8 +82,10 @@ Promise<string | null> {
     const permission =
       Notification.permission === 'granted'
         ? 'granted'
-        : await Notification
-          .requestPermission()
+        : requestPermission
+          ? await Notification
+            .requestPermission()
+          : Notification.permission
 
     if (permission !== 'granted') {
       console.warn(
@@ -81,14 +105,7 @@ Promise<string | null> {
     }
 
     const serviceWorkerRegistration =
-      await navigator.serviceWorker.register(
-        getServiceWorkerUrl(),
-        {
-          scope: '/',
-        },
-      )
-
-    await navigator.serviceWorker.ready
+      await registerFirebaseMessagingServiceWorker()
 
     const token = await getToken(
       messaging,
@@ -103,13 +120,6 @@ Promise<string | null> {
         'FCM 토큰이 발급되지 않았습니다.',
       )
       return null
-    }
-
-    if (import.meta.env.DEV) {
-      console.info(
-        'FCM 토큰 발급 성공:',
-        token,
-      )
     }
 
     return token

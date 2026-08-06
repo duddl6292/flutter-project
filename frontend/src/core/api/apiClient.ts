@@ -85,10 +85,10 @@ Promise<string> {
   }
 }
 
-export async function apiRequest<T>(
+async function requestWithAuth(
   path: string,
   options: RequestOptions = {},
-): Promise<T> {
+): Promise<Response> {
   const {
     retryAfterRefresh = true,
     headers,
@@ -135,7 +135,7 @@ export async function apiRequest<T>(
       `Bearer ${newAccessToken}`,
     )
 
-    return apiRequest<T>(
+    return requestWithAuth(
       path,
       {
         ...requestInit,
@@ -151,9 +151,32 @@ export async function apiRequest<T>(
     )
   }
 
+  return response
+}
+
+export async function apiRequest<T>(
+  path: string,
+  options: RequestOptions = {},
+): Promise<T> {
+  const response = await requestWithAuth(
+    path,
+    options,
+  )
+
   if (response.status === 204) {
     return undefined as T
   }
 
   return await response.json() as T
+}
+
+export async function apiRequestBlob(
+  path: string,
+  options: RequestOptions = {},
+): Promise<Blob> {
+  const response = await requestWithAuth(
+    path,
+    options,
+  )
+  return response.blob()
 }

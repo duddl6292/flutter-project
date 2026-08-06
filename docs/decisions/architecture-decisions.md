@@ -57,8 +57,8 @@
 | Django | 8000 |
 | MOSEC | 8001 |
 | FastAPI Gateway | 8100 |
-| Genkit AI HTTP | 8200 |
-| MCP Server | 8201 |
+| Genkit AI HTTP | 18200 |
+| MCP Server | 18201 |
 | PostgreSQL | 5432 |
 
 ## 의료진 권한

@@ -60,6 +60,44 @@ button {
   background: rgba(249, 249, 255, 0.97);
   padding: 27px 26px 17px;
   backdrop-filter: blur(12px);
+  transition: width 0.22s ease, padding 0.22s ease;
+}
+
+.sidebar.collapsed {
+  width: 76px;
+  padding: 24px 12px 17px;
+}
+
+.sidebar.collapsed .brand {
+  justify-content: center;
+  padding: 4px 0 25px;
+}
+
+.sidebar.collapsed .brand span,
+.sidebar.collapsed .nav-item span,
+.sidebar.collapsed .nav-count,
+.sidebar.collapsed .copyright,
+.sidebar.collapsed .collapse-button span {
+  display: none;
+}
+
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: 0;
+}
+
+.sidebar.collapsed .nav-item:hover {
+  transform: none;
+}
+
+.sidebar.collapsed .collapse-button {
+  width: 50px;
+  margin: 0 auto;
+}
+
+.sidebar.collapsed + .main-area {
+  width: calc(100% - 76px);
+  margin-left: 76px;
 }
 
 .brand {
@@ -203,6 +241,7 @@ button {
 .main-area {
   width: calc(100% - 238px);
   margin-left: 238px;
+  transition: width 0.22s ease, margin-left 0.22s ease;
 }
 
 .topbar {

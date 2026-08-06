@@ -20,6 +20,20 @@ from apps.prescriptions.models import (
 )
 from apps.test_results.models import TestResult
 
+from .access import patient_access_scope
+
+
+def _serialized_access_scope(serializer, patient):
+    request = serializer.context.get("request")
+    if request is not None and request.user.role == "ADMIN":
+        return "ADMIN"
+    return patient_access_scope(patient)
+
+
+def _serialized_consultation_id(patient):
+    value = getattr(patient, "_shared_consultation_id", None)
+    return str(value) if value else None
+
 class PatientSummarySerializer(serializers.ModelSerializer):
     """
     의료진용 환자 목록에서 사용하는 간단한 환자 정보.
@@ -29,6 +43,18 @@ class PatientSummarySerializer(serializers.ModelSerializer):
         source="id",
         read_only=True,
     )
+    access_scope = serializers.SerializerMethodField()
+    shared_consultation_id = serializers.SerializerMethodField()
+    access_expires_at = serializers.SerializerMethodField()
+
+    def get_access_scope(self, obj):
+        return _serialized_access_scope(self, obj)
+
+    def get_shared_consultation_id(self, obj):
+        return _serialized_consultation_id(obj)
+
+    def get_access_expires_at(self, obj):
+        return getattr(obj, "_shared_access_expires_at", None)
 
     class Meta:
         model = Patient
@@ -40,6 +66,9 @@ class PatientSummarySerializer(serializers.ModelSerializer):
             "sex",
             "phone",
             "status",
+            "access_scope",
+            "shared_consultation_id",
+            "access_expires_at",
         ]
 
 
@@ -61,6 +90,18 @@ class PatientDetailSerializer(serializers.ModelSerializer):
         read_only=True,
         allow_null=True,
     )
+    access_scope = serializers.SerializerMethodField()
+    shared_consultation_id = serializers.SerializerMethodField()
+    access_expires_at = serializers.SerializerMethodField()
+
+    def get_access_scope(self, obj):
+        return _serialized_access_scope(self, obj)
+
+    def get_shared_consultation_id(self, obj):
+        return _serialized_consultation_id(obj)
+
+    def get_access_expires_at(self, obj):
+        return getattr(obj, "_shared_access_expires_at", None)
 
     class Meta:
         model = Patient
@@ -80,6 +121,9 @@ class PatientDetailSerializer(serializers.ModelSerializer):
             "merged_into_id",
             "created_at",
             "updated_at",
+            "access_scope",
+            "shared_consultation_id",
+            "access_expires_at",
         ]
 
     def get_user_id(self, obj: Patient) -> str | None:

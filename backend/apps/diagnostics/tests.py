@@ -8,6 +8,10 @@ from apps.accounts.models import User
 from apps.appointments.models import Encounter
 from apps.audit_logs.models import AuditEvent
 from apps.clinicians.models import Clinician, Department
+from apps.consultations.services import (
+    accept_consultation,
+    create_consultation,
+)
 from apps.hospitals.models import Hospital
 from apps.notifications.models import Notification
 from apps.patients.models import Patient
@@ -150,6 +154,14 @@ class ExaminationApiTests(APITestCase):
                 action=AuditEvent.Action.CREATED,
             ).exists()
         )
+        self.assertTrue(
+            Notification.objects.filter(
+                recipient=self.user,
+                type=Notification.Type.TEST_RESULT,
+                data__examination_id=str(examination.id),
+                data__event="REGISTERED",
+            ).exists()
+        )
 
     def test_list_supports_interpretation_and_search_filters(self):
         self.create_result()
@@ -173,6 +185,44 @@ class ExaminationApiTests(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
+    def test_accepted_consultant_can_read_but_not_finalize_result(self):
+        examination = self.create_result()
+        consultation = create_consultation(
+            requester=self.clinician,
+            consultant=self.outsider,
+            encounter=self.encounter,
+            subject="Remote result review",
+            priority="ROUTINE",
+            question="Please review the examination.",
+            due_at=timezone.now() + timedelta(days=1),
+        )
+        accept_consultation(
+            consultation=consultation,
+            clinician=self.outsider,
+        )
+        self.client.force_authenticate(user=self.outsider_user)
+
+        detail_response = self.client.get(
+            f"/api/v1/examinations/{examination.id}/"
+        )
+        self.assertEqual(
+            detail_response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        finalize_response = self.client.post(
+            f"/api/v1/examinations/{examination.id}/finalize/",
+            {
+                "summary": "Should not update",
+                "conclusion": "Read-only consultation",
+            },
+            format="json",
+        )
+        self.assertEqual(
+            finalize_response.status_code,
+            status.HTTP_404_NOT_FOUND,
+        )
+
     def test_finalize_and_release_result(self):
         examination = self.create_result()
         finalize_response = self.client.post(
@@ -191,6 +241,14 @@ class ExaminationApiTests(APITestCase):
         )
         report = DiagnosticReport.objects.get(examination=examination)
         self.assertIsNotNone(report.signed_at)
+        self.assertTrue(
+            Notification.objects.filter(
+                recipient=self.user,
+                type=Notification.Type.TEST_RESULT,
+                data__examination_id=str(examination.id),
+                data__event="FINALIZED",
+            ).exists()
+        )
 
         release_response = self.client.post(
             f"/api/v1/examinations/{examination.id}/release/",

@@ -21,4 +21,4 @@ npm.cmd run dev
 npm.cmd run dev:mcp
 ```
 
-AI HTTP는 8200, MCP 서버는 8201 포트를 사용합니다. 실제 `GEMINI_API_KEY`는 로컬 `.env` 또는 배포 Secret으로만 제공하며 Git에 기록하지 않습니다.
+AI HTTP는 18200, MCP 서버는 18201 포트를 사용합니다. 로컬에서는 Google Cloud ADC를 사용하고, Cloud Run에서는 서비스 계정으로 Vertex AI에 인증합니다.

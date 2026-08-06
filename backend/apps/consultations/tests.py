@@ -27,6 +27,11 @@ class ConsultationApiTests(APITestCase):
             name="Consult Hospital",
             is_active=True,
         )
+        self.consultant_hospital = Hospital.objects.create(
+            hospital_code="CONSULT-REMOTE-HOSPITAL",
+            name="Consult Remote Hospital",
+            is_active=True,
+        )
         self.department = Department.objects.create(
             code="CONSULT-RADIOLOGY",
             name="Consult Radiology",
@@ -52,6 +57,7 @@ class ConsultationApiTests(APITestCase):
             username="510002",
             name="Consultant",
             department=self.other_department,
+            hospital=self.consultant_hospital,
         )
         (
             self.outsider_user,
@@ -60,6 +66,7 @@ class ConsultationApiTests(APITestCase):
             username="510003",
             name="Outsider",
             department=self.other_department,
+            hospital=self.consultant_hospital,
         )
         self.patient = Patient.objects.create(
             medical_record_number="P-CONSULT-001",
@@ -88,6 +95,7 @@ class ConsultationApiTests(APITestCase):
         username,
         name,
         department,
+        hospital=None,
     ):
         user = User.objects.create_user(
             username=username,
@@ -98,7 +106,7 @@ class ConsultationApiTests(APITestCase):
             user=user,
             name=name,
             license_number=username,
-            hospital=self.hospital,
+            hospital=hospital or self.hospital,
             department=department,
             approval_status=(
                 Clinician.ApprovalStatus.APPROVED
@@ -241,6 +249,75 @@ class ConsultationApiTests(APITestCase):
         self.assertIsNotNone(consultation.completed_at)
         self.assertIsNotNone(
             consultation.access_grants.get().revoked_at
+        )
+
+    def test_accepted_consultation_temporarily_shares_patient(self):
+        consultation = self.create_consultation()
+        self.client.force_authenticate(
+            user=self.consultant_user
+        )
+
+        before_accept = self.client.get(
+            "/api/v1/patients/"
+        )
+        self.assertEqual(
+            before_accept.data["meta"]["total_count"],
+            0,
+        )
+        self.assertEqual(
+            self.client.get(
+                f"/api/v1/patients/{self.patient.id}/"
+            ).status_code,
+            status.HTTP_404_NOT_FOUND,
+        )
+
+        accept_response = self.client.post(
+            f"/api/v1/consultations/{consultation.id}/accept/",
+            {},
+            format="json",
+        )
+        self.assertEqual(
+            accept_response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        during_consultation = self.client.get(
+            "/api/v1/patients/"
+        )
+        self.assertEqual(
+            during_consultation.data["meta"]["total_count"],
+            1,
+        )
+        shared_patient = during_consultation.data["data"][0]
+        self.assertEqual(
+            shared_patient["access_scope"],
+            "CONSULTATION",
+        )
+        self.assertEqual(
+            shared_patient["shared_consultation_id"],
+            str(consultation.id),
+        )
+        self.assertEqual(
+            self.client.get(
+                f"/api/v1/patients/{self.patient.id}/"
+            ).status_code,
+            status.HTTP_200_OK,
+        )
+
+        complete_response = self.client.post(
+            f"/api/v1/consultations/{consultation.id}/complete/",
+            {"response": "Consultation complete"},
+            format="json",
+        )
+        self.assertEqual(
+            complete_response.status_code,
+            status.HTTP_200_OK,
+        )
+        self.assertEqual(
+            self.client.get(
+                f"/api/v1/patients/{self.patient.id}/"
+            ).status_code,
+            status.HTTP_404_NOT_FOUND,
         )
 
     def test_requester_can_cancel_consultation(

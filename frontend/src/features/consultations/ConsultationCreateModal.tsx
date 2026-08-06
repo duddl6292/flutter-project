@@ -19,6 +19,21 @@ import type {
   ConsultationPriority,
 } from './consultation.types'
 
+const DUE_AT_MINIMUM_MINUTES = 5
+
+function getMinimumDueAt(): string {
+  const date = new Date(
+    Date.now() + DUE_AT_MINIMUM_MINUTES * 60 * 1000,
+  )
+  date.setSeconds(0, 0)
+  date.setMinutes(date.getMinutes() + 1)
+
+  const localDate = new Date(
+    date.getTime() - date.getTimezoneOffset() * 60 * 1000,
+  )
+  return localDate.toISOString().slice(0, 16)
+}
+
 export function ConsultationCreateModal({
   onClose,
   onCreated,
@@ -38,11 +53,20 @@ export function ConsultationCreateModal({
   const [question, setQuestion] = useState('')
   const [priority, setPriority] = useState<ConsultationPriority>('ROUTINE')
   const [dueAt, setDueAt] = useState('')
+  const [minimumDueAt, setMinimumDueAt] = useState(getMinimumDueAt)
   const [loading, setLoading] = useState(true)
   const [clinicianLoading, setClinicianLoading] =
     useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setMinimumDueAt(getMinimumDueAt())
+    }, 60 * 1000)
+
+    return () => window.clearInterval(intervalId)
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -112,6 +136,11 @@ export function ConsultationCreateModal({
             event.preventDefault()
             if (!encounterId || !consultantId || !subject.trim() || !question.trim()) {
               setError('필수 항목을 모두 입력해주세요.')
+              return
+            }
+            if (dueAt && dueAt < minimumDueAt) {
+              setMinimumDueAt(getMinimumDueAt())
+              setError('답변 희망일은 현재보다 5분 이후로 선택해주세요.')
               return
             }
             setSaving(true)
@@ -253,7 +282,20 @@ export function ConsultationCreateModal({
             </label>
             <label>
               답변 희망일
-              <input type="datetime-local" value={dueAt} onChange={(event) => setDueAt(event.target.value)} />
+              <input
+                type="datetime-local"
+                value={dueAt}
+                min={minimumDueAt}
+                onChange={(event) => {
+                  event.currentTarget.setCustomValidity('')
+                  setDueAt(event.target.value)
+                }}
+                onInvalid={(event) => {
+                  event.currentTarget.setCustomValidity(
+                    '답변 희망일은 현재보다 5분 이후로 선택해주세요.',
+                  )
+                }}
+              />
             </label>
           </div>
 

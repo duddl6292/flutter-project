@@ -2,6 +2,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { type ReactNode, useState } from 'react'
 import { BrowserRouter } from 'react-router-dom'
 
+import {
+  WebPushManager,
+} from '../../firebase/WebPushManager'
+
 export function AppProviders({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
     () =>
@@ -17,7 +21,10 @@ export function AppProviders({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>{children}</BrowserRouter>
+      <BrowserRouter>
+        {children}
+        <WebPushManager />
+      </BrowserRouter>
     </QueryClientProvider>
   )
 }

@@ -20,14 +20,20 @@ function parseUrl(name: string, fallback: string): string {
 }
 
 export const env = {
-  geminiApiKey: process.env.GEMINI_API_KEY?.trim() || null,
+  googleCloudProject:
+    process.env.GOOGLE_CLOUD_PROJECT?.trim() ||
+    process.env.GCLOUD_PROJECT?.trim() ||
+    null,
+  googleCloudLocation:
+    process.env.GOOGLE_CLOUD_LOCATION?.trim() || 'global',
+  aiModel: process.env.AI_MODEL?.trim() || 'gemini-2.5-flash',
   backendInternalUrl: parseUrl(
     'BACKEND_INTERNAL_URL',
     'http://localhost:8000',
   ),
   aiServiceHost: process.env.AI_SERVICE_HOST || '0.0.0.0',
-  aiServicePort: parsePort('AI_SERVICE_PORT', 8200),
+  aiServicePort: parsePort('AI_SERVICE_PORT', 18200),
   mcpServerHost: process.env.MCP_SERVER_HOST || '0.0.0.0',
-  mcpServerPort: parsePort('MCP_SERVER_PORT', 8201),
-  mcpServerUrl: parseUrl('MCP_SERVER_URL', 'http://localhost:8201'),
+  mcpServerPort: parsePort('MCP_SERVER_PORT', 18201),
+  mcpServerUrl: parseUrl('MCP_SERVER_URL', 'http://localhost:18201'),
 } as const;

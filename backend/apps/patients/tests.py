@@ -39,6 +39,39 @@ class PatientApiTests(APITestCase):
             password="Test1234!",
             role="CLINICIAN",
         )
+        self.hospital = Hospital.objects.create(
+            hospital_code="PATIENT-LIST-HOSPITAL",
+            name="Patient List Hospital",
+            is_active=True,
+        )
+        self.department = Department.objects.create(
+            code="PATIENT_LIST_DEPARTMENT",
+            name="Patient List Department",
+            is_active=True,
+        )
+        self.clinician = Clinician.objects.create(
+            user=self.clinician_user,
+            name="Patient List Clinician",
+            license_number="123456",
+            hospital=self.hospital,
+            department=self.department,
+            approval_status=Clinician.ApprovalStatus.APPROVED,
+        )
+        self.encounter = Encounter.objects.create(
+            encounter_number="E-PATIENT-LIST-001",
+            patient=self.patient,
+            department=self.department,
+            hospital=self.hospital,
+            attending_clinician=self.clinician,
+            registered_by=self.clinician_user,
+            encounter_type=Encounter.EncounterType.OUTPATIENT,
+            status=Encounter.Status.IN_PROGRESS,
+        )
+        self.unrelated_patient = Patient.objects.create(
+            medical_record_number="P20260002",
+            name="Unrelated Patient",
+            status=Patient.Status.ACTIVE,
+        )
 
     def test_patient_can_get_own_profile(self):
         self.client.force_authenticate(
@@ -143,6 +176,26 @@ class PatientApiTests(APITestCase):
         self.assertEqual(
             response.data["data"]["patient_id"],
             str(self.patient.id),
+        )
+
+
+    def test_clinician_cannot_access_unrelated_patient_detail(self):
+        self.client.force_authenticate(
+            user=self.clinician_user,
+        )
+
+        response = self.client.get(
+            reverse(
+                "patients:patient-detail",
+                kwargs={
+                    "patient_id": self.unrelated_patient.id,
+                },
+            )
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_404_NOT_FOUND,
         )
 
 

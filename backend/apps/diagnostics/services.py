@@ -17,6 +17,41 @@ from .models import (
 )
 
 
+def notify_examination_clinician(
+    *,
+    examination: Examination,
+    title: str,
+    body: str,
+    event: str,
+) -> Notification | None:
+    recipient = None
+    if (
+        examination.encounter_id
+        and examination.encounter.attending_clinician_id
+    ):
+        recipient = (
+            examination.encounter
+            .attending_clinician.user
+        )
+    elif examination.ordered_by_id:
+        recipient = examination.ordered_by.user
+
+    if recipient is None:
+        return None
+
+    return Notification.objects.create(
+        recipient=recipient,
+        type=Notification.Type.TEST_RESULT,
+        title=title,
+        body=body,
+        data={
+            "examination_id": str(examination.id),
+            "path": f"/examinations/{examination.id}",
+            "event": event,
+        },
+    )
+
+
 @transaction.atomic
 def create_examination_result(
     *,
@@ -84,6 +119,15 @@ def create_examination_result(
         resource_type="examination",
         resource_id=examination.id,
     )
+    notify_examination_clinician(
+        examination=examination,
+        title="검사 결과가 등록되었습니다.",
+        body=(
+            f"{encounter.patient.name} 환자의 "
+            f"{examination.test_name} 결과를 확인해주세요."
+        ),
+        event="REGISTERED",
+    )
     return examination
 
 
@@ -97,6 +141,11 @@ def finalize_examination_result(
 ):
     examination = (
         Examination.objects
+        .select_related(
+            "patient",
+            "encounter__attending_clinician__user",
+            "ordered_by__user",
+        )
         .select_for_update()
         .get(id=examination.id)
     )
@@ -168,6 +217,15 @@ def finalize_examination_result(
         resource_id=report.id,
         metadata={"event": "FINALIZED"},
     )
+    notify_examination_clinician(
+        examination=examination,
+        title="검사 결과가 최종 확정되었습니다.",
+        body=(
+            f"{examination.patient.name} 환자의 "
+            f"{examination.test_name} 최종 결과를 확인해주세요."
+        ),
+        event="FINALIZED",
+    )
     return examination
 
 
@@ -237,6 +295,7 @@ def release_examination_result(
             data={
                 "examination_id": str(examination.id),
                 "path": f"/examinations/{examination.id}",
+                "event": "RELEASED",
             },
         )
 

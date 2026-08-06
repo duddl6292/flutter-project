@@ -37,7 +37,7 @@ export function createAiHttpServer() {
         sendJson(response, 503, {
           error: {
             code: 'AI_NOT_CONFIGURED',
-            message: 'GEMINI_API_KEY is not configured.',
+            message: 'GOOGLE_CLOUD_PROJECT is not configured.',
             details: {},
           },
         });

@@ -1,6 +1,7 @@
-import { googleAI } from '@genkit-ai/google-genai';
+import { vertexAI } from '@genkit-ai/google-genai';
 import { z } from 'genkit/beta';
 
+import { env } from '../config/env.js';
 import { ai, genkitConfigured } from '../genkit.js';
 
 export const assistantFlow = ai.defineFlow(
@@ -15,10 +16,10 @@ export const assistantFlow = ai.defineFlow(
   },
   async ({ message }) => {
     if (!genkitConfigured) {
-      throw new Error('GEMINI_API_KEY is not configured.');
+      throw new Error('GOOGLE_CLOUD_PROJECT is not configured.');
     }
     const response = await ai.generate({
-      model: googleAI.model('gemini-2.5-flash'),
+      model: vertexAI.model(env.aiModel),
       prompt: message,
     });
     return { text: response.text };
