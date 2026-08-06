@@ -1,4 +1,5 @@
 import 'package:brainon_mobile/core/auth/auth_provider.dart';
+import 'package:brainon_mobile/core/config/app_config.dart';
 import 'package:brainon_mobile/core/router/route_names.dart';
 import 'package:brainon_mobile/features/appointment/appointment_create_screen.dart';
 import 'package:brainon_mobile/features/emergency/emergency_guide_screen.dart';
@@ -6,8 +7,8 @@ import 'package:brainon_mobile/features/emergency/repository/emergency_repositor
 import 'package:brainon_mobile/features/home/home_screen.dart';
 import 'package:brainon_mobile/features/medication/medication_list_screen.dart';
 import 'package:brainon_mobile/features/patient/my_page_screen.dart';
+import 'package:brainon_mobile/features/patient/providers/patient_profile_provider.dart';
 import 'package:brainon_mobile/features/patient/test_results/patient_test_result_screen.dart';
-import 'package:brainon_mobile/shared/mock/patient_home_mock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -33,21 +34,13 @@ class _PatientMainScreenState extends ConsumerState<PatientMainScreen> {
   // 4: 마이페이지
   int _selectedIndex = 2;
 
-  // 현재는 Mock 데이터에서 환자 이름을 가져옵니다.
-  // 백엔드 로그인 연결 후에는 로그인 사용자 정보로 교체하면 됩니다.
-  String get _patientName {
-    final patient = patientHomeMock['patient'] as Map<String, dynamic>;
-
-    return patient['name'] as String? ?? '사용자';
-  }
-
   @override
   void initState() {
     super.initState();
 
     _emergencyRepository = HttpEmergencyRepository(
       // Chrome에서 로컬 백엔드를 실행할 때 사용하는 주소입니다.
-      baseUrl: 'http://localhost:8000',
+      baseUrl: AppConfig.apiBaseUrl,
     );
   }
 
@@ -129,10 +122,17 @@ class _PatientMainScreenState extends ConsumerState<PatientMainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final profileAsync = ref.watch(patientProfileProvider);
+    final patientGreeting = profileAsync.when(
+      data: (profile) => '${profile.displayName}님',
+      loading: () => '안녕하세요',
+      error: (error, stackTrace) => '사용자 정보를 불러오지 못했습니다.',
+    );
+
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: const Color(0xFFF6F8FC),
-      drawer: _buildDrawer(),
+      drawer: _buildDrawer(patientGreeting),
       body: IndexedStack(index: _selectedIndex, children: _screens),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
@@ -171,7 +171,7 @@ class _PatientMainScreenState extends ConsumerState<PatientMainScreen> {
     );
   }
 
-  Widget _buildDrawer() {
+  Widget _buildDrawer(String patientGreeting) {
     return Drawer(
       backgroundColor: Colors.white,
       child: SafeArea(
@@ -191,7 +191,7 @@ class _PatientMainScreenState extends ConsumerState<PatientMainScreen> {
                   ),
                   const SizedBox(height: 18),
                   Text(
-                    '$_patientName님',
+                    patientGreeting,
                     style: const TextStyle(
                       color: Color(0xFF111827),
                       fontSize: 20,

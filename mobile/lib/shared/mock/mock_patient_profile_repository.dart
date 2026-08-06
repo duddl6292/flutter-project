@@ -10,7 +10,7 @@ class MockPatientProfileRepository implements PatientProfileRepository {
     await Future<void>.delayed(const Duration(milliseconds: 400));
 
     return const PatientProfile(
-      id: 1,
+      id: '1',
       username: 'patient01',
       role: 'PATIENT',
       name: '김지원',

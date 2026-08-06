@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "662117625246",
-    "project_id": "brainon-cdss",
-    "storage_bucket": "brainon-cdss.firebasestorage.app"
+    "project_number": "654500556535",
+    "project_id": "brainon-4",
+    "storage_bucket": "brainon-4.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:662117625246:android:983e7f7bcd38f7c0e53a8f",
+        "mobilesdk_app_id": "1:654500556535:android:31071061963e2200aaadf2",
         "android_client_info": {
           "package_name": "com.brainon.app"
         }
@@ -15,7 +15,26 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDOJEsV4PxQVgXKh5NSfbhue-NdAFuLIIg"
+          "current_key": "AIzaSyBgZY4GugHw8PkacCK0EkZ15-lLgmvidfI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:654500556535:android:0ba8fbd83ec080dcaaadf2",
+        "android_client_info": {
+          "package_name": "com.brainon.patient"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBgZY4GugHw8PkacCK0EkZ15-lLgmvidfI"
         }
       ],
       "services": {

@@ -1,6 +1,7 @@
 import 'package:brainon_mobile/core/auth/auth_provider.dart';
 import 'package:brainon_mobile/features/auth/user_role.dart';
 import 'package:brainon_mobile/features/clinician/appointments/clinician_schedule_screen.dart';
+import 'package:brainon_mobile/features/clinician/consultations/clinician_consultation_provider.dart';
 import 'package:brainon_mobile/features/clinician/consultations/clinician_consultation_screen.dart';
 import 'package:brainon_mobile/features/clinician/drawer/clinician_drawer.dart';
 import 'package:brainon_mobile/features/clinician/home/clinician_home_screen.dart';
@@ -47,6 +48,14 @@ class _ClinicianMainScreenState extends ConsumerState<ClinicianMainScreen> {
   @override
   Widget build(BuildContext context) {
     final authUser = ref.watch(authProvider).user;
+    final consultationUnreadCount = ref
+        .watch(clinicianConsultationsProvider('all'))
+        .when(
+          data: (items) =>
+              items.fold<int>(0, (total, item) => total + item.unreadCount),
+          loading: () => 0,
+          error: (_, _) => 0,
+        );
 
     final clinician = authUser?.role == UserRole.clinician
         ? authUser?.clinician
@@ -90,43 +99,82 @@ class _ClinicianMainScreenState extends ConsumerState<ClinicianMainScreen> {
       // 하단 탭 화면의 상태를 유지하기 위해 IndexedStack 사용
       body: IndexedStack(index: _selectedIndex, children: screens),
 
-      bottomNavigationBar: NavigationBar(
-        height: 72,
-        backgroundColor: Colors.white,
-        indicatorColor: const Color(0xFFDCEBFF),
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: _selectTab,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.people_alt_outlined),
-            selectedIcon: Icon(Icons.people_alt_rounded),
-            label: '환자',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.calendar_month_outlined),
-            selectedIcon: Icon(Icons.calendar_month_rounded),
-            label: '일정',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home_rounded),
-            label: '홈',
-          ),
-          NavigationDestination(
-            icon: Badge(label: Text('2'), child: Icon(Icons.groups_2_outlined)),
-            selectedIcon: Badge(
-              label: Text('2'),
-              child: Icon(Icons.groups_2_rounded),
+      bottomNavigationBar: DecoratedBox(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Color(0x14172033),
+              blurRadius: 18,
+              offset: Offset(0, -4),
             ),
-            label: '협진',
+          ],
+        ),
+        child: NavigationBarTheme(
+          data: NavigationBarThemeData(
+            labelTextStyle: WidgetStateProperty.resolveWith((states) {
+              return TextStyle(
+                color: states.contains(WidgetState.selected)
+                    ? const Color(0xFF245EA8)
+                    : const Color(0xFF5F6878),
+                fontSize: 12,
+                fontWeight: states.contains(WidgetState.selected)
+                    ? FontWeight.w800
+                    : FontWeight.w600,
+              );
+            }),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline_rounded),
-            selectedIcon: Icon(Icons.person_rounded),
-            label: '마이',
+          child: NavigationBar(
+            height: 72,
+            elevation: 0,
+            backgroundColor: Colors.white,
+            indicatorColor: const Color(0xFFDCEBFF),
+            selectedIndex: _selectedIndex,
+            onDestinationSelected: _selectTab,
+            destinations: [
+              const NavigationDestination(
+                icon: Icon(Icons.people_alt_outlined),
+                selectedIcon: Icon(Icons.people_alt_rounded),
+                label: '환자',
+              ),
+              const NavigationDestination(
+                icon: Icon(Icons.calendar_month_outlined),
+                selectedIcon: Icon(Icons.calendar_month_rounded),
+                label: '일정',
+              ),
+              const NavigationDestination(
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home_rounded),
+                label: '홈',
+              ),
+              NavigationDestination(
+                icon: _consultationIcon(
+                  Icons.groups_2_outlined,
+                  consultationUnreadCount,
+                ),
+                selectedIcon: _consultationIcon(
+                  Icons.groups_2_rounded,
+                  consultationUnreadCount,
+                ),
+                label: '협진',
+              ),
+              const NavigationDestination(
+                icon: Icon(Icons.person_outline_rounded),
+                selectedIcon: Icon(Icons.person_rounded),
+                label: '마이',
+              ),
+            ],
           ),
-        ],
+        ),
       ),
+    );
+  }
+
+  Widget _consultationIcon(IconData icon, int unreadCount) {
+    return Badge(
+      isLabelVisible: unreadCount > 0,
+      label: Text('$unreadCount'),
+      child: Icon(icon),
     );
   }
 }

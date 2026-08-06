@@ -274,16 +274,28 @@ class _EmergencyGuideScreenState extends State<EmergencyGuideScreen> {
   }
 
   Widget _buildFastSection() {
-    return const Text(
-      'F.A.S.T. 뇌졸중 대표 증상\n'
-      'F: 얼굴 처짐 · A: 한쪽 팔 힘 빠짐 · '
-      'S: 말 어눌함 · T: 즉시 119',
-      style: TextStyle(
-        color: textColor,
-        fontSize: 16,
-        fontWeight: FontWeight.w800,
-        height: 1.6,
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'F.A.S.T. 뇌졸중 대표 증상',
+          style: TextStyle(
+            color: textColor,
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            height: 1.6,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Image.asset(
+            'assets/images/fast.png',
+            width: double.infinity,
+            fit: BoxFit.contain,
+          ),
+        ),
+      ],
     );
   }
 

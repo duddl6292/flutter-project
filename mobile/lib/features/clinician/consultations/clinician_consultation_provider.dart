@@ -23,3 +23,17 @@ final consultationCliniciansProvider =
       (ref) =>
           ref.watch(clinicianConsultationRepositoryProvider).fetchClinicians(),
     );
+
+final clinicianConsultationUnreadCountProvider =
+    Provider<AsyncValue<int>>((ref) {
+  final consultations = ref.watch(
+    clinicianConsultationsProvider('received'),
+  );
+
+  return consultations.whenData(
+    (items) => items.fold<int>(
+      0,
+      (total, item) => total + item.unreadCount,
+    ),
+  );
+});

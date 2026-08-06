@@ -1,6 +1,7 @@
 import 'package:brainon_mobile/core/router/route_names.dart';
 import 'package:brainon_mobile/features/medication/providers/medication_provider.dart';
 import 'package:brainon_mobile/features/medication/medication_list_screen.dart';
+import 'package:brainon_mobile/features/patient/providers/patient_profile_provider.dart';
 import 'package:brainon_mobile/shared/models/medication.dart';
 import 'package:brainon_mobile/shared/mock/patient_home_mock.dart';
 import 'package:flutter/material.dart';
@@ -32,6 +33,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final patient = patientHomeMock['patient'] as Map<String, dynamic>;
+    final profileAsync = ref.watch(patientProfileProvider);
+    final patientName = profileAsync.when<String?>(
+      data: (profile) => profile.displayName,
+      loading: () => null,
+      error: (error, stackTrace) => null,
+    );
 
     final nextAppointment =
         patientHomeMock['next_appointment'] as Map<String, dynamic>;
@@ -63,7 +70,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildGreetingSection(
-                          patientName: patient['name'] as String,
+                          patientName: patientName,
+                          profileLoadFailed: profileAsync.hasError,
                         ),
 
                         const SizedBox(height: 24),
@@ -180,12 +188,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // ============================================================
   // 인사말
   // ============================================================
-  Widget _buildGreetingSection({required String patientName}) {
+  Widget _buildGreetingSection({
+    required String? patientName,
+    required bool profileLoadFailed,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '안녕하세요, $patientName님!',
+          patientName == null ? '안녕하세요!' : '안녕하세요, $patientName님!',
           style: const TextStyle(
             color: textColor,
             fontSize: 25,
@@ -194,9 +205,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
         const SizedBox(height: 6),
-        const Text(
-          '오늘도 건강한 하루 되세요.',
-          style: TextStyle(color: subTextColor, fontSize: 16),
+        Text(
+          profileLoadFailed ? '사용자 정보를 불러오지 못했습니다.' : '오늘도 건강한 하루 되세요.',
+          style: const TextStyle(color: subTextColor, fontSize: 16),
         ),
       ],
     );
@@ -536,11 +547,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             padding: const EdgeInsets.all(18),
             child: Row(
               children: [
-                const Icon(Icons.calendar_today_outlined, color: Color(0xFF1E3A5F)),
+                const Icon(
+                  Icons.calendar_today_outlined,
+                  color: Color(0xFF1E3A5F),
+                ),
                 const SizedBox(width: 10),
-                const Expanded(child: Text('오늘의 복약', style: TextStyle(color: textColor, fontSize: 20, fontWeight: FontWeight.w800))),
+                const Expanded(
+                  child: Text(
+                    '오늘의 복약',
+                    style: TextStyle(
+                      color: textColor,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
                 TextButton(
-                  onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const MedicationListScreen())),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const MedicationListScreen(),
+                    ),
+                  ),
                   child: const Text('전체보기'),
                 ),
               ],
@@ -548,16 +575,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
           const Divider(height: 1, color: Color(0xFFE5E7EB)),
           value.when(
-            loading: () => const Padding(padding: EdgeInsets.all(28), child: CircularProgressIndicator()),
-            error: (_, _) => TextButton.icon(onPressed: () => ref.invalidate(todayMedicationsProvider), icon: const Icon(Icons.refresh), label: const Text('복약 정보 다시 불러오기')),
-            data: (items) => Column(children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                child: Align(alignment: Alignment.centerLeft, child: Text('${items.where((item) => item.completed).length}/${items.length} 완료')),
-              ),
-              if (items.isEmpty) const Padding(padding: EdgeInsets.all(24), child: Text('오늘 예정된 복약 일정이 없습니다.')),
-              for (final item in items) _buildMedicationItem(item),
-            ]),
+            loading: () => const Padding(
+              padding: EdgeInsets.all(28),
+              child: CircularProgressIndicator(),
+            ),
+            error: (_, _) => TextButton.icon(
+              onPressed: () => ref.invalidate(todayMedicationsProvider),
+              icon: const Icon(Icons.refresh),
+              label: const Text('복약 정보 다시 불러오기'),
+            ),
+            data: (items) => Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 10,
+                  ),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      '${items.where((item) => item.completed).length}/${items.length} 완료',
+                    ),
+                  ),
+                ),
+                if (items.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Text('오늘 예정된 복약 일정이 없습니다.'),
+                  ),
+                for (final item in items) _buildMedicationItem(item),
+              ],
+            ),
           ),
         ],
       ),
@@ -565,7 +613,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildMedicationItem(Medication item) {
-    final time = '${item.scheduledAt.hour.toString().padLeft(2, '0')}:${item.scheduledAt.minute.toString().padLeft(2, '0')}';
+    final time =
+        '${item.scheduledAt.hour.toString().padLeft(2, '0')}:${item.scheduledAt.minute.toString().padLeft(2, '0')}';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       decoration: const BoxDecoration(
@@ -580,7 +629,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               color: const Color(0xFFEAF2FF),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(Icons.medication_outlined, color: primaryColor, size: 31),
+            child: const Icon(
+              Icons.medication_outlined,
+              color: primaryColor,
+              size: 31,
+            ),
           ),
 
           const SizedBox(width: 14),

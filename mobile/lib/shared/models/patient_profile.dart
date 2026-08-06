@@ -2,21 +2,36 @@ class PatientProfile {
   const PatientProfile({
     required this.id,
     required this.username,
-    required this.role,
+    this.userId,
+    this.role,
     this.name,
     this.email,
     this.phone,
     this.patientNumber,
+    this.birthDate,
+    this.sex,
+    this.emergencyContact,
+    this.address,
+    this.status,
   });
 
-  final int id;
+  /// 환자 프로필 UUID (`patient_id`).
+  final String id;
+
+  /// 환자 프로필에 연결된 로그인 계정 UUID (`user_id`).
+  final String? userId;
   final String username;
-  final String role;
+  final String? role;
 
   final String? name;
   final String? email;
   final String? phone;
   final String? patientNumber;
+  final DateTime? birthDate;
+  final String? sex;
+  final String? emergencyContact;
+  final String? address;
+  final String? status;
 
   /// 화면에서 표시할 사용자 이름
   ///
@@ -33,7 +48,9 @@ class PatientProfile {
 
   /// 화면에서 표시할 역할
   String get displayRole {
-    switch (role.toUpperCase()) {
+    final normalizedRole = role?.trim().toUpperCase();
+
+    switch (normalizedRole) {
       case 'PATIENT':
         return '환자';
       case 'CLINICIAN':
@@ -41,30 +58,53 @@ class PatientProfile {
       case 'ADMIN':
         return '관리자';
       default:
-        return role;
+        return role?.trim() ?? '';
     }
   }
 
   factory PatientProfile.fromJson(Map<String, dynamic> json) {
     return PatientProfile(
-      id: _parseInt(json['id']),
+      id: _parseString(json['patient_id'] ?? json['id']),
+      userId: _parseNullableString(json['user_id']),
       username: _parseString(json['username']),
-      role: _parseString(json['role']),
+      role: _parseNullableString(json['role']),
       name: _parseNullableString(json['name'] ?? json['full_name']),
       email: _parseNullableString(json['email']),
       phone: _parseNullableString(json['phone'] ?? json['phone_number']),
       patientNumber: _parseNullableString(
-        json['patient_number'] ?? json['patient_no'],
+        json['medical_record_number'] ??
+            json['patient_number'] ??
+            json['patient_no'],
       ),
+      birthDate: _parseNullableDate(json['birth_date']),
+      sex: _parseNullableString(json['sex']),
+      emergencyContact: _parseNullableString(json['emergency_contact']),
+      address: _parseNullableString(json['address']),
+      status: _parseNullableString(json['status']),
     );
   }
 
-  static int _parseInt(dynamic value) {
-    if (value is int) {
-      return value;
-    }
-
-    return int.tryParse(value?.toString() ?? '') ?? 0;
+  PatientProfile copyWith({
+    String? userId,
+    String? username,
+    String? role,
+    String? email,
+  }) {
+    return PatientProfile(
+      id: id,
+      userId: userId ?? this.userId,
+      username: username ?? this.username,
+      role: role ?? this.role,
+      name: name,
+      email: email ?? this.email,
+      phone: phone,
+      patientNumber: patientNumber,
+      birthDate: birthDate,
+      sex: sex,
+      emergencyContact: emergencyContact,
+      address: address,
+      status: status,
+    );
   }
 
   static String _parseString(dynamic value) {
@@ -79,5 +119,11 @@ class PatientProfile {
     }
 
     return parsed;
+  }
+
+  static DateTime? _parseNullableDate(dynamic value) {
+    final parsed = _parseNullableString(value);
+
+    return parsed == null ? null : DateTime.tryParse(parsed);
   }
 }

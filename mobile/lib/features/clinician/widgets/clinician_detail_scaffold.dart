@@ -1,4 +1,5 @@
 import 'package:brainon_mobile/features/clinician/widgets/clinician_tab_header.dart';
+import 'package:brainon_mobile/features/clinician/widgets/clinician_ui.dart';
 import 'package:flutter/material.dart';
 
 class ClinicianDetailScaffold extends StatelessWidget {
@@ -13,7 +14,7 @@ class ClinicianDetailScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F8FC),
+      backgroundColor: ClinicianUiColors.background,
       body: SafeArea(
         child: Column(
           children: [

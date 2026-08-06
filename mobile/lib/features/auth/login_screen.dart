@@ -33,8 +33,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   //
   // 실제 Django 로그인 API 연결이 완료되면 false로 변경한다.
   // ============================================================
-  static const bool _enableDevelopmentLoginBypass = true;
-  // ============================================================
+  static const bool _enableDevelopmentLoginBypass = false;
+  // ============================================================;
   // Form 및 입력 Controller
   // ============================================================
 
@@ -291,10 +291,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 // 의료진 전용 입력 필드
                 // ==================================================
                 if (_isClinician) ...[
-                  _buildDepartmentField(),
+                  _buildHospitalSearchField(),
                   const SizedBox(height: 20),
 
-                  _buildHospitalSearchField(),
+                  _buildDepartmentField(),
                   const SizedBox(height: 20),
 
                   _buildLicenseNumberField(),
@@ -344,8 +344,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 if (!_isClinician) ...[
                   const SizedBox(height: 12),
 
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       const Text(
                         '계정이 없으신가요?',

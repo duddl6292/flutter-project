@@ -31,4 +31,5 @@ abstract final class RouteNames {
   static const String patientMedicalHistory = 'patient-medical-history';
   static const String patientMedicalHistoryDetail =
       'patient-medical-history-detail';
+  static const String loading = 'loading';
 }
