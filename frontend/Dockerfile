@@ -27,6 +27,14 @@ ENV VITE_API_BASE_URL=${VITE_API_BASE_URL} \
     VITE_FIREBASE_MEASUREMENT_ID=${VITE_FIREBASE_MEASUREMENT_ID} \
     VITE_FIREBASE_VAPID_KEY=${VITE_FIREBASE_VAPID_KEY}
 
+# 필수 빌드 인자가 없으면 배포 전에 실패
+RUN test -n "$VITE_API_BASE_URL" \
+    && test -n "$VITE_FIREBASE_API_KEY" \
+    && test -n "$VITE_FIREBASE_AUTH_DOMAIN" \
+    && test -n "$VITE_FIREBASE_PROJECT_ID" \
+    && test -n "$VITE_FIREBASE_MESSAGING_SENDER_ID" \
+    && test -n "$VITE_FIREBASE_APP_ID" \
+    && test -n "$VITE_FIREBASE_VAPID_KEY"
 
 RUN npm run build
 
